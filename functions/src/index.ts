@@ -7,11 +7,13 @@ const firestore = admin.firestore();
 
 const packageName = "com.webtech.kamuskorea";
 
+interface PurchaseData {
+  purchaseToken: string;
+  productId: string;
+}
+
 export const verifyPurchase = functions.https.onCall(
-  async (
-    data: { purchaseToken: string; productId: string },
-    context
-  ): Promise<{ status: string }> => {
+  async (data: PurchaseData, context: functions.https.CallableContext): Promise<{ status: string }> => {
     if (!context.auth) {
       throw new functions.https.HttpsError(
         "unauthenticated",
