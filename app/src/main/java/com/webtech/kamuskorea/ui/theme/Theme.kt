@@ -17,9 +17,9 @@ import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
     primary = DarkPrimary,
-    onPrimary = DarkOnPrimary,
-    primaryContainer = DarkPrimaryContainer,
-    onPrimaryContainer = DarkOnPrimaryContainer
+    onPrimary = LightOnPrimary, // Corrected for better contrast
+    primaryContainer = LightPrimaryContainer,
+    onPrimaryContainer = LightOnPrimaryContainer
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -32,7 +32,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun KamusKoreaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color diaktifkan secara default untuk Android 12+
+    // Dynamic color is enabled by default for Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
@@ -55,7 +55,8 @@ fun KamusKoreaTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        // CORRECTED: Use AppTypography from your Typography.kt file
+        typography = AppTypography,
         content = content
     )
 }

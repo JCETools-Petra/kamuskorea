@@ -4,19 +4,31 @@ import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -27,9 +39,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.webtech.kamuskorea.ui.navigation.Screen
-import com.webtech.kamuskorea.ui.screens.*
+import com.webtech.kamuskorea.ui.screens.DictionaryScreen
+import com.webtech.kamuskorea.ui.screens.EbookScreen
+import com.webtech.kamuskorea.ui.screens.MemorizationScreen
+import com.webtech.kamuskorea.ui.screens.QuizScreen
 import com.webtech.kamuskorea.ui.screens.auth.LoginScreen
 import com.webtech.kamuskorea.ui.screens.auth.RegisterScreen
 import com.webtech.kamuskorea.ui.screens.profile.ProfileScreen
@@ -56,7 +73,7 @@ data class NavItem(
     val screen: Screen
 )
 
-@ExperimentalMaterial3Api
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainApp() {
     val navController = rememberNavController()
@@ -79,13 +96,12 @@ fun MainApp() {
                 Screen.Ebook.route -> "E-Book"
                 Screen.Quiz.route -> "Latihan"
                 Screen.Memorization.route -> "Hafalan"
-                Screen.Profile.route -> "Edit Profil" // Judul diubah
+                Screen.Profile.route -> "Profil & Langganan"
                 else -> "Kamus Korea"
             }
         }
     }
 
-    // "Profil" dihapus dari menu utama karena sudah ada di header
     val menuItems = listOf(
         NavItem("Kamus", Icons.Default.MenuBook, Screen.Dictionary),
         NavItem("E-Book", Icons.Default.AutoStories, Screen.Ebook),
@@ -102,31 +118,29 @@ fun MainApp() {
         gesturesEnabled = !isAuthScreen,
         drawerContent = {
             ModalDrawerSheet {
-                // --- HEADER PROFIL BARU ---
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Gambar profil dari akun Google
                     AsyncImage(
                         model = firebaseAuth.currentUser?.photoUrl,
                         contentDescription = "Foto Profil",
                         modifier = Modifier
                             .size(80.dp)
                             .clip(CircleShape),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = R.drawable.ic_default_profile),
+                        error = painterResource(id = R.drawable.ic_default_profile)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    // Nama pengguna
                     Text(
                         text = firebaseAuth.currentUser?.displayName ?: "Pengguna",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    // Tombol "Edit Profil"
                     TextButton(onClick = {
                         scope.launch { drawerState.close() }
                         navController.navigate(Screen.Profile.route)
@@ -134,10 +148,8 @@ fun MainApp() {
                         Text("Edit Profil & Langganan")
                     }
                 }
-                Divider() // Garis pemisah
-                // --- AKHIR HEADER PROFIL ---
+                Divider()
 
-                // Menu navigasi utama
                 menuItems.forEach { item ->
                     NavigationDrawerItem(
                         icon = { Icon(item.icon, contentDescription = item.label) },
@@ -155,18 +167,19 @@ fun MainApp() {
                     )
                 }
 
-                // Spacer untuk mendorong logout ke bawah
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Tombol Logout di bagian bawah
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Logout, contentDescription = "Logout") },
                     label = { Text("Logout") },
                     selected = false,
                     onClick = {
                         scope.launch { drawerState.close() }
-                        firebaseAuth.signOut()
-                        navController.navigate(Screen.Login.route) { popUpTo(0) }
+                        val googleSignInClient = GoogleSignIn.getClient(application, GoogleSignInOptions.DEFAULT_SIGN_IN)
+                        googleSignInClient.signOut().addOnCompleteListener {
+                            firebaseAuth.signOut()
+                            navController.navigate(Screen.Login.route) { popUpTo(0) }
+                        }
                     },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
@@ -193,21 +206,33 @@ fun MainApp() {
                 startDestination = startDestination,
                 modifier = Modifier.padding(innerPadding)
             ) {
-                // Halaman Otentikasi
-                composable(route = Screen.Login.route) { /* ... (kode login tidak berubah) */ }
-                composable(route = Screen.Register.route) { /* ... (kode register tidak berubah) */ }
+                composable(route = Screen.Login.route) {
+                    LoginScreen(
+                        onLoginSuccess = { navController.navigate(Screen.Dictionary.route) { popUpTo(Screen.Login.route) { inclusive = true } } },
+                        onNavigateToRegister = { navController.navigate(Screen.Register.route) }
+                    )
+                }
+                composable(route = Screen.Register.route) {
+                    RegisterScreen(
+                        onNavigateToLogin = { navController.popBackStack() }
+                    )
+                }
 
-                // Halaman Utama Aplikasi
                 composable(Screen.Dictionary.route) { DictionaryScreen() }
                 composable(Screen.Ebook.route) { EbookScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
                 composable(Screen.Memorization.route) { MemorizationScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
                 composable(Screen.Quiz.route) { QuizScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
 
-                // Halaman Profile sekarang berfungsi sebagai 'Edit Profile'
                 composable(Screen.Profile.route) {
                     ProfileScreen(
-                        onLogout = { /* Logout sekarang ditangani di drawer */ },
-                        viewModel = profileViewModel
+                        viewModel = profileViewModel,
+                        onLogout = {
+                            val googleSignInClient = GoogleSignIn.getClient(application, GoogleSignInOptions.DEFAULT_SIGN_IN)
+                            googleSignInClient.signOut().addOnCompleteListener {
+                                firebaseAuth.signOut()
+                                navController.navigate(Screen.Login.route) { popUpTo(0) }
+                            }
+                        }
                     )
                 }
             }

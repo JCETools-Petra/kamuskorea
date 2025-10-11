@@ -3,6 +3,8 @@ package com.webtech.kamuskorea.ui.screens.auth
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -12,7 +14,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun RegisterScreen(
-    // onRegisterSuccess tidak lagi dibutuhkan karena navigasi ditangani secara berbeda
     onNavigateToLogin: () -> Unit,
     authViewModel: AuthViewModel = viewModel()
 ) {
@@ -25,7 +26,6 @@ fun RegisterScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Tampilkan pesan sukses jika registrasi berhasil
         if (authState is AuthState.RegistrationSuccess) {
             Text("Pendaftaran Berhasil!", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(16.dp))
@@ -36,12 +36,11 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(24.dp))
             Button(onClick = {
                 authViewModel.resetAuthState()
-                onNavigateToLogin() // Arahkan ke halaman login
+                onNavigateToLogin()
             }) {
                 Text("Kembali ke Login")
             }
         } else {
-            // Tampilan form pendaftaran
             Text("Daftar Akun Baru", style = MaterialTheme.typography.headlineMedium)
             Spacer(modifier = Modifier.height(32.dp))
 
