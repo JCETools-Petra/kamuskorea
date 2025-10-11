@@ -2,10 +2,14 @@ package com.webtech.kamuskorea.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Palet Warna untuk Tema Terang (Light)
+val LightPrimary = Color(0xFF005AC1) // Biru Tua
+val LightOnPrimary = Color(0xFFFFFFFF)
+val LightPrimaryContainer = Color(0xFFD8E2FF)
+val LightOnPrimaryContainer = Color(0xFF001A41)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Palet Warna untuk Tema Gelap (Dark)
+val DarkPrimary = Color(0xFFADC6FF) // Biru Terang
+val DarkOnPrimary = Color(0xFF002E69)
+val DarkPrimaryContainer = Color(0xFF004494)
+val DarkOnPrimaryContainer = Color(0xFFD8E2FF)

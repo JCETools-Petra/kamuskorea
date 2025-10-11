@@ -99,4 +99,5 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     // Untuk memanggil Cloud Functions
     implementation("com.google.firebase:firebase-functions")
+    implementation("io.coil-kt:coil-compose:2.6.0")
 }

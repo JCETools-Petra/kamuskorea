@@ -14,10 +14,8 @@ import kotlinx.coroutines.launch
 
 class BillingClientWrapper(
     private val context: Context,
-    private val onPurchaseVerified: (purchaseToken: String, productId: String) -> Unit,
-    private val productId: String = "1probulanan"
+    private val productId: String = "langganan_pro_bulanan"
 ) {
-    // TAG untuk mempermudah filter di Logcat
     private val TAG = "BillingClientWrapper"
 
     private lateinit var billingClient: BillingClient
@@ -26,8 +24,10 @@ class BillingClientWrapper(
     private val _productDetails = MutableStateFlow<ProductDetails?>(null)
     val productDetails = _productDetails.asStateFlow()
 
+    // --- KEMBALIKAN STATE INI ---
     private val _hasActiveSubscription = MutableStateFlow(false)
     val hasActiveSubscription = _hasActiveSubscription.asStateFlow()
+    // ---
 
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
@@ -47,24 +47,20 @@ class BillingClientWrapper(
 
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
-                Log.d(TAG, "onBillingSetupFinished. Response code: ${billingResult.responseCode}, Message: ${billingResult.debugMessage}")
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    Log.d(TAG, "Billing Client setup successful. Querying products...")
                     queryProductDetails()
-                    queryPurchases()
-                } else {
-                    Log.e(TAG, "Billing Client setup failed!")
+                    queryPurchases() // <-- KEMBALIKAN FUNGSI INI
                 }
             }
 
             override fun onBillingServiceDisconnected() {
-                Log.w(TAG, "onBillingServiceDisconnected. Retrying...")
                 initialize()
             }
         })
     }
 
     private fun queryProductDetails() {
+        // ... (Fungsi ini tidak berubah)
         val params = QueryProductDetailsParams.newBuilder()
             .setProductList(
                 listOf(
@@ -78,20 +74,14 @@ class BillingClientWrapper(
 
         coroutineScope.launch {
             val result = billingClient.queryProductDetails(params)
-            Log.d(TAG, "queryProductDetails finished. Response code: ${result.billingResult.responseCode}, Message: ${result.billingResult.debugMessage}")
-            result.productDetailsList?.let {
-                Log.d(TAG, "Found ${it.size} product(s).")
-            }
             result.productDetailsList?.firstOrNull()?.let { productDetails ->
                 _productDetails.update { productDetails }
-                Log.d(TAG, "Product details updated successfully for ${productDetails.name}")
-            } ?: run {
-                Log.w(TAG, "No product details found for ID: $productId")
             }
         }
     }
 
     fun launchPurchaseFlow(activity: Activity) {
+        // ... (Fungsi ini tidak berubah)
         val productDetails = _productDetails.value ?: return
         val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: return
         val productDetailsParamsList = listOf(
@@ -103,10 +93,10 @@ class BillingClientWrapper(
         val billingFlowParams = BillingFlowParams.newBuilder()
             .setProductDetailsParamsList(productDetailsParamsList)
             .build()
-
         billingClient.launchBillingFlow(activity, billingFlowParams)
     }
 
+    // --- UBAH KEMBALI FUNGSI INI ---
     private fun handlePurchase(purchase: Purchase) {
         if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
             if (!purchase.isAcknowledged) {
@@ -115,14 +105,19 @@ class BillingClientWrapper(
                     .build()
                 billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                        // Panggil callback untuk memulai verifikasi server
-                        onPurchaseVerified(purchase.purchaseToken, purchase.products.first())
+                        // Langsung update state lokal
+                        _hasActiveSubscription.update { true }
                     }
                 }
+            } else {
+                // Jika sudah di-acknowledge sebelumnya, tetap set statusnya
+                _hasActiveSubscription.update { true }
             }
         }
     }
+    // ---
 
+    // --- KEMBALIKAN FUNGSI INI ---
     private fun queryPurchases() {
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)
@@ -141,4 +136,5 @@ class BillingClientWrapper(
             }
         }
     }
+    // ---
 }

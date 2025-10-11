@@ -1,17 +1,20 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
+import { CallableRequest, CallableContext } from "firebase-functions/v2/https";
 
 admin.initializeApp();
 const firestore = admin.firestore();
 
 const packageName = "com.webtech.kamuskorea";
 
+interface PurchaseData {
+  purchaseToken: string;
+  productId: string;
+}
+
 export const verifyPurchase = functions.https.onCall(
-  async (
-    data: { purchaseToken: string; productId: string },
-    context
-  ): Promise<{ status: string }> => {
+  async (request: CallableRequest<PurchaseData>, context: CallableContext): Promise<{ status: string }> => {
     if (!context.auth) {
       throw new functions.https.HttpsError(
         "unauthenticated",
@@ -19,7 +22,7 @@ export const verifyPurchase = functions.https.onCall(
       );
     }
 
-    const { purchaseToken, productId } = data;
+    const { purchaseToken, productId } = request.data;
     const uid = context.auth.uid;
 
     try {
