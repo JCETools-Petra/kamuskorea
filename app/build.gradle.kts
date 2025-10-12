@@ -100,4 +100,6 @@ dependencies {
     // Untuk memanggil Cloud Functions
     implementation("com.google.firebase:firebase-functions")
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
 }

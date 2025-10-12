@@ -5,11 +5,15 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.webtech.kamuskorea.billing.BillingClientWrapper
 import com.android.billingclient.api.ProductDetails
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 
 class ProfileViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -21,13 +25,33 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val _hasActiveSubscription = MutableStateFlow(false)
     val hasActiveSubscription = _hasActiveSubscription.asStateFlow()
 
+    private val billingClientWrapper = BillingClientWrapper(
+        context = application,
+        productId = "langganan_pro_bulanan"
+    )
+
     init {
-        // TODO: Panggil fungsi untuk mengecek status langganan saat ViewModel dibuat
-        // TODO: Panggil fungsi untuk mengambil detail produk dari Google Play
+        // Panggil fungsi untuk mengecek status langganan saat ViewModel dibuat
+        billingClientWrapper.initialize()
+
+        // Ambil detail produk dari Google Play
+        billingClientWrapper.productDetails
+            .onEach { productDetails ->
+                _productDetails.value = productDetails
+            }
+            .launchIn(viewModelScope)
+
+        // Ambil status langganan
+        billingClientWrapper.hasActiveSubscription
+            .onEach { hasActiveSubscription ->
+                _hasActiveSubscription.value = hasActiveSubscription
+            }
+            .launchIn(viewModelScope)
     }
 
     fun launchPurchaseFlow(activity: Activity) {
-        // TODO: Implementasi untuk memulai alur pembelian Google Play Billing
+        // Implementasi untuk memulai alur pembelian Google Play Billing
+        billingClientWrapper.launchPurchaseFlow(activity)
     }
 
     companion object {

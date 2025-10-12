@@ -6,7 +6,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-val AppTypography = Typography( // <-- Pastikan namanya AppTypography
+// NAMA VARIABEL DIUBAH MENJADI "AppTypography" UNTUK MENGHINDARI KONFLIK
+val AppTypography = Typography(
     bodyLarge = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Normal,
