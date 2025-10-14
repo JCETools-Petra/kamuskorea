@@ -5,136 +5,133 @@ import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.*
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+
+// TAG untuk filter di Logcat
+private const val TAG = "BillingClientDebug"
 
 class BillingClientWrapper(
     private val context: Context,
-    private val productId: String = "langganan_pro_bulanan"
+    private val externalScope: CoroutineScope,
+    private val productId: String = "langganan_pro_bulanan" // Pastikan ID ini benar
 ) {
-    private val TAG = "BillingClientWrapper"
-
-    private lateinit var billingClient: BillingClient
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
     private val _productDetails = MutableStateFlow<ProductDetails?>(null)
     val productDetails = _productDetails.asStateFlow()
 
-    // --- KEMBALIKAN STATE INI ---
     private val _hasActiveSubscription = MutableStateFlow(false)
     val hasActiveSubscription = _hasActiveSubscription.asStateFlow()
-    // ---
 
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
+        Log.d(TAG, "purchasesUpdatedListener dipanggil. Kode: ${billingResult.responseCode}")
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
             for (purchase in purchases) {
-                handlePurchase(purchase)
-            }
-        } else {
-            Log.e(TAG, "Purchase error. Response code: ${billingResult.responseCode}, Message: ${billingResult.debugMessage}")
-        }
-    }
-
-    fun initialize() {
-        billingClient = BillingClient.newBuilder(context)
-            .setListener(purchasesUpdatedListener)
-            .enablePendingPurchases()
-            .build()
-
-        billingClient.startConnection(object : BillingClientStateListener {
-            override fun onBillingSetupFinished(billingResult: BillingResult) {
-                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    queryProductDetails()
-                    queryPurchases() // <-- KEMBALIKAN FUNGSI INI
+                if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED && !purchase.isAcknowledged) {
+                    acknowledgePurchase(purchase)
                 }
             }
+        }
+        checkSubscriptionStatus()
+    }
 
+    private var billingClient: BillingClient = BillingClient.newBuilder(context)
+        .setListener(purchasesUpdatedListener)
+        .enablePendingPurchases()
+        .build()
+
+    init {
+        Log.d(TAG, "BillingClientWrapper diinisialisasi. Memulai koneksi...")
+        startConnection()
+    }
+
+    private fun startConnection() {
+        if (billingClient.isReady) {
+            Log.d(TAG, "Koneksi sudah siap, tidak perlu memulai lagi.")
+            return
+        }
+        Log.d(TAG, "Memulai koneksi ke Google Play Billing Service...")
+        billingClient.startConnection(object : BillingClientStateListener {
+            override fun onBillingSetupFinished(billingResult: BillingResult) {
+                Log.d(TAG, "onBillingSetupFinished. Kode Respons: ${billingResult.responseCode} - Pesan: ${billingResult.debugMessage}")
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    Log.d(TAG, "Koneksi SUKSES. Memuat detail produk.")
+                    queryProductDetails()
+                    checkSubscriptionStatus()
+                } else {
+                    Log.e(TAG, "Koneksi GAGAL.")
+                }
+            }
             override fun onBillingServiceDisconnected() {
-                initialize()
+                Log.w(TAG, "Layanan terputus. Mencoba menghubungkan kembali...")
+                startConnection()
             }
         })
     }
 
     private fun queryProductDetails() {
-        // ... (Fungsi ini tidak berubah)
-        val params = QueryProductDetailsParams.newBuilder()
-            .setProductList(
-                listOf(
-                    QueryProductDetailsParams.Product.newBuilder()
-                        .setProductId(productId)
-                        .setProductType(BillingClient.ProductType.SUBS)
-                        .build()
-                )
-            )
-            .build()
-
-        coroutineScope.launch {
-            val result = billingClient.queryProductDetails(params)
-            result.productDetailsList?.firstOrNull()?.let { productDetails ->
-                _productDetails.update { productDetails }
-            }
-        }
-    }
-
-    fun launchPurchaseFlow(activity: Activity) {
-        // ... (Fungsi ini tidak berubah)
-        val productDetails = _productDetails.value ?: return
-        val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: return
-        val productDetailsParamsList = listOf(
-            BillingFlowParams.ProductDetailsParams.newBuilder()
-                .setProductDetails(productDetails)
-                .setOfferToken(offerToken)
+        Log.d(TAG, "--- Memulai Query Produk ---")
+        Log.d(TAG, "ID Produk yang dicari: '$productId'")
+        val productList = listOf(
+            QueryProductDetailsParams.Product.newBuilder()
+                .setProductId(productId)
+                .setProductType(BillingClient.ProductType.SUBS)
                 .build()
         )
-        val billingFlowParams = BillingFlowParams.newBuilder()
-            .setProductDetailsParamsList(productDetailsParamsList)
+        val queryProductDetailsParams = QueryProductDetailsParams.newBuilder()
+            .setProductList(productList)
             .build()
-        billingClient.launchBillingFlow(activity, billingFlowParams)
-    }
 
-    // --- UBAH KEMBALI FUNGSI INI ---
-    private fun handlePurchase(purchase: Purchase) {
-        if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-            if (!purchase.isAcknowledged) {
-                val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder()
-                    .setPurchaseToken(purchase.purchaseToken)
-                    .build()
-                billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
-                    if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                        // Langsung update state lokal
-                        _hasActiveSubscription.update { true }
-                    }
+        billingClient.queryProductDetailsAsync(queryProductDetailsParams) { billingResult, productDetailsList ->
+            Log.d(TAG, "--- Hasil Query Produk ---")
+            Log.d(TAG, "Kode Respons: ${billingResult.responseCode} - Pesan: ${billingResult.debugMessage}")
+
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                if (productDetailsList.isNotEmpty()) {
+                    _productDetails.value = productDetailsList[0]
+                    Log.d(TAG, "SUKSES: Detail produk ditemukan untuk '$productId'. Nama: ${productDetailsList[0].name}")
+                } else {
+                    Log.e(TAG, "GAGAL: Query berhasil, tetapi daftar produk KOSONG. Tidak ada produk dengan ID '$productId' yang ditemukan di Play Console untuk aplikasi ini.")
                 }
             } else {
-                // Jika sudah di-acknowledge sebelumnya, tetap set statusnya
-                _hasActiveSubscription.update { true }
+                Log.e(TAG, "GAGAL: Query produk gagal. Ini sering terjadi jika akun penguji belum di-setup dengan benar.")
             }
         }
     }
-    // ---
 
-    // --- KEMBALIKAN FUNGSI INI ---
-    private fun queryPurchases() {
+    fun checkSubscriptionStatus() {
+        Log.d(TAG, "Memeriksa status langganan yang sudah ada...")
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)
             .build()
 
         billingClient.queryPurchasesAsync(params) { billingResult, purchases ->
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                var hasSub = false
-                for (purchase in purchases) {
-                    if (purchase.isAcknowledged && purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-                        hasSub = true
-                        break
-                    }
-                }
-                _hasActiveSubscription.update { hasSub }
-            }
+            val hasSub = purchases.any { it.products.contains(productId) && it.purchaseState == Purchase.PurchaseState.PURCHASED }
+            _hasActiveSubscription.value = hasSub
+            Log.d(TAG, "Pengecekan selesai. Pengguna memiliki langganan aktif: $hasSub")
         }
     }
-    // ---
+
+    private fun acknowledgePurchase(purchase: Purchase) {
+        val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchase.purchaseToken).build()
+        billingClient.acknowledgePurchase(params) { billingResult ->
+            Log.d(TAG, "Pembelian di-acknowledge. Kode: ${billingResult.responseCode}")
+            checkSubscriptionStatus()
+        }
+    }
+
+    fun launchPurchaseFlow(productDetails: ProductDetails, activity: Activity) {
+        val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
+        if (offerToken == null) {
+            Log.e(TAG, "Gagal memulai pembelian: Tidak ada offer token ditemukan.")
+            return
+        }
+        val paramsList = listOf(
+            BillingFlowParams.ProductDetailsParams.newBuilder()
+                .setProductDetails(productDetails)
+                .setOfferToken(offerToken)
+                .build()
+        )
+        val flowParams = BillingFlowParams.newBuilder().setProductDetailsParamsList(paramsList).build()
+        billingClient.launchBillingFlow(activity, flowParams)
+    }
 }

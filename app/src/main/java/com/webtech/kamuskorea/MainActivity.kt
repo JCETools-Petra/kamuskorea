@@ -43,14 +43,24 @@ import com.webtech.kamuskorea.ui.screens.settings.SettingsScreen
 import com.webtech.kamuskorea.ui.screens.settings.SettingsViewModel
 import com.webtech.kamuskorea.ui.theme.*
 import kotlinx.coroutines.launch
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.webtech.kamuskorea.ui.screens.ebook.PdfViewerScreen
+import java.io.File
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.net.URLEncoder
 
 class MainActivity : ComponentActivity() {
-    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        installSplashScreen()
         setContent {
-            // HAPUS PEMBUNGKUS TEMA DARI SINI, CUKUP PANGGIL MainApp()
-            MainApp()
+            val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.provideFactory(application))
+            val profileViewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.provideFactory(application))
+
+            MainApp(settingsViewModel = settingsViewModel, profileViewModel = profileViewModel)
         }
     }
 }
@@ -63,9 +73,7 @@ data class NavItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainApp() {
-    // 1. Logika untuk memilih tema warna
-    val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.provideFactory(LocalContext.current.applicationContext as Application))
+fun MainApp(settingsViewModel: SettingsViewModel, profileViewModel: ProfileViewModel) {
     val currentTheme by settingsViewModel.currentTheme.collectAsState()
     val useDarkTheme = isSystemInDarkTheme()
 
@@ -75,25 +83,25 @@ fun MainApp() {
         else -> if (useDarkTheme) DarkColorScheme else LightColorScheme
     }
 
-    // 2. Terapkan tema sebagai pembungkus paling luar di sini
     KamusKoreaTheme(darkTheme = useDarkTheme, dynamicColor = false, colorScheme = colors) {
 
-        // 3. Semua logika UI dan Navigasi sekarang berada DI DALAM blok tema yang benar
         val navController = rememberNavController()
         val firebaseAuth = FirebaseAuth.getInstance()
-        val startDestination = if (firebaseAuth.currentUser != null) Screen.Dictionary.route else Screen.Login.route
-
-        val application = LocalContext.current.applicationContext as Application
-        val profileViewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.provideFactory(application))
+        val startDestination = if (firebaseAuth.currentUser != null) Screen.Home.route else Screen.Login.route
         val isPremium by profileViewModel.hasActiveSubscription.collectAsState()
 
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
-        var currentTitle by remember { mutableStateOf("Kamus") }
+        var currentTitle by remember { mutableStateOf("Kamus Korea") }
+
+        // DAPATKAN CONTEXT DI SINI (DALAM @Composable SCOPE)
+        val context = LocalContext.current
+        val application = context.applicationContext as Application
 
         LaunchedEffect(navController) {
             navController.currentBackStackEntryFlow.collect { backStackEntry ->
                 currentTitle = when (backStackEntry.destination.route) {
+                    Screen.Home.route -> "Menu Utama"
                     Screen.Dictionary.route -> "Kamus"
                     Screen.Ebook.route -> "E-Book"
                     Screen.Quiz.route -> "Latihan"
@@ -121,7 +129,10 @@ fun MainApp() {
             gesturesEnabled = !isAuthScreen,
             drawerContent = {
                 ModalDrawerSheet {
-                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         AsyncImage(
                             model = firebaseAuth.currentUser?.photoUrl,
                             contentDescription = "Foto Profil",
@@ -131,11 +142,18 @@ fun MainApp() {
                             error = painterResource(id = R.drawable.ic_default_profile)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
+
+                        // --- TAMBAHKAN KODE INI ---
+                        // Tampilkan nama pengguna jika ada, jika tidak tampilkan email
+                        val displayName = firebaseAuth.currentUser?.displayName
+                        val email = firebaseAuth.currentUser?.email
                         Text(
-                            text = firebaseAuth.currentUser?.displayName ?: "Pengguna",
+                            text = if (!displayName.isNullOrBlank()) displayName else email ?: "Pengguna",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
+                        // --- AKHIR DARI KODE TAMBAHAN ---
+
                         Spacer(modifier = Modifier.height(4.dp))
                         TextButton(onClick = {
                             scope.launch { drawerState.close() }
@@ -145,6 +163,20 @@ fun MainApp() {
                         }
                     }
                     Divider()
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                        label = { Text("Menu Utama") },
+                        selected = Screen.Home.route == currentRoute,
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
                     menuItems.forEach { item ->
                         NavigationDrawerItem(
                             icon = { Icon(item.icon, contentDescription = item.label) },
@@ -179,6 +211,7 @@ fun MainApp() {
                         selected = false,
                         onClick = {
                             scope.launch { drawerState.close() }
+                            // GUNAKAN 'application' YANG SUDAH DIDEFINISIKAN DI ATAS
                             val googleSignInClient = GoogleSignIn.getClient(application, GoogleSignInOptions.DEFAULT_SIGN_IN)
                             googleSignInClient.signOut().addOnCompleteListener {
                                 firebaseAuth.signOut()
@@ -210,14 +243,60 @@ fun MainApp() {
                     startDestination = startDestination,
                     modifier = Modifier.padding(innerPadding)
                 ) {
-                    composable(Screen.Login.route) { LoginScreen(onLoginSuccess = { navController.navigate(Screen.Dictionary.route) { popUpTo(Screen.Login.route) { inclusive = true } } }, onNavigateToRegister = { navController.navigate(Screen.Register.route) }) }
+                    composable(Screen.Login.route) { LoginScreen(onLoginSuccess = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Login.route) { inclusive = true } } }, onNavigateToRegister = { navController.navigate(Screen.Register.route) }) }
                     composable(Screen.Register.route) { RegisterScreen(onNavigateToLogin = { navController.popBackStack() }) }
+                    composable(Screen.Home.route) { HomeScreen(navController = navController) }
                     composable(Screen.Dictionary.route) { DictionaryScreen() }
-                    composable(Screen.Ebook.route) { EbookScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
                     composable(Screen.Memorization.route) { MemorizationScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
                     composable(Screen.Quiz.route) { QuizScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
                     composable(Screen.Profile.route) { ProfileScreen(viewModel = profileViewModel) }
                     composable(Screen.Settings.route) { SettingsScreen() }
+                    composable(Screen.Ebook.route) {
+                        EbookScreen(
+                            isPremium = isPremium,
+                            onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                            onEbookClick = { ebook ->
+                                // Logika saat e-book diklik
+                                scope.launch {
+                                    val context = application.applicationContext
+                                    // Membuat nama file yang aman dari URL
+                                    val fileName = URLEncoder.encode(ebook.pdfUrl, "UTF-8")
+                                    val internalFile = File(context.filesDir, fileName)
+
+                                    // Jika file belum diunduh, unduh sekarang
+                                    if (!internalFile.exists()) {
+                                        // TODO: Tampilkan loading indicator ke pengguna
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                URL(ebook.pdfUrl).openStream().use { input ->
+                                                    internalFile.outputStream().use { output ->
+                                                        input.copyTo(output)
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                // TODO: Tampilkan error ke pengguna
+                                                e.printStackTrace()
+                                                return@withContext
+                                            }
+                                        }
+                                    }
+
+                                    // Navigasi ke PDF viewer dengan path yang di-encode
+                                    val encodedPath = URLEncoder.encode(internalFile.absolutePath, "UTF-8")
+                                    navController.navigate(Screen.PdfViewer.createRoute(encodedPath))
+                                }
+                            }
+                        )
+                    }
+                    composable(
+                        route = "pdf_viewer_screen/{filePath}",
+                        arguments = listOf(navArgument("filePath") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        val encodedFilePath = backStackEntry.arguments?.getString("filePath")
+                        // Decode path sebelum digunakan
+                        val filePath = encodedFilePath?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+                        PdfViewerScreen(filePath = filePath)
+                    }
                 }
             }
         }
