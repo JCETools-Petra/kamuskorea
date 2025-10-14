@@ -2,6 +2,7 @@ package com.webtech.kamuskorea
 
 import android.app.Application
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -50,7 +51,8 @@ import java.io.File
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.URLEncoder
+
+// Tidak perlu import URLEncoder atau URLDecoder lagi di sini untuk path
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -94,7 +96,6 @@ fun MainApp(settingsViewModel: SettingsViewModel, profileViewModel: ProfileViewM
         val scope = rememberCoroutineScope()
         var currentTitle by remember { mutableStateOf("Kamus Korea") }
 
-        // DAPATKAN CONTEXT DI SINI (DALAM @Composable SCOPE)
         val context = LocalContext.current
         val application = context.applicationContext as Application
 
@@ -143,8 +144,6 @@ fun MainApp(settingsViewModel: SettingsViewModel, profileViewModel: ProfileViewM
                         )
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // --- TAMBAHKAN KODE INI ---
-                        // Tampilkan nama pengguna jika ada, jika tidak tampilkan email
                         val displayName = firebaseAuth.currentUser?.displayName
                         val email = firebaseAuth.currentUser?.email
                         Text(
@@ -152,7 +151,6 @@ fun MainApp(settingsViewModel: SettingsViewModel, profileViewModel: ProfileViewM
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        // --- AKHIR DARI KODE TAMBAHAN ---
 
                         Spacer(modifier = Modifier.height(4.dp))
                         TextButton(onClick = {
@@ -211,7 +209,6 @@ fun MainApp(settingsViewModel: SettingsViewModel, profileViewModel: ProfileViewM
                         selected = false,
                         onClick = {
                             scope.launch { drawerState.close() }
-                            // GUNAKAN 'application' YANG SUDAH DIDEFINISIKAN DI ATAS
                             val googleSignInClient = GoogleSignIn.getClient(application, GoogleSignInOptions.DEFAULT_SIGN_IN)
                             googleSignInClient.signOut().addOnCompleteListener {
                                 firebaseAuth.signOut()
@@ -251,52 +248,61 @@ fun MainApp(settingsViewModel: SettingsViewModel, profileViewModel: ProfileViewM
                     composable(Screen.Quiz.route) { QuizScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
                     composable(Screen.Profile.route) { ProfileScreen(viewModel = profileViewModel) }
                     composable(Screen.Settings.route) { SettingsScreen() }
+
+                    // --- PERUBAHAN DIMULAI DI SINI ---
                     composable(Screen.Ebook.route) {
                         EbookScreen(
                             isPremium = isPremium,
                             onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                             onEbookClick = { ebook ->
-                                // Logika saat e-book diklik
                                 scope.launch {
-                                    val context = application.applicationContext
-                                    // Membuat nama file yang aman dari URL
-                                    val fileName = URLEncoder.encode(ebook.pdfUrl, "UTF-8")
-                                    val internalFile = File(context.filesDir, fileName)
+                                    try {
+                                        // 1. Ekstrak nama file asli dari URL
+                                        val fileName = URL(ebook.pdfUrl).path.substringAfterLast('/')
+                                        val internalFile = File(application.filesDir, fileName)
 
-                                    // Jika file belum diunduh, unduh sekarang
-                                    if (!internalFile.exists()) {
-                                        // TODO: Tampilkan loading indicator ke pengguna
-                                        withContext(Dispatchers.IO) {
-                                            try {
+                                        // 2. Unduh jika file belum ada
+                                        if (!internalFile.exists()) {
+                                            withContext(Dispatchers.IO) {
                                                 URL(ebook.pdfUrl).openStream().use { input ->
                                                     internalFile.outputStream().use { output ->
                                                         input.copyTo(output)
                                                     }
                                                 }
-                                            } catch (e: Exception) {
-                                                // TODO: Tampilkan error ke pengguna
-                                                e.printStackTrace()
-                                                return@withContext
                                             }
                                         }
-                                    }
 
-                                    // Navigasi ke PDF viewer dengan path yang di-encode
-                                    val encodedPath = URLEncoder.encode(internalFile.absolutePath, "UTF-8")
-                                    navController.navigate(Screen.PdfViewer.createRoute(encodedPath))
+                                        // 3. Navigasi HANYA dengan nama file, tidak perlu encode
+                                        navController.navigate("pdf_viewer_screen/$fileName")
+
+                                    } catch (e: Exception) {
+                                        Log.e("EbookClick", "Error saat memproses ebook click: ", e)
+                                        // TODO: Tampilkan pesan error ke pengguna jika perlu
+                                    }
                                 }
                             }
                         )
                     }
+
                     composable(
-                        route = "pdf_viewer_screen/{filePath}",
-                        arguments = listOf(navArgument("filePath") { type = NavType.StringType })
+                        route = "pdf_viewer_screen/{fileName}",
+                        arguments = listOf(navArgument("fileName") { type = NavType.StringType })
                     ) { backStackEntry ->
-                        val encodedFilePath = backStackEntry.arguments?.getString("filePath")
-                        // Decode path sebelum digunakan
-                        val filePath = encodedFilePath?.let { java.net.URLDecoder.decode(it, "UTF-8") }
-                        PdfViewerScreen(filePath = filePath)
+                        val fileName = backStackEntry.arguments?.getString("fileName")
+
+                        if (fileName != null) {
+                            val file = File(application.filesDir, fileName)
+                            // Panggil PdfViewerScreen dengan parameter baru
+                            PdfViewerScreen(
+                                filePath = file.absolutePath,
+                                onNavigateBack = { navController.popBackStack() } // Berikan aksi untuk kembali
+                            )
+                        } else {
+                            // Tampilkan error jika nama file tidak ditemukan
+                            Text("Error: Nama file tidak valid.")
+                        }
                     }
+                    // --- AKHIR DARI PERUBAHAN ---
                 }
             }
         }

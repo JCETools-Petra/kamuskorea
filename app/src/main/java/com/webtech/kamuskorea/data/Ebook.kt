@@ -7,8 +7,8 @@ data class Ebook(
     val id: String = "",
     val title: String = "",
     val description: String = "",
-    val coverImageUrl: String = "",
-    val pdfUrl: String = "",
+    val coverImageUrl: String = "", // Cek ini
+    val pdfUrl: String = "",        // Cek ini
     @ServerTimestamp
-    val createdAt: Date? = null
+    val createdAt: Date? = null     // Cek ini
 )
