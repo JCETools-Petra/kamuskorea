@@ -52,8 +52,6 @@ import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-// Tidak perlu import URLEncoder atau URLDecoder lagi di sini untuk path
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,6 +107,7 @@ fun MainApp(settingsViewModel: SettingsViewModel, profileViewModel: ProfileViewM
                     Screen.Memorization.route -> "Hafalan"
                     Screen.Profile.route -> "Profil & Langganan"
                     Screen.Settings.route -> "Pengaturan"
+                    "pdf_viewer_screen/{fileName}" -> "Baca E-Book" // Tambahkan judul untuk PDF viewer
                     else -> "Kamus Korea"
                 }
             }
@@ -223,7 +222,9 @@ fun MainApp(settingsViewModel: SettingsViewModel, profileViewModel: ProfileViewM
         ) {
             Scaffold(
                 topBar = {
-                    if (!isAuthScreen) {
+                    // Sembunyikan TopAppBar default untuk layar PDF Viewer
+                    // karena PdfViewerScreen sudah punya TopAppBar sendiri
+                    if (!isAuthScreen && currentRoute != "pdf_viewer_screen/{fileName}") {
                         TopAppBar(
                             title = { Text(currentTitle) },
                             navigationIcon = {
@@ -249,7 +250,7 @@ fun MainApp(settingsViewModel: SettingsViewModel, profileViewModel: ProfileViewM
                     composable(Screen.Profile.route) { ProfileScreen(viewModel = profileViewModel) }
                     composable(Screen.Settings.route) { SettingsScreen() }
 
-                    // --- PERUBAHAN DIMULAI DI SINI ---
+                    // --- BLOK EBOOK & PDF VIEWER YANG SUDAH DIPERBAIKI ---
                     composable(Screen.Ebook.route) {
                         EbookScreen(
                             isPremium = isPremium,
@@ -257,11 +258,9 @@ fun MainApp(settingsViewModel: SettingsViewModel, profileViewModel: ProfileViewM
                             onEbookClick = { ebook ->
                                 scope.launch {
                                     try {
-                                        // 1. Ekstrak nama file asli dari URL
                                         val fileName = URL(ebook.pdfUrl).path.substringAfterLast('/')
                                         val internalFile = File(application.filesDir, fileName)
 
-                                        // 2. Unduh jika file belum ada
                                         if (!internalFile.exists()) {
                                             withContext(Dispatchers.IO) {
                                                 URL(ebook.pdfUrl).openStream().use { input ->
@@ -271,13 +270,9 @@ fun MainApp(settingsViewModel: SettingsViewModel, profileViewModel: ProfileViewM
                                                 }
                                             }
                                         }
-
-                                        // 3. Navigasi HANYA dengan nama file, tidak perlu encode
                                         navController.navigate("pdf_viewer_screen/$fileName")
-
                                     } catch (e: Exception) {
                                         Log.e("EbookClick", "Error saat memproses ebook click: ", e)
-                                        // TODO: Tampilkan pesan error ke pengguna jika perlu
                                     }
                                 }
                             }
@@ -289,20 +284,17 @@ fun MainApp(settingsViewModel: SettingsViewModel, profileViewModel: ProfileViewM
                         arguments = listOf(navArgument("fileName") { type = NavType.StringType })
                     ) { backStackEntry ->
                         val fileName = backStackEntry.arguments?.getString("fileName")
-
                         if (fileName != null) {
                             val file = File(application.filesDir, fileName)
-                            // Panggil PdfViewerScreen dengan parameter baru
                             PdfViewerScreen(
                                 filePath = file.absolutePath,
-                                onNavigateBack = { navController.popBackStack() } // Berikan aksi untuk kembali
+                                onNavigateBack = { navController.popBackStack() }
                             )
                         } else {
-                            // Tampilkan error jika nama file tidak ditemukan
                             Text("Error: Nama file tidak valid.")
                         }
                     }
-                    // --- AKHIR DARI PERUBAHAN ---
+                    // --- AKHIR BLOK PERBAIKAN ---
                 }
             }
         }

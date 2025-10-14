@@ -1,107 +1,72 @@
 package com.webtech.kamuskorea.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoStories
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.Quiz
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.webtech.kamuskorea.ui.navigation.Screen
 
-// Data class untuk item menu
-data class MenuItem(
-    val title: String,
-    val icon: ImageVector,
-    val route: String
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
-    val menuItems = listOf(
-        MenuItem("Kamus", Icons.Default.MenuBook, Screen.Dictionary.route),
-        MenuItem("E-Book", Icons.Default.AutoStories, Screen.Ebook.route),
-        MenuItem("Hafalan", Icons.Default.Bookmark, Screen.Memorization.route),
-        MenuItem("Latihan", Icons.Default.Quiz, Screen.Quiz.route)
-    )
-
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            Text(
-                "Menu Utama",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
+        Text(
+            text = "Pilih Menu",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+        MenuGrid(navController = navController)
+    }
+}
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(menuItems) { item ->
-                    MenuItemCard(menuItem = item) {
-                        navController.navigate(item.route)
-                    }
-                }
-            }
+@Composable
+fun MenuGrid(navController: NavController) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            MenuItem(navController = navController, icon = Icons.Default.MenuBook, text = "Kamus", route = Screen.Dictionary.route, modifier = Modifier.weight(1f))
+            // PERBAIKAN 1: Mengarahkan E-Book ke Screen.Ebook.route
+            MenuItem(navController = navController, icon = Icons.Default.AutoStories, text = "E-Book", route = Screen.Ebook.route, modifier = Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            // PERBAIKAN 2: Mengarahkan Hafalan ke Screen.Memorization.route
+            MenuItem(navController = navController, icon = Icons.Default.Bookmark, text = "Hafalan", route = Screen.Memorization.route, modifier = Modifier.weight(1f))
+            MenuItem(navController = navController, icon = Icons.Default.Quiz, text = "Latihan", route = Screen.Quiz.route, modifier = Modifier.weight(1f))
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MenuItemCard(
-    menuItem: MenuItem,
-    onClick: () -> Unit
-) {
+fun MenuItem(navController: NavController, icon: ImageVector, text: String, route: String, modifier: Modifier = Modifier) {
     Card(
-        onClick = onClick,
-        modifier = Modifier
-            .aspectRatio(1f), // Membuat kartu menjadi persegi
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        modifier = modifier
+            .aspectRatio(1f)
+            .clickable { navController.navigate(route) },
+        shape = MaterialTheme.shapes.medium
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                imageVector = menuItem.icon,
-                contentDescription = menuItem.title,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = menuItem.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center
-            )
+            Icon(imageVector = icon, contentDescription = text, modifier = Modifier.size(48.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = text, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
         }
     }
 }
