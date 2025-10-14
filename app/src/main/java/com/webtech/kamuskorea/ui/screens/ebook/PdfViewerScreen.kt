@@ -1,5 +1,6 @@
 package com.webtech.kamuskorea.ui.screens.ebook
 
+import android.net.Uri // <-- Import Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -7,14 +8,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.core.net.toUri // <-- Or import the extension function
 import com.rizzi.bouquet.ResourceType
-import com.rizzi.bouquet.rememberVerticalPdfReaderState
 import com.rizzi.bouquet.VerticalPDFReader
-import java.io.File // <-- INI BARIS YANG MEMPERBAIKI ERROR
+import com.rizzi.bouquet.rememberVerticalPdfReaderState
+import java.io.File as JFile
 
 @Composable
 fun PdfViewerScreen(filePath: String?) {
-    // 1. Menangani kasus di mana path file tidak ada (null)
     if (filePath == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Gagal memuat file PDF.")
@@ -22,10 +23,8 @@ fun PdfViewerScreen(filePath: String?) {
         return
     }
 
-    // 2. Membuat objek File dari path yang diberikan
-    val pdfFile = File(filePath)
+    val pdfFile = JFile(filePath)
 
-    // 3. Memeriksa apakah file benar-benar ada di perangkat
     if (!pdfFile.exists()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("File PDF tidak ditemukan di lokasi yang ditentukan.")
@@ -33,20 +32,23 @@ fun PdfViewerScreen(filePath: String?) {
         return
     }
 
-    // 4. Menggunakan library Bouquet untuk mengingat state dari PDF reader
+    // Convert the File to a Uri before passing it to the state holder
+    val fileUri = pdfFile.toUri() // Or use Uri.fromFile(pdfFile)
+
     val pdfState = rememberVerticalPdfReaderState(
-        resource = ResourceType.File(pdfFile),
+        // Pass the Uri to ResourceType.Local
+        resource = ResourceType.Local(fileUri),
         isZoomEnable = true
     )
 
-    // 5. Menampilkan PDF reader dan loading indicator
     Box(modifier = Modifier.fillMaxSize()) {
         VerticalPDFReader(
             state = pdfState,
             modifier = Modifier.fillMaxSize()
         )
 
-        // Tampilkan loading indicator di tengah layar selama PDF sedang dimuat
+        // The loading state is handled internally by the library now,
+        // but you can keep this for a better user experience.
         if (!pdfState.isLoaded) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
         }
