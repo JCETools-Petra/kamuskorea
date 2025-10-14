@@ -3,6 +3,7 @@ package com.webtech.kamuskorea.ui.navigation
 sealed class Screen(val route: String) {
     object Login : Screen("login_screen")
     object Register : Screen("register_screen")
+    object Home : Screen("home_screen") // TAMBAHKAN INI
     object Dictionary : Screen("dictionary_screen")
     object Quiz : Screen("quiz_screen")
     object Memorization : Screen("memorization_screen")

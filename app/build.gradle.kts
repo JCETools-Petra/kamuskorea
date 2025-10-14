@@ -101,5 +101,5 @@ dependencies {
     implementation("com.google.firebase:firebase-functions")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("androidx.datastore:datastore-preferences:1.0.0")
-
+    implementation("com.google.android.gms:play-services-safetynet:18.0.1")
 }

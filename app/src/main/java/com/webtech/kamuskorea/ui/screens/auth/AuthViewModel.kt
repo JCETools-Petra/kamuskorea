@@ -1,124 +1,113 @@
 package com.webtech.kamuskorea.ui.screens.auth
 
-import android.app.Application
+import android.content.Context
 import android.content.Intent
-import androidx.activity.compose.ManagedActivityResultLauncher
-import androidx.activity.result.ActivityResult
-import androidx.lifecycle.AndroidViewModel
+import android.util.Log
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.GoogleAuthProvider
-import com.webtech.kamuskorea.R
+import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-class AuthViewModel(application: Application) : AndroidViewModel(application) {
+class AuthViewModel : ViewModel() {
 
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
     val authState = _authState.asStateFlow()
 
-    // --- FUNGSI REGISTER DIMODIFIKASI ---
-    fun register(email: String, password: String) {
+    // Fungsi Sign In dengan Email/Password
+    fun signIn(email: String, password: String) {
         viewModelScope.launch {
-            _authState.value = AuthState.Loading
             try {
-                // 1. Buat pengguna seperti biasa
-                val result = auth.createUserWithEmailAndPassword(email, password).await()
-                // 2. Kirim email verifikasi ke pengguna yang baru dibuat
-                result.user?.sendEmailVerification()?.await()
-                // 3. Langsung logout agar pengguna tidak masuk dalam keadaan belum terverifikasi
-                auth.signOut()
-                // 4. Kirim state khusus untuk memberitahu UI bahwa registrasi berhasil dan email sudah dikirim
-                _authState.value = AuthState.RegistrationSuccess
-            } catch (e: FirebaseAuthException) {
-                val errorMessage = mapFirebaseError(e)
-                _authState.value = AuthState.Error(errorMessage)
+                _authState.value = AuthState.Loading
+                auth.signInWithEmailAndPassword(email, password).await()
+                _authState.value = AuthState.Success
             } catch (e: Exception) {
-                _authState.value = AuthState.Error("Terjadi error yang tidak diketahui.")
+                _authState.value = AuthState.Error(e.message ?: "Login Gagal")
             }
         }
     }
 
-    // --- FUNGSI LOGIN DIMODIFIKASI ---
-    fun login(email: String, password: String) {
+    // Fungsi Sign Up dengan Email/Password
+    fun signUp(name: String, email: String, password: String, confirmPassword: String) {
+        if (name.isBlank() || email.isBlank() || password.isBlank()) {
+            _authState.value = AuthState.Error("Nama, email, dan password tidak boleh kosong.")
+            return
+        }
+        if (password.length < 6) {
+            _authState.value = AuthState.Error("Password minimal harus 6 karakter.")
+            return
+        }
+        if (password != confirmPassword) {
+            _authState.value = AuthState.Error("Password dan konfirmasi password tidak cocok.")
+            return
+        }
+        _authState.value = AuthState.Loading
+        createUser(name, email, password)
+    }
+
+    private fun createUser(name: String, email: String, password: String) {
         viewModelScope.launch {
-            _authState.value = AuthState.Loading
             try {
-                val result = auth.signInWithEmailAndPassword(email, password).await()
-                // 1. Setelah kredensial benar, periksa status verifikasi email
-                if (result.user?.isEmailVerified == true) {
-                    // Jika sudah terverifikasi, lanjutkan ke state sukses
-                    _authState.value = AuthState.Success
-                } else {
-                    // Jika belum, kirim pesan error dan langsung logout lagi
-                    auth.signOut()
-                    _authState.value = AuthState.Error("Email belum diverifikasi. Silakan cek inbox Anda.")
+                val authResult = auth.createUserWithEmailAndPassword(email, password).await()
+                val user = authResult.user
+                val profileUpdates = UserProfileChangeRequest.Builder().setDisplayName(name).build()
+                user?.updateProfile(profileUpdates)?.await()
+                if (user != null) {
+                    val userMap = hashMapOf("uid" to user.uid, "name" to name, "email" to email, "isPremium" to false)
+                    firestore.collection("users").document(user.uid).set(userMap).await()
                 }
-            } catch (e: FirebaseAuthException) {
-                val errorMessage = mapFirebaseError(e)
-                _authState.value = AuthState.Error(errorMessage)
+                _authState.value = AuthState.Success
             } catch (e: Exception) {
-                _authState.value = AuthState.Error("Terjadi error yang tidak diketahui.")
+                _authState.value = AuthState.Error(e.message ?: "Pendaftaran Gagal")
             }
         }
     }
 
-    // --- Fungsi Google Sign-In (tidak berubah) ---
-    private val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken(application.getString(R.string.default_web_client_id))
-        .requestEmail()
-        .build()
-    private val googleSignInClient = GoogleSignIn.getClient(application, gso)
-
-    fun getGoogleSignInIntent(launcher: ManagedActivityResultLauncher<Intent, ActivityResult>) {
-        val signInIntent = googleSignInClient.signInIntent
-        launcher.launch(signInIntent)
+    // --- FUNGSI GOOGLE SIGN-IN YANG DIKEMBALIKAN ---
+    fun getGoogleSignInIntent(context: Context): Intent {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken("YOUR_WEB_CLIENT_ID") // GANTI DENGAN WEB CLIENT ID ANDA
+            .requestEmail()
+            .build()
+        return GoogleSignIn.getClient(context, gso).signInIntent
     }
 
-    fun signInWithGoogle(result: ActivityResult) {
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+    fun signInWithGoogle(idToken: String) {
+        viewModelScope.launch {
             try {
-                val account = task.getResult(ApiException::class.java)!!
-                val idToken = account.idToken!!
+                _authState.value = AuthState.Loading
                 val credential = GoogleAuthProvider.getCredential(idToken, null)
-                viewModelScope.launch {
-                    _authState.value = AuthState.Loading
-                    try {
-                        auth.signInWithCredential(credential).await()
-                        _authState.value = AuthState.Success
-                    } catch (e: Exception) {
-                        _authState.value = AuthState.Error(e.message ?: "Login dengan Google gagal")
-                    }
+                val authResult = auth.signInWithCredential(credential).await()
+                val user = authResult.user
+
+                // Simpan data pengguna ke Firestore jika baru pertama kali login
+                if (authResult.additionalUserInfo?.isNewUser == true && user != null) {
+                    val userMap = hashMapOf(
+                        "uid" to user.uid,
+                        "name" to user.displayName,
+                        "email" to user.email,
+                        "isPremium" to false
+                    )
+                    firestore.collection("users").document(user.uid).set(userMap).await()
                 }
-            } catch (e: ApiException) {
-                _authState.value = AuthState.Error("Gagal mendapatkan info akun Google.")
+                _authState.value = AuthState.Success
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(e.message ?: "Google Sign-In Gagal")
             }
-        } else {
-            _authState.value = AuthState.Error("Login dengan Google dibatalkan.")
         }
     }
 
     fun resetAuthState() {
-        _authState.value = AuthState.Idle
-    }
-
-    private fun mapFirebaseError(e: FirebaseAuthException): String {
-        return when (e.errorCode) {
-            "ERROR_INVALID_EMAIL" -> "Format email tidak valid."
-            "ERROR_WRONG_PASSWORD" -> "Password salah."
-            "ERROR_USER_NOT_FOUND" -> "Pengguna tidak ditemukan."
-            "ERROR_EMAIL_ALREADY_IN_USE" -> "Email sudah terdaftar."
-            "ERROR_WEAK_PASSWORD" -> "Password terlalu lemah (minimal 6 karakter)."
-            else -> "Otentikasi gagal: ${e.message}"
-        }
+        _authState.value = AuthState.Initial
     }
 }

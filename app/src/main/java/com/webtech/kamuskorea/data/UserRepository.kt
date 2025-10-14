@@ -1,5 +1,6 @@
 package com.webtech.kamuskorea.data
 
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
@@ -16,7 +17,6 @@ class UserRepository {
     val isPremium = _isPremium.asStateFlow()
 
     init {
-        // Dengarkan perubahan pada dokumen pengguna
         auth.currentUser?.let { user ->
             firestore.collection("users").document(user.uid)
                 .addSnapshotListener { snapshot, error ->
@@ -24,19 +24,29 @@ class UserRepository {
                         _isPremium.value = false
                         return@addSnapshotListener
                     }
-                    // Update status premium berdasarkan data di Firestore
                     _isPremium.value = snapshot?.getBoolean("isPremium") ?: false
                 }
         }
     }
 
-    // Fungsi untuk memanggil Cloud Function
+    // TAMBAHKAN FUNGSI INI
+    suspend fun updatePremiumStatus(uid: String, isPremium: Boolean) {
+        try {
+            firestore.collection("users").document(uid)
+                .set(mapOf("isPremium" to isPremium), com.google.firebase.firestore.SetOptions.merge())
+                .await()
+            Log.d("UserRepository", "Status premium untuk user $uid diperbarui menjadi $isPremium")
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Gagal memperbarui status premium", e)
+        }
+    }
+
+
     suspend fun verifyPurchase(purchaseToken: String, productId: String) {
         val data = hashMapOf(
             "purchaseToken" to purchaseToken,
             "productId" to productId
         )
-        // Memanggil Cloud Function bernama 'verifyPurchase'
         functions.getHttpsCallable("verifyPurchase").call(data).await()
     }
 }
