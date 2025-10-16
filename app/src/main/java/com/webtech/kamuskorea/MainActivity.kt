@@ -134,10 +134,11 @@ fun MainApp(
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
         val isAuthScreen = currentRoute == Screen.Login.route || currentRoute == Screen.Register.route
+        val isPdfViewerScreen = currentRoute == "pdf_viewer_screen/{fileName}"
 
         ModalNavigationDrawer(
             drawerState = drawerState,
-            gesturesEnabled = !isAuthScreen,
+            gesturesEnabled = !isAuthScreen && !isPdfViewerScreen,
             drawerContent = {
                 ModalDrawerSheet {
                     Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
