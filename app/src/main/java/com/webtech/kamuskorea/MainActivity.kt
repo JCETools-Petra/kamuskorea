@@ -4,18 +4,18 @@ package com.webtech.kamuskorea
 
 import android.app.Application
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+// --- PERBAIKAN IMPORT ICON ---
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+// -----------------------------
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,7 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.*
+import androidx.navigation.navArgument
 import coil.compose.AsyncImage
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -40,23 +42,25 @@ import com.webtech.kamuskorea.ui.navigation.Screen
 import com.webtech.kamuskorea.ui.screens.*
 import com.webtech.kamuskorea.ui.screens.auth.LoginScreen
 import com.webtech.kamuskorea.ui.screens.auth.RegisterScreen
+import com.webtech.kamuskorea.ui.screens.ebook.PdfViewerScreen
 import com.webtech.kamuskorea.ui.screens.profile.ProfileScreen
 import com.webtech.kamuskorea.ui.screens.settings.SettingsScreen
 import com.webtech.kamuskorea.ui.screens.settings.SettingsViewModel
 import com.webtech.kamuskorea.ui.theme.*
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.net.URL
 import javax.inject.Inject
 
-// Tambahkan anotasi ini untuk mengaktifkan Hilt
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    // Inject UserRepository menggunakan Hilt
     @Inject
     lateinit var userRepository: UserRepository
 
-    // Inject FirebaseAuth
     @Inject
     lateinit var firebaseAuth: FirebaseAuth
 
@@ -64,9 +68,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         installSplashScreen()
         setContent {
-            // Kita akan mengambil isPremium langsung dari userRepository
             val isPremium by userRepository.isPremium.collectAsState()
-
             MainApp(
                 firebaseAuth = firebaseAuth,
                 isPremium = isPremium
@@ -87,7 +89,6 @@ fun MainApp(
     firebaseAuth: FirebaseAuth,
     isPremium: Boolean
 ) {
-    // ViewModel sekarang diambil menggunakan hiltViewModel()
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val currentTheme by settingsViewModel.currentTheme.collectAsState()
     val useDarkTheme = isSystemInDarkTheme()
@@ -118,16 +119,17 @@ fun MainApp(
                     Screen.Memorization.route -> "Hafalan"
                     Screen.Profile.route -> "Profil & Langganan"
                     Screen.Settings.route -> "Pengaturan"
+                    "pdf_viewer_screen/{fileName}" -> "Baca E-Book"
                     else -> "Kamus Korea"
                 }
             }
         }
 
         val menuItems = listOf(
-            NavItem("Kamus", Icons.Default.MenuBook, Screen.Dictionary),
-            NavItem("E-Book", Icons.Default.AutoStories, Screen.Ebook),
-            NavItem("Hafalan", Icons.Default.Bookmark, Screen.Memorization),
-            NavItem("Latihan", Icons.Default.Quiz, Screen.Quiz)
+            NavItem("Kamus", Icons.Outlined.MenuBook, Screen.Dictionary),
+            NavItem("E-Book", Icons.Outlined.AutoStories, Screen.Ebook),
+            NavItem("Hafalan", Icons.Outlined.Bookmark, Screen.Memorization),
+            NavItem("Latihan", Icons.Outlined.Quiz, Screen.Quiz)
         )
 
         val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -139,7 +141,6 @@ fun MainApp(
             gesturesEnabled = !isAuthScreen,
             drawerContent = {
                 ModalDrawerSheet {
-                    // ... (Isi DrawerContent tetap sama seperti kodemu, tidak perlu diubah)
                     Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         AsyncImage(
                             model = firebaseAuth.currentUser?.photoUrl,
@@ -157,9 +158,7 @@ fun MainApp(
                         TextButton(onClick = {
                             scope.launch { drawerState.close() }
                             navController.navigate(Screen.Profile.route)
-                        }) {
-                            Text("Profil & Langganan")
-                        }
+                        }) { Text("Profil & Langganan") }
                     }
                     Divider()
                     NavigationDrawerItem(icon = { Icon(Icons.Default.Home, contentDescription = "Home") }, label = { Text("Menu Utama") }, selected = Screen.Home.route == currentRoute, onClick = { scope.launch { drawerState.close() }; navController.navigate(Screen.Home.route) }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
@@ -169,34 +168,79 @@ fun MainApp(
                     Spacer(modifier = Modifier.weight(1f))
                     Divider()
                     NavigationDrawerItem(icon = { Icon(Icons.Default.Settings, contentDescription = "Pengaturan") }, label = { Text("Pengaturan") }, selected = currentRoute == Screen.Settings.route, onClick = { scope.launch { drawerState.close() }; navController.navigate(Screen.Settings.route) }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.Logout, contentDescription = "Logout") }, label = { Text("Logout") }, selected = false, onClick = { scope.launch { drawerState.close() }; val googleSignInClient = GoogleSignIn.getClient(application, GoogleSignInOptions.DEFAULT_SIGN_IN); googleSignInClient.signOut().addOnCompleteListener { firebaseAuth.signOut(); navController.navigate(Screen.Login.route) { popUpTo(0) } } }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
+                    NavigationDrawerItem(icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout") }, label = { Text("Logout") }, selected = false, onClick = { scope.launch { drawerState.close() }; val googleSignInClient = GoogleSignIn.getClient(application, GoogleSignInOptions.DEFAULT_SIGN_IN); googleSignInClient.signOut().addOnCompleteListener { firebaseAuth.signOut(); navController.navigate(Screen.Login.route) { popUpTo(0) } } }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
-        ) {
+        ) { innerPadding ->
             Scaffold(
                 topBar = {
-                    if (!isAuthScreen) {
+                    if (!isAuthScreen && currentRoute != "pdf_viewer_screen/{fileName}") {
                         TopAppBar(title = { Text(currentTitle) }, navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, contentDescription = "Menu") } })
                     }
-                }
-            ) { innerPadding ->
-                NavHost(navController = navController, startDestination = startDestination, modifier = Modifier.padding(innerPadding)) {
-                    composable(Screen.Login.route) { LoginScreen(onLoginSuccess = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Login.route) { inclusive = true } } }, onNavigateToRegister = { navController.navigate(Screen.Register.route) }) }
-                    composable(Screen.Register.route) { RegisterScreen(onNavigateToLogin = { navController.popBackStack() }) }
-                    composable(Screen.Home.route) { HomeScreen(navController = navController) }
-                    composable(Screen.Dictionary.route) { DictionaryScreen() }
+                },
+                // --- PERBAIKAN: SCAFFOLD CONTENT LAMBDA ---
+                content = { padding ->
+                    NavHost(navController = navController, startDestination = startDestination, modifier = Modifier.padding(padding)) {
+                        composable(Screen.Login.route) { LoginScreen(onLoginSuccess = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Login.route) { inclusive = true } } }, onNavigateToRegister = { navController.navigate(Screen.Register.route) }) }
+                        composable(Screen.Register.route) { RegisterScreen(onNavigateToLogin = { navController.popBackStack() }) }
+                        composable(Screen.Home.route) { HomeScreen(navController = navController) }
+                        composable(Screen.Dictionary.route) { DictionaryScreen() }
+                        composable(Screen.Memorization.route) { MemorizationScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
+                        composable(Screen.Quiz.route) { QuizScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
 
-                    // Teruskan isPremium ke layar yang membutuhkan
-                    composable(Screen.Ebook.route) { EbookScreen(isPremium = isPremium, onNavigateToProfile = { navController.navigate(Screen.Profile.route) }) }
-                    composable(Screen.Memorization.route) { MemorizationScreen(isPremium = isPremium, onNavigateToProfile = { navController.navigate(Screen.Profile.route) }) }
-                    composable(Screen.Quiz.route) { QuizScreen(isPremium = isPremium, onNavigateToProfile = { navController.navigate(Screen.Profile.route) }) }
+                        // --- PERBAIKAN: Pemanggilan ProfileScreen tanpa parameter ---
+                        composable(Screen.Profile.route) { ProfileScreen() }
 
-                    // ProfileScreen dan SettingsScreen bisa mengambil ViewModel-nya sendiri
-                    composable(Screen.Profile.route) { ProfileScreen() }
-                    composable(Screen.Settings.route) { SettingsScreen() }
+                        composable(Screen.Settings.route) { SettingsScreen() }
+
+                        composable(Screen.Ebook.route) {
+                            EbookScreen(
+                                isPremium = isPremium,
+                                onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                                // --- PERBAIKAN: Parameter onEbookClick ditambahkan ---
+                                onEbookClick = { ebook ->
+                                    scope.launch {
+                                        try {
+                                            val fileName = URL(ebook.pdfUrl).path.substringAfterLast('/')
+                                            val internalFile = File(application.filesDir, fileName)
+                                            if (!internalFile.exists()) {
+                                                withContext(Dispatchers.IO) {
+                                                    URL(ebook.pdfUrl).openStream().use { input ->
+                                                        internalFile.outputStream().use { output ->
+                                                            input.copyTo(output)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            navController.navigate("pdf_viewer_screen/$fileName")
+                                        } catch (e: Exception) {
+                                            Log.e("EbookClick", "Error saat memproses ebook click: ", e)
+                                        }
+                                    }
+                                }
+                            )
+                        }
+
+                        composable(
+                            route = "pdf_viewer_screen/{fileName}",
+                            arguments = listOf(navArgument("fileName") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val fileName = backStackEntry.arguments?.getString("fileName")
+                            if (fileName != null) {
+                                val file = File(application.filesDir, fileName)
+                                // --- PERBAIKAN: Parameter disesuaikan menjadi 'file' ---
+                                PdfViewerScreen(
+                                    file = file,
+                                    onNavigateBack = { navController.popBackStack() }
+                                )
+                            } else {
+                                Text("Error: Nama file tidak valid.")
+                            }
+                        }
+                    }
                 }
-            }
+            )
         }
     }
 }
