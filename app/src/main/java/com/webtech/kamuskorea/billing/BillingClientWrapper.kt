@@ -4,23 +4,35 @@ import android.app.Activity
 import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.*
+import com.webtech.kamuskorea.data.UserRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+import javax.inject.Singleton
 
 // TAG untuk filter di Logcat
 private const val TAG = "BillingClientDebug"
 
-class BillingClientWrapper(
-    private val context: Context,
-    private val externalScope: CoroutineScope,
-    private val productId: String = "langganan_pro_bulanan" // Pastikan ID ini benar
+@Singleton
+class BillingClientWrapper @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val userRepository: UserRepository
 ) {
+    // Ganti dengan ID langganan yang kamu buat di Google Play Console
+    private val productId: String = "premium_sku"
+
     private val _productDetails = MutableStateFlow<ProductDetails?>(null)
     val productDetails = _productDetails.asStateFlow()
 
     private val _hasActiveSubscription = MutableStateFlow(false)
     val hasActiveSubscription = _hasActiveSubscription.asStateFlow()
+
+    // Gunakan CoroutineScope internal agar tidak bergantung dari luar
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
         Log.d(TAG, "purchasesUpdatedListener dipanggil. Kode: ${billingResult.responseCode}")
@@ -85,7 +97,7 @@ class BillingClientWrapper(
             Log.d(TAG, "--- Hasil Query Produk ---")
             Log.d(TAG, "Kode Respons: ${billingResult.responseCode} - Pesan: ${billingResult.debugMessage}")
 
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && productDetailsList != null) {
                 if (productDetailsList.isNotEmpty()) {
                     _productDetails.value = productDetailsList[0]
                     Log.d(TAG, "SUKSES: Detail produk ditemukan untuk '$productId'. Nama: ${productDetailsList[0].name}")
@@ -107,6 +119,12 @@ class BillingClientWrapper(
         billingClient.queryPurchasesAsync(params) { billingResult, purchases ->
             val hasSub = purchases.any { it.products.contains(productId) && it.purchaseState == Purchase.PurchaseState.PURCHASED }
             _hasActiveSubscription.value = hasSub
+
+            // **INTEGRASI DENGAN USER REPOSITORY**
+            // Update status premium di UserRepository agar seluruh aplikasi tahu
+            scope.launch {
+                userRepository.updatePremiumStatus(hasSub)
+            }
             Log.d(TAG, "Pengecekan selesai. Pengguna memiliki langganan aktif: $hasSub")
         }
     }
@@ -115,7 +133,10 @@ class BillingClientWrapper(
         val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchase.purchaseToken).build()
         billingClient.acknowledgePurchase(params) { billingResult ->
             Log.d(TAG, "Pembelian di-acknowledge. Kode: ${billingResult.responseCode}")
-            checkSubscriptionStatus()
+            // Setelah acknowledge, cek kembali status langganan untuk memastikan semuanya terupdate
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                checkSubscriptionStatus()
+            }
         }
     }
 

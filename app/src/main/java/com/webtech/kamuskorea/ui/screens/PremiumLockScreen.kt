@@ -45,13 +45,3 @@ fun PremiumLockScreen(
         }
     }
 }
-
-@Composable
-fun PremiumContentScreen(content: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text = content)
-    }
-}
