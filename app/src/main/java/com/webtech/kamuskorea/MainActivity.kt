@@ -11,11 +11,9 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-// --- PERBAIKAN IMPORT ICON ---
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
-// -----------------------------
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,6 +42,7 @@ import com.webtech.kamuskorea.ui.screens.auth.LoginScreen
 import com.webtech.kamuskorea.ui.screens.auth.RegisterScreen
 import com.webtech.kamuskorea.ui.screens.ebook.PdfViewerScreen
 import com.webtech.kamuskorea.ui.screens.profile.ProfileScreen
+import com.webtech.kamuskorea.ui.screens.profile.ProfileViewModel
 import com.webtech.kamuskorea.ui.screens.settings.SettingsScreen
 import com.webtech.kamuskorea.ui.screens.settings.SettingsViewModel
 import com.webtech.kamuskorea.ui.theme.*
@@ -168,79 +167,114 @@ fun MainApp(
                     Spacer(modifier = Modifier.weight(1f))
                     Divider()
                     NavigationDrawerItem(icon = { Icon(Icons.Default.Settings, contentDescription = "Pengaturan") }, label = { Text("Pengaturan") }, selected = currentRoute == Screen.Settings.route, onClick = { scope.launch { drawerState.close() }; navController.navigate(Screen.Settings.route) }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
-                    NavigationDrawerItem(icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout") }, label = { Text("Logout") }, selected = false, onClick = { scope.launch { drawerState.close() }; val googleSignInClient = GoogleSignIn.getClient(application, GoogleSignInOptions.DEFAULT_SIGN_IN); googleSignInClient.signOut().addOnCompleteListener { firebaseAuth.signOut(); navController.navigate(Screen.Login.route) { popUpTo(0) } } }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout") },
+                        label = { Text("Logout") },
+                        selected = false,
+                        onClick = {
+                            scope.launch {
+                                drawerState.close()
+                                val googleSignInClient = GoogleSignIn.getClient(application, GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                googleSignInClient.signOut().addOnCompleteListener {
+                                    firebaseAuth.signOut()
+                                    navController.navigate(Screen.Login.route) {
+                                        popUpTo(0)
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
-        ) { innerPadding ->
+        ) {
             Scaffold(
                 topBar = {
                     if (!isAuthScreen && currentRoute != "pdf_viewer_screen/{fileName}") {
-                        TopAppBar(title = { Text(currentTitle) }, navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, contentDescription = "Menu") } })
+                        TopAppBar(
+                            title = { Text(currentTitle) },
+                            navigationIcon = {
+                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                    Icon(Icons.Default.Menu, contentDescription = "Menu")
+                                }
+                            }
+                        )
                     }
-                },
-                // --- PERBAIKAN: SCAFFOLD CONTENT LAMBDA ---
-                content = { padding ->
-                    NavHost(navController = navController, startDestination = startDestination, modifier = Modifier.padding(padding)) {
-                        composable(Screen.Login.route) { LoginScreen(onLoginSuccess = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Login.route) { inclusive = true } } }, onNavigateToRegister = { navController.navigate(Screen.Register.route) }) }
-                        composable(Screen.Register.route) { RegisterScreen(onNavigateToLogin = { navController.popBackStack() }) }
-                        composable(Screen.Home.route) { HomeScreen(navController = navController) }
-                        composable(Screen.Dictionary.route) { DictionaryScreen() }
-                        composable(Screen.Memorization.route) { MemorizationScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
-                        composable(Screen.Quiz.route) { QuizScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
+                }
+            ) { innerPadding ->
+                NavHost(
+                    navController = navController,
+                    startDestination = startDestination,
+                    modifier = Modifier.padding(innerPadding)
+                ) {
+                    composable(Screen.Login.route) {
+                        LoginScreen(
+                            onLoginSuccess = {
+                                navController.navigate(Screen.Home.route) {
+                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                }
+                            },
+                            onNavigateToRegister = { navController.navigate(Screen.Register.route) }
+                        )
+                    }
+                    composable(Screen.Register.route) { RegisterScreen(onNavigateToLogin = { navController.popBackStack() }) }
+                    composable(Screen.Home.route) { HomeScreen(navController = navController) }
+                    composable(Screen.Dictionary.route) { DictionaryScreen() }
+                    composable(Screen.Memorization.route) { MemorizationScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
+                    composable(Screen.Quiz.route) { QuizScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
 
-                        // --- PERBAIKAN: Pemanggilan ProfileScreen tanpa parameter ---
-                        composable(Screen.Profile.route) { ProfileScreen() }
+                    composable(Screen.Profile.route) {
+                        val viewModel: ProfileViewModel = hiltViewModel()
+                        ProfileScreen(viewModel = viewModel)
+                    }
 
-                        composable(Screen.Settings.route) { SettingsScreen() }
+                    composable(Screen.Settings.route) { SettingsScreen() }
 
-                        composable(Screen.Ebook.route) {
-                            EbookScreen(
-                                isPremium = isPremium,
-                                onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
-                                // --- PERBAIKAN: Parameter onEbookClick ditambahkan ---
-                                onEbookClick = { ebook ->
-                                    scope.launch {
-                                        try {
-                                            val fileName = URL(ebook.pdfUrl).path.substringAfterLast('/')
-                                            val internalFile = File(application.filesDir, fileName)
-                                            if (!internalFile.exists()) {
-                                                withContext(Dispatchers.IO) {
-                                                    URL(ebook.pdfUrl).openStream().use { input ->
-                                                        internalFile.outputStream().use { output ->
-                                                            input.copyTo(output)
-                                                        }
+                    composable(Screen.Ebook.route) {
+                        EbookScreen(
+                            isPremium = isPremium,
+                            onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                            onEbookClick = { ebook ->
+                                scope.launch {
+                                    try {
+                                        val fileName = URL(ebook.pdfUrl).path.substringAfterLast('/')
+                                        val internalFile = File(application.filesDir, fileName)
+                                        if (!internalFile.exists()) {
+                                            withContext(Dispatchers.IO) {
+                                                URL(ebook.pdfUrl).openStream().use { input ->
+                                                    internalFile.outputStream().use { output ->
+                                                        input.copyTo(output)
                                                     }
                                                 }
                                             }
-                                            navController.navigate("pdf_viewer_screen/$fileName")
-                                        } catch (e: Exception) {
-                                            Log.e("EbookClick", "Error saat memproses ebook click: ", e)
                                         }
+                                        navController.navigate("pdf_viewer_screen/$fileName")
+                                    } catch (e: Exception) {
+                                        Log.e("EbookClick", "Error saat memproses ebook click: ", e)
                                     }
                                 }
-                            )
-                        }
-
-                        composable(
-                            route = "pdf_viewer_screen/{fileName}",
-                            arguments = listOf(navArgument("fileName") { type = NavType.StringType })
-                        ) { backStackEntry ->
-                            val fileName = backStackEntry.arguments?.getString("fileName")
-                            if (fileName != null) {
-                                val file = File(application.filesDir, fileName)
-                                // --- PERBAIKAN: Parameter disesuaikan menjadi 'file' ---
-                                PdfViewerScreen(
-                                    file = file,
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
-                            } else {
-                                Text("Error: Nama file tidak valid.")
                             }
+                        )
+                    }
+
+                    composable(
+                        route = "pdf_viewer_screen/{fileName}",
+                        arguments = listOf(navArgument("fileName") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        val fileName = backStackEntry.arguments?.getString("fileName")
+                        if (fileName != null) {
+                            val file = File(application.filesDir, fileName)
+                            PdfViewerScreen(
+                                file = file,
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        } else {
+                            Text("Error: Nama file tidak valid.")
                         }
                     }
                 }
-            )
+            }
         }
     }
 }

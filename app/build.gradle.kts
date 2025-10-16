@@ -88,8 +88,8 @@ dependencies {
     ksp("androidx.room:room-compiler:$roomVersion")
 
     // 4. Tambahan untuk PDF Viewer baru
-    implementation("com.github.barteksc:AndroidPdfViewer:3.1.0-beta.1"){
-        exclude(group = "com.android.support", module = "support-v4")
+    implementation("com.github.barteksc:AndroidPdfViewer:3.1.0-beta.1") {
+        exclude(group = "com.android.support")
     }
 
     // ---------------------------------------------

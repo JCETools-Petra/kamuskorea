@@ -23,7 +23,7 @@ class BillingClientWrapper @Inject constructor(
     private val userRepository: UserRepository
 ) {
     // Ganti dengan ID langganan yang kamu buat di Google Play Console
-    private val productId: String = "premium_sku"
+    private val productId: String = "langganan_pro_bulanan"
 
     private val _productDetails = MutableStateFlow<ProductDetails?>(null)
     val productDetails = _productDetails.asStateFlow()
