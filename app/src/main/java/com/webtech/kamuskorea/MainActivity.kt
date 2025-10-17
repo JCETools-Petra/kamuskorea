@@ -1,10 +1,7 @@
-// File: app/src/main/java/com/webtech/kamuskorea/MainActivity.kt
-
 package com.webtech.kamuskorea
 
 import android.app.Application
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -12,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -40,6 +38,7 @@ import com.webtech.kamuskorea.ui.navigation.Screen
 import com.webtech.kamuskorea.ui.screens.*
 import com.webtech.kamuskorea.ui.screens.auth.LoginScreen
 import com.webtech.kamuskorea.ui.screens.auth.RegisterScreen
+import com.webtech.kamuskorea.ui.screens.ebook.EbookViewModel
 import com.webtech.kamuskorea.ui.screens.ebook.PdfViewerScreen
 import com.webtech.kamuskorea.ui.screens.profile.ProfileScreen
 import com.webtech.kamuskorea.ui.screens.profile.ProfileViewModel
@@ -47,11 +46,7 @@ import com.webtech.kamuskorea.ui.screens.settings.SettingsScreen
 import com.webtech.kamuskorea.ui.screens.settings.SettingsViewModel
 import com.webtech.kamuskorea.ui.theme.*
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.net.URL
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -67,7 +62,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         installSplashScreen()
         setContent {
-            val isPremium by userRepository.isPremium.collectAsState()
+            val isPremium by userRepository.isPremium.collectAsState(initial = false)
             MainApp(
                 firebaseAuth = firebaseAuth,
                 isPremium = isPremium
@@ -118,14 +113,14 @@ fun MainApp(
                     Screen.Memorization.route -> "Hafalan"
                     Screen.Profile.route -> "Profil & Langganan"
                     Screen.Settings.route -> "Pengaturan"
-                    "pdf_viewer_screen/{fileName}" -> "Baca E-Book"
+                    "pdf_viewer_screen/{ebookId}" -> "Baca E-Book"
                     else -> "Kamus Korea"
                 }
             }
         }
 
         val menuItems = listOf(
-            NavItem("Kamus", Icons.Outlined.MenuBook, Screen.Dictionary),
+            NavItem("Kamus", Icons.AutoMirrored.Outlined.MenuBook, Screen.Dictionary),
             NavItem("E-Book", Icons.Outlined.AutoStories, Screen.Ebook),
             NavItem("Hafalan", Icons.Outlined.Bookmark, Screen.Memorization),
             NavItem("Latihan", Icons.Outlined.Quiz, Screen.Quiz)
@@ -134,18 +129,22 @@ fun MainApp(
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
         val isAuthScreen = currentRoute == Screen.Login.route || currentRoute == Screen.Register.route
-        val isPdfViewerScreen = currentRoute == "pdf_viewer_screen/{fileName}"
+        val isPdfViewerScreen = currentRoute == "pdf_viewer_screen/{ebookId}"
 
         ModalNavigationDrawer(
             drawerState = drawerState,
             gesturesEnabled = !isAuthScreen && !isPdfViewerScreen,
             drawerContent = {
                 ModalDrawerSheet {
-                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         AsyncImage(
                             model = firebaseAuth.currentUser?.photoUrl,
                             contentDescription = "Foto Profil",
-                            modifier = Modifier.size(80.dp).clip(CircleShape),
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape),
                             contentScale = ContentScale.Crop,
                             placeholder = painterResource(id = R.drawable.ic_default_profile),
                             error = painterResource(id = R.drawable.ic_default_profile)
@@ -160,13 +159,26 @@ fun MainApp(
                             navController.navigate(Screen.Profile.route)
                         }) { Text("Profil & Langganan") }
                     }
-                    Divider()
+                    HorizontalDivider()
                     NavigationDrawerItem(icon = { Icon(Icons.Default.Home, contentDescription = "Home") }, label = { Text("Menu Utama") }, selected = Screen.Home.route == currentRoute, onClick = { scope.launch { drawerState.close() }; navController.navigate(Screen.Home.route) }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
                     menuItems.forEach { item ->
-                        NavigationDrawerItem(icon = { Icon(item.icon, contentDescription = item.label) }, label = { Text(item.label) }, selected = item.screen.route == currentRoute, onClick = { scope.launch { drawerState.close() }; navController.navigate(item.screen.route) { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true } }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
+                        NavigationDrawerItem(
+                            icon = { Icon(item.icon, contentDescription = item.label) },
+                            label = { Text(item.label) },
+                            selected = item.screen.route == currentRoute,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                navController.navigate(item.screen.route) {
+                                    // PERBAIKAN LOGIKA NAVIGASI DI SINI
+                                    popUpTo(navController.graph.findStartDestination().id)
+                                    launchSingleTop = true
+                                }
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
                     }
                     Spacer(modifier = Modifier.weight(1f))
-                    Divider()
+                    HorizontalDivider()
                     NavigationDrawerItem(icon = { Icon(Icons.Default.Settings, contentDescription = "Pengaturan") }, label = { Text("Pengaturan") }, selected = currentRoute == Screen.Settings.route, onClick = { scope.launch { drawerState.close() }; navController.navigate(Screen.Settings.route) }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
                     NavigationDrawerItem(
                         icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout") },
@@ -192,7 +204,7 @@ fun MainApp(
         ) {
             Scaffold(
                 topBar = {
-                    if (!isAuthScreen && currentRoute != "pdf_viewer_screen/{fileName}") {
+                    if (!isAuthScreen && !isPdfViewerScreen) {
                         TopAppBar(
                             title = { Text(currentTitle) },
                             navigationIcon = {
@@ -233,45 +245,25 @@ fun MainApp(
                     composable(Screen.Settings.route) { SettingsScreen() }
 
                     composable(Screen.Ebook.route) {
+                        val ebookViewModel: EbookViewModel = hiltViewModel()
                         EbookScreen(
-                            isPremium = isPremium,
-                            onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
-                            onEbookClick = { ebook ->
-                                scope.launch {
-                                    try {
-                                        val fileName = URL(ebook.pdfUrl).path.substringAfterLast('/')
-                                        val internalFile = File(application.filesDir, fileName)
-                                        if (!internalFile.exists()) {
-                                            withContext(Dispatchers.IO) {
-                                                URL(ebook.pdfUrl).openStream().use { input ->
-                                                    internalFile.outputStream().use { output ->
-                                                        input.copyTo(output)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        navController.navigate("pdf_viewer_screen/$fileName")
-                                    } catch (e: Exception) {
-                                        Log.e("EbookClick", "Error saat memproses ebook click: ", e)
-                                    }
-                                }
-                            }
+                            navController = navController,
+                            viewModel = ebookViewModel
                         )
                     }
 
                     composable(
-                        route = "pdf_viewer_screen/{fileName}",
-                        arguments = listOf(navArgument("fileName") { type = NavType.StringType })
+                        route = "${Screen.PdfViewer.route}/{ebookId}",
+                        arguments = listOf(navArgument("ebookId") { type = NavType.StringType })
                     ) { backStackEntry ->
-                        val fileName = backStackEntry.arguments?.getString("fileName")
-                        if (fileName != null) {
-                            val file = File(application.filesDir, fileName)
+                        val ebookId = backStackEntry.arguments?.getString("ebookId")
+                        if (ebookId != null) {
                             PdfViewerScreen(
-                                file = file,
-                                onNavigateBack = { navController.popBackStack() }
+                                ebookId = ebookId,
+                                navController = navController
                             )
                         } else {
-                            Text("Error: Nama file tidak valid.")
+                            Text("Error: E-Book ID tidak valid.")
                         }
                     }
                 }

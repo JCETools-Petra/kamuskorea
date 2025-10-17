@@ -1,6 +1,7 @@
 package com.webtech.kamuskorea.ui.screens.settings
 
 import android.app.Application
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -13,18 +14,16 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-// Buat DataStore di level top-level
 private val Application.dataStore by preferencesDataStore(name = "settings")
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Kunci untuk menyimpan nama tema
     private val THEME_KEY = stringPreferencesKey("theme_preference")
+    private val NOTIFICATIONS_KEY = booleanPreferencesKey("notifications_enabled")
 
-    // StateFlow untuk "membaca" tema yang tersimpan
     val currentTheme = getApplication<Application>().dataStore.data
         .map { preferences ->
-            preferences[THEME_KEY] ?: "Default" // Nilai default adalah "Default"
+            preferences[THEME_KEY] ?: "Default"
         }
         .stateIn(
             scope = viewModelScope,
@@ -32,7 +31,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             initialValue = "Default"
         )
 
-    // Fungsi yang akan dipanggil dari UI untuk "menulis" / mengubah tema
+    val notificationsEnabled = getApplication<Application>().dataStore.data
+        .map { preferences ->
+            preferences[NOTIFICATIONS_KEY] ?: true // Aktif secara default
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = true
+        )
+
     fun changeTheme(themeName: String) {
         viewModelScope.launch {
             getApplication<Application>().dataStore.edit { preferences ->
@@ -41,7 +49,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // Factory untuk membuat ViewModel (tidak berubah)
+    fun setNotificationsEnabled(isEnabled: Boolean) {
+        viewModelScope.launch {
+            getApplication<Application>().dataStore.edit { preferences ->
+                preferences[NOTIFICATIONS_KEY] = isEnabled
+            }
+        }
+    }
+
+    // TODO: Tambahkan fungsi untuk menghapus riwayat pencarian
+    // fun clearSearchHistory() { ... }
+
     companion object {
         fun provideFactory(application: Application): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {

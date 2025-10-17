@@ -1,95 +1,111 @@
 package com.webtech.kamuskorea.ui.screens
 
-import android.content.Context
-import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.webtech.kamuskorea.data.Ebook
+import com.webtech.kamuskorea.ui.navigation.Screen
 import com.webtech.kamuskorea.ui.screens.ebook.EbookViewModel
 
 @Composable
 fun EbookScreen(
-    isPremium: Boolean,
-    onNavigateToProfile: () -> Unit,
-    // Tambahkan parameter NavController
-    onEbookClick: (Ebook) -> Unit
+    navController: NavController,
+    viewModel: EbookViewModel
 ) {
-    if (isPremium) {
-        val viewModel: EbookViewModel = viewModel()
-        val ebooks by viewModel.ebooks.collectAsState()
-        val isLoading by viewModel.isLoading.collectAsState()
+    val ebooks by viewModel.ebooks.collectAsState()
+    val isPremiumUser by viewModel.isPremiumUser.collectAsState()
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(ebooks) { ebook ->
-                        EbookItem(ebook = ebook, onClick = { onEbookClick(ebook) })
-                    }
-                }
+    Column(modifier = Modifier.padding(16.dp)) {
+        if (ebooks.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
-        }
-    } else {
-        // Tampilan untuk non-premium (sudah ada)
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                "Fitur E-Book hanya untuk anggota premium.",
-                style = MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(16.dp)
-            )
-            Button(onClick = onNavigateToProfile) {
-                Text("Upgrade ke Premium")
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(ebooks) { ebook ->
+                    EbookItem(
+                        ebook = ebook,
+                        onEbookClick = {
+                            if (ebook.isPremium && !isPremiumUser) {
+                                navController.navigate(Screen.Profile.route)
+                            } else {
+                                // PERBAIKI PEMANGGILAN NAVIGASI DI SINI
+                                navController.navigate("${Screen.PdfViewer.route}/${ebook.id}")
+                            }
+                        }
+                    )
+                }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EbookItem(ebook: Ebook, onClick: () -> Unit) {
+fun EbookItem(ebook: Ebook, onEbookClick: () -> Unit) {
     Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.clickable(onClick = onEbookClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AsyncImage(
-                model = ebook.coverImageUrl,
-                contentDescription = "Cover ${ebook.title}",
-                modifier = Modifier.size(60.dp, 90.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(text = ebook.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = ebook.description, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+        Column {
+            Box(contentAlignment = Alignment.TopEnd) {
+                AsyncImage(
+                    model = ebook.coverUrl,
+                    contentDescription = ebook.title,
+                    modifier = Modifier
+                        .height(180.dp)
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.medium),
+                    contentScale = ContentScale.Crop
+                )
+                if (ebook.isPremium) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(8.dp).clip(MaterialTheme.shapes.small)
+                    ) {
+                        Text(
+                            text = "PREMIUM",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
             }
+            Text(
+                text = ebook.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 8.dp)
+            )
+            Text(
+                text = ebook.description,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
+            )
         }
     }
 }

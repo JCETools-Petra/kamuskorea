@@ -2,23 +2,31 @@ package com.webtech.kamuskorea.ui.screens.ebook
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.webtech.kamuskorea.data.Ebook
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import com.webtech.kamuskorea.data.UserRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import android.util.Log
+import javax.inject.Inject
 
+@HiltViewModel
+class EbookViewModel @Inject constructor(
+    private val database: FirebaseDatabase,
+    private val remoteConfig: FirebaseRemoteConfig,
+    private val userRepository: UserRepository
+) : ViewModel() {
 
-class EbookViewModel : ViewModel() {
-    private val db = FirebaseFirestore.getInstance()
     private val _ebooks = MutableStateFlow<List<Ebook>>(emptyList())
-    val ebooks = _ebooks.asStateFlow()
+    val ebooks: StateFlow<List<Ebook>> = _ebooks.asStateFlow()
 
-    private val _isLoading = MutableStateFlow(true)
-    val isLoading = _isLoading.asStateFlow()
+    val isPremiumUser = userRepository.isPremium.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        false
+    )
 
     init {
         fetchEbooks()
@@ -26,38 +34,32 @@ class EbookViewModel : ViewModel() {
 
     private fun fetchEbooks() {
         viewModelScope.launch {
-            _isLoading.value = true
             try {
-                val db = FirebaseFirestore.getInstance()
-                val snapshot = db.collection("ebooks")
-                    .orderBy("createdAt", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
+                remoteConfig.fetchAndActivate().await()
+                val freeEbookCount = remoteConfig.getLong("free_ebook_count").toInt()
 
-                val ebookList = snapshot.documents.mapNotNull { doc ->
-                    // Menggunakan mapNotNull untuk keamanan ekstra, agar jika ada data null,
-                    // aplikasi tidak crash dan item tersebut dilewati.
-                    doc.toObject(Ebook::class.java)?.copy(id = doc.id)
+                val ebooksRef = database.getReference("ebooks")
+                val dataSnapshot = ebooksRef.get().await()
+
+                val ebookList = dataSnapshot.children.mapNotNull { snapshot ->
+                    // Ambil Ebook dari value
+                    val ebook = snapshot.getValue(Ebook::class.java)
+                    // Ambil ID dari key Firebase dan simpan ke dalam objek Ebook
+                    ebook?.copy(id = snapshot.key ?: "")
+                }.mapIndexed { index, ebook ->
+                    // Tandai ebook sebagai premium jika posisinya melebihi jumlah gratis
+                    ebook.copy(isPremium = index >= freeEbookCount)
                 }
                 _ebooks.value = ebookList
-
-                // --- LOG UNTUK DEBUGGING ---
-                // Log ini akan memberitahu kita apakah pengambilan data berhasil.
-                Log.d("EbookFirestore", "Fetch berhasil. Jumlah ebook yang diambil: ${ebookList.size}")
-                if (ebookList.isNotEmpty()) {
-                    // Log ini untuk memastikan data di dalamnya tidak korup.
-                    Log.d("EbookFirestore", "Judul ebook pertama yang terambil: ${ebookList[0].title}")
-                }
-                // --- AKHIR DARI LOG ---
-
             } catch (e: Exception) {
-                // --- LOG JIKA TERJADI ERROR ---
-                // Jika error PERMISSION_DENIED masih terjadi, log ini akan muncul.
-                Log.e("EbookFirestore", "Fetch gagal karena error:", e)
-                _ebooks.value = emptyList() // Kosongkan daftar jika gagal
-            } finally {
-                _isLoading.value = false
+                // Handle error, misalnya dengan logging atau menampilkan pesan ke pengguna
             }
+        }
+    }
+
+    fun getEbookById(ebookId: String): Flow<Ebook?> {
+        return _ebooks.map { list ->
+            list.find { it.id == ebookId }
         }
     }
 }
