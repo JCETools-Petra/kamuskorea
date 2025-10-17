@@ -32,6 +32,11 @@ fun EbookScreen(
     val isPremiumUser by viewModel.isPremiumUser.collectAsState()
 
     Column(modifier = Modifier.padding(16.dp)) {
+        Text(
+            "E-Book Pembelajaran",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
         if (ebooks.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -69,7 +74,7 @@ fun EbookItem(ebook: Ebook, onEbookClick: () -> Unit) {
         Column {
             Box(contentAlignment = Alignment.TopEnd) {
                 AsyncImage(
-                    model = ebook.coverUrl,
+                    model = ebook.coverImageUrl,
                     contentDescription = ebook.title,
                     modifier = Modifier
                         .height(180.dp)
