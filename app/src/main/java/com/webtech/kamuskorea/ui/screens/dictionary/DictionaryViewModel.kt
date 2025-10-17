@@ -1,56 +1,48 @@
+// Lokasi file: app/src/main/java/com/webtech/kamuskorea/ui/screens/dictionary/DictionaryViewModel.kt
+
 package com.webtech.kamuskorea.ui.screens.dictionary
 
-import android.app.Application
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.webtech.kamuskorea.data.local.AppDatabase
 import com.webtech.kamuskorea.data.local.Word
 import com.webtech.kamuskorea.data.local.WordDao
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
+import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class DictionaryViewModel(private val wordDao: WordDao) : ViewModel() {
+@HiltViewModel // Anotasi ini memberitahu Hilt cara membuat ViewModel ini
+class DictionaryViewModel @Inject constructor( // @Inject memberitahu Hilt dependensi apa yang dibutuhkan
+    private val wordDao: WordDao
+) : ViewModel() {
 
-    // State untuk menampung query pencarian dari pengguna
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    // State untuk menampung daftar kata yang akan ditampilkan di UI
+    // Logika untuk mendapatkan kata-kata berdasarkan query pencarian dari flow
     val words: StateFlow<List<Word>> = searchQuery
         .flatMapLatest { query ->
             if (query.isBlank()) {
+                // Jika query kosong, tampilkan semua kata
                 wordDao.getAllWords()
             } else {
+                // Jika ada query, cari kata yang cocok
                 wordDao.searchWords(query)
             }
         }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
+            started = SharingStarted.WhileSubscribed(5000), // Optimasi agar flow aktif saat UI terlihat
+            initialValue = emptyList() // Nilai awal adalah daftar kosong
         )
 
-    // Fungsi yang dipanggil UI saat pengguna mengetik di search bar
+    /**
+     * Fungsi yang dipanggil dari UI untuk memperbarui query pencarian.
+     */
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
     }
 
-    // Ini adalah "Factory" untuk membuat instance ViewModel kita,
-    // karena ViewModel ini butuh WordDao saat dibuat.
-    companion object {
-        fun provideFactory(application: Application): ViewModelProvider.Factory {
-            return object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    if (modelClass.isAssignableFrom(DictionaryViewModel::class.java)) {
-                        val dao = AppDatabase.getDatabase(application).wordDao()
-                        return DictionaryViewModel(dao) as T
-                    }
-                    throw IllegalArgumentException("Unknown ViewModel class")
-                }
-            }
-        }
-    }
+    // companion object dengan provideFactory() DIHAPUS karena tidak diperlukan saat menggunakan Hilt.
 }

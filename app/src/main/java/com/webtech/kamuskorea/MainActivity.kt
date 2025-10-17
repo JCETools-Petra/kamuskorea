@@ -1,6 +1,7 @@
 package com.webtech.kamuskorea
 
 import android.app.Application
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -8,6 +9,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.*
@@ -38,10 +40,8 @@ import com.webtech.kamuskorea.ui.navigation.Screen
 import com.webtech.kamuskorea.ui.screens.*
 import com.webtech.kamuskorea.ui.screens.auth.LoginScreen
 import com.webtech.kamuskorea.ui.screens.auth.RegisterScreen
-import com.webtech.kamuskorea.ui.screens.ebook.EbookViewModel
 import com.webtech.kamuskorea.ui.screens.ebook.PdfViewerScreen
 import com.webtech.kamuskorea.ui.screens.profile.ProfileScreen
-import com.webtech.kamuskorea.ui.screens.profile.ProfileViewModel
 import com.webtech.kamuskorea.ui.screens.settings.SettingsScreen
 import com.webtech.kamuskorea.ui.screens.settings.SettingsViewModel
 import com.webtech.kamuskorea.ui.theme.*
@@ -100,22 +100,23 @@ fun MainApp(
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
         var currentTitle by remember { mutableStateOf("Kamus Korea") }
-        val context = LocalContext.current
-        val application = context.applicationContext as Application
+        val application = LocalContext.current.applicationContext as Application
 
-        LaunchedEffect(navController) {
-            navController.currentBackStackEntryFlow.collect { backStackEntry ->
-                currentTitle = when (backStackEntry.destination.route) {
-                    Screen.Home.route -> "Menu Utama"
-                    Screen.Dictionary.route -> "Kamus"
-                    Screen.Ebook.route -> "E-Book"
-                    Screen.Quiz.route -> "Latihan"
-                    Screen.Memorization.route -> "Hafalan"
-                    Screen.Profile.route -> "Profil & Langganan"
-                    Screen.Settings.route -> "Pengaturan"
-                    "pdf_viewer_screen/{ebookId}" -> "Baca E-Book"
-                    else -> "Kamus Korea"
-                }
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = navBackStackEntry?.destination?.route
+
+        LaunchedEffect(currentRoute) {
+            currentTitle = when {
+                currentRoute == Screen.Home.route -> "Menu Utama"
+                currentRoute == Screen.Dictionary.route -> "Kamus"
+                currentRoute == Screen.Ebook.route -> "E-Book"
+                currentRoute == Screen.Quiz.route -> "Latihan"
+                currentRoute == Screen.Memorization.route -> "Hafalan"
+                currentRoute == Screen.Profile.route -> "Profil & Langganan"
+                currentRoute == Screen.Settings.route -> "Pengaturan"
+                currentRoute?.startsWith("pdf_viewer/") == true ->
+                    navBackStackEntry?.arguments?.getString("title") ?: "Baca E-Book"
+                else -> "Kamus Korea"
             }
         }
 
@@ -126,25 +127,20 @@ fun MainApp(
             NavItem("Latihan", Icons.Outlined.Quiz, Screen.Quiz)
         )
 
-        val navBackStackEntry by navController.currentBackStackEntryAsState()
-        val currentRoute = navBackStackEntry?.destination?.route
         val isAuthScreen = currentRoute == Screen.Login.route || currentRoute == Screen.Register.route
-        val isPdfViewerScreen = currentRoute == "pdf_viewer_screen/{ebookId}"
+        val isPdfViewerScreen = currentRoute?.startsWith("pdf_viewer/") == true
 
         ModalNavigationDrawer(
             drawerState = drawerState,
+            // --- INI BAGIAN YANG DIPERBAIKI ---
             gesturesEnabled = !isAuthScreen && !isPdfViewerScreen,
             drawerContent = {
                 ModalDrawerSheet {
-                    Column(modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         AsyncImage(
                             model = firebaseAuth.currentUser?.photoUrl,
                             contentDescription = "Foto Profil",
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape),
+                            modifier = Modifier.size(80.dp).clip(CircleShape),
                             contentScale = ContentScale.Crop,
                             placeholder = painterResource(id = R.drawable.ic_default_profile),
                             error = painterResource(id = R.drawable.ic_default_profile)
@@ -169,7 +165,6 @@ fun MainApp(
                             onClick = {
                                 scope.launch { drawerState.close() }
                                 navController.navigate(item.screen.route) {
-                                    // PERBAIKAN LOGIKA NAVIGASI DI SINI
                                     popUpTo(navController.graph.findStartDestination().id)
                                     launchSingleTop = true
                                 }
@@ -190,9 +185,7 @@ fun MainApp(
                                 val googleSignInClient = GoogleSignIn.getClient(application, GoogleSignInOptions.DEFAULT_SIGN_IN)
                                 googleSignInClient.signOut().addOnCompleteListener {
                                     firebaseAuth.signOut()
-                                    navController.navigate(Screen.Login.route) {
-                                        popUpTo(0)
-                                    }
+                                    navController.navigate(Screen.Login.route) { popUpTo(0) }
                                 }
                             }
                         },
@@ -204,12 +197,18 @@ fun MainApp(
         ) {
             Scaffold(
                 topBar = {
-                    if (!isAuthScreen && !isPdfViewerScreen) {
+                    if (!isAuthScreen) {
                         TopAppBar(
                             title = { Text(currentTitle) },
                             navigationIcon = {
-                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                    Icon(Icons.Default.Menu, contentDescription = "Menu")
+                                if (isPdfViewerScreen) {
+                                    IconButton(onClick = { navController.popBackStack() }) {
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
+                                    }
+                                } else {
+                                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                                    }
                                 }
                             }
                         )
@@ -221,49 +220,63 @@ fun MainApp(
                     startDestination = startDestination,
                     modifier = Modifier.padding(innerPadding)
                 ) {
-                    composable(Screen.Login.route) {
-                        LoginScreen(
-                            onLoginSuccess = {
-                                navController.navigate(Screen.Home.route) {
-                                    popUpTo(Screen.Login.route) { inclusive = true }
-                                }
-                            },
-                            onNavigateToRegister = { navController.navigate(Screen.Register.route) }
-                        )
-                    }
+                    composable(Screen.Login.route) { LoginScreen(onLoginSuccess = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Login.route) { inclusive = true } } }, onNavigateToRegister = { navController.navigate(Screen.Register.route) }) }
                     composable(Screen.Register.route) { RegisterScreen(onNavigateToLogin = { navController.popBackStack() }) }
                     composable(Screen.Home.route) { HomeScreen(navController = navController) }
-                    composable(Screen.Dictionary.route) { DictionaryScreen() }
-                    composable(Screen.Memorization.route) { MemorizationScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
-                    composable(Screen.Quiz.route) { QuizScreen(isPremium) { navController.navigate(Screen.Profile.route) } }
-
-                    composable(Screen.Profile.route) {
-                        val viewModel: ProfileViewModel = hiltViewModel()
-                        ProfileScreen(viewModel = viewModel)
-                    }
-
-                    composable(Screen.Settings.route) { SettingsScreen() }
+                    composable(Screen.Dictionary.route) { DictionaryScreen(viewModel = hiltViewModel()) }
+                    composable(Screen.Memorization.route) { MemorizationScreen(isPremium = isPremium, onNavigateToProfile = { navController.navigate(Screen.Profile.route) }) }
+                    composable(Screen.Quiz.route) { QuizScreen(isPremium = isPremium, onNavigateToProfile = { navController.navigate(Screen.Profile.route) }) }
+                    composable(Screen.Settings.route) { SettingsScreen(viewModel = hiltViewModel()) }
 
                     composable(Screen.Ebook.route) {
-                        val ebookViewModel: EbookViewModel = hiltViewModel()
                         EbookScreen(
-                            navController = navController,
-                            viewModel = ebookViewModel
+                            viewModel = hiltViewModel(),
+                            onNavigateToPdf = { pdfUrl, title ->
+                                val encodedUrl = Uri.encode(pdfUrl)
+                                navController.navigate("pdf_viewer/$encodedUrl/$title")
+                            },
+                            onNavigateToPremiumLock = {
+                                navController.navigate(Screen.PremiumLock.route)
+                            }
+                        )
+                    }
+
+                    composable(Screen.PremiumLock.route) {
+                        PremiumLockScreen(
+                            onNavigateToProfile = {
+                                navController.navigate(Screen.Profile.route) {
+                                    popUpTo(Screen.Home.route)
+                                }
+                            }
+                        )
+                    }
+
+                    composable(Screen.Profile.route) {
+                        ProfileScreen(
+                            viewModel = hiltViewModel()
                         )
                     }
 
                     composable(
-                        route = "${Screen.PdfViewer.route}/{ebookId}",
-                        arguments = listOf(navArgument("ebookId") { type = NavType.StringType })
+                        route = "pdf_viewer/{pdfUrl}/{title}",
+                        arguments = listOf(
+                            navArgument("pdfUrl") { type = NavType.StringType },
+                            navArgument("title") { type = NavType.StringType }
+                        )
                     ) { backStackEntry ->
-                        val ebookId = backStackEntry.arguments?.getString("ebookId")
-                        if (ebookId != null) {
+                        val pdfUrl = backStackEntry.arguments?.getString("pdfUrl")?.let { Uri.decode(it) }
+                        val title = backStackEntry.arguments?.getString("title")
+
+                        if (pdfUrl != null && title != null) {
                             PdfViewerScreen(
-                                ebookId = ebookId,
-                                navController = navController
+                                navController = navController,
+                                pdfUrl = pdfUrl,
+                                title = title
                             )
                         } else {
-                            Text("Error: E-Book ID tidak valid.")
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("Error: Data E-Book tidak valid.")
+                            }
                         }
                     }
                 }

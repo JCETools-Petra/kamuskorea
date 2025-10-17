@@ -1,23 +1,14 @@
 package com.webtech.kamuskorea.data
 
-import com.google.firebase.firestore.ServerTimestamp
-import java.util.Date
+import com.google.firebase.Timestamp
 
 data class Ebook(
-    // Properti ini akan diisi dari ID dokumen Firestore, jadi tidak perlu ada di database
-    var id: String = "",
-
-    // Pastikan nama field ini sama persis dengan di Firestore
+    val id: String = "",
     val title: String = "",
     val description: String = "",
-    val coverImageUrl: String = "", // Sesuai gambar: coverImageUrl
+    val coverImageUrl: String = "",
     val pdfUrl: String = "",
-
-    // Field untuk penanda premium dan urutan
-    val isPremium: Boolean = false,
-    val order: Int = 0, // Tambahkan field order
-
-    // Field timestamp
-    @ServerTimestamp
-    val createdAt: Date? = null // Sesuai gambar: createdAt
+    val createdAt: Timestamp? = null,
+    val order: Int = 0,
+    val isPremium: Boolean = false // <-- Tambahkan baris ini
 )
