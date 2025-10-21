@@ -1,14 +1,13 @@
 package com.webtech.kamuskorea.data
 
-import com.google.firebase.Timestamp
-
 data class Ebook(
     val id: String = "",
     val title: String = "",
     val description: String = "",
-    val coverImageUrl: String = "",
+    // --- PERBAIKAN DI SINI ---
+    val coverImageUrl: String?, // Ubah menjadi String? (nullable)
+    // --- AKHIR PERBAIKAN ---
     val pdfUrl: String = "",
-    val createdAt: Timestamp? = null,
     val order: Int = 0,
-    val isPremium: Boolean = false // <-- Tambahkan baris ini
+    val isPremium: Boolean = false
 )

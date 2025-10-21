@@ -1,76 +1,57 @@
 package com.webtech.kamuskorea.ui.screens.settings
 
-import android.app.Application
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import androidx.lifecycle.AndroidViewModel
+import androidx.datastore.core.DataStore // <-- TAMBAHKAN IMPORT INI
+import androidx.datastore.preferences.core.Preferences // <-- TAMBAHKAN IMPORT INI
+import androidx.datastore.preferences.core.edit // <-- TAMBAHKAN IMPORT INI
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.webtech.kamuskorea.ui.datastore.SettingsDataStore // <-- IMPORT COMPANION OBJECT KEY
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.map // <-- TAMBAHKAN IMPORT INI
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-private val Application.dataStore by preferencesDataStore(name = "settings")
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    // --- PERUBAHAN DI SINI: Inject DataStore<Preferences> ---
+    private val dataStore: DataStore<Preferences>
+    // --- AKHIR PERUBAHAN ---
+) : ViewModel() {
 
-class SettingsViewModel(application: Application) : AndroidViewModel(application) {
+    // --- PERUBAHAN DI SINI: Akses DataStore langsung ---
+    val currentTheme = dataStore.data.map { preferences ->
+        preferences[SettingsDataStore.THEME_KEY] ?: "Default" // Gunakan key dari Companion
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "Default"
+    )
 
-    private val THEME_KEY = stringPreferencesKey("theme_preference")
-    private val NOTIFICATIONS_KEY = booleanPreferencesKey("notifications_enabled")
-
-    val currentTheme = getApplication<Application>().dataStore.data
-        .map { preferences ->
-            preferences[THEME_KEY] ?: "Default"
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = "Default"
-        )
-
-    val notificationsEnabled = getApplication<Application>().dataStore.data
-        .map { preferences ->
-            preferences[NOTIFICATIONS_KEY] ?: true // Aktif secara default
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = true
-        )
-
-    fun changeTheme(themeName: String) {
+    fun saveTheme(theme: String) {
         viewModelScope.launch {
-            getApplication<Application>().dataStore.edit { preferences ->
-                preferences[THEME_KEY] = themeName
+            dataStore.edit { settings ->
+                settings[SettingsDataStore.THEME_KEY] = theme // Gunakan key dari Companion
             }
         }
     }
+    // --- AKHIR PERUBAHAN ---
 
-    fun setNotificationsEnabled(isEnabled: Boolean) {
+    // Jika Anda punya state/fungsi lain di sini yang menggunakan
+    // SettingsDataStore, ubah juga untuk menggunakan `dataStore` langsung
+    // Contoh:
+    /*
+    val isDarkMode = dataStore.data.map { preferences ->
+        preferences[SettingsDataStore.DARK_MODE_KEY] ?: false
+    }.stateIn(...)
+
+    fun saveDarkMode(isDark: Boolean) {
         viewModelScope.launch {
-            getApplication<Application>().dataStore.edit { preferences ->
-                preferences[NOTIFICATIONS_KEY] = isEnabled
+            dataStore.edit { preferences ->
+                preferences[SettingsDataStore.DARK_MODE_KEY] = isDark
             }
         }
     }
-
-    // TODO: Tambahkan fungsi untuk menghapus riwayat pencarian
-    // fun clearSearchHistory() { ... }
-
-    companion object {
-        fun provideFactory(application: Application): ViewModelProvider.Factory {
-            return object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    if (modelClass.isAssignableFrom(SettingsViewModel::class.java)) {
-                        return SettingsViewModel(application) as T
-                    }
-                    throw IllegalArgumentException("Unknown ViewModel class")
-                }
-            }
-        }
-    }
+    */
 }

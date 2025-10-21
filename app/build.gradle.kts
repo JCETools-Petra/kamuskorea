@@ -113,6 +113,16 @@ dependencies {
 
     // Billing (tidak diubah)
     implementation("com.android.billingclient:billing-ktx:6.1.0")
+
+    // Retrofit & Gson
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.10.0") // Untuk debugging
+
+    // Room (pastikan sudah ada)
+    implementation("androidx.room:room-runtime:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
 }
 
 hilt {

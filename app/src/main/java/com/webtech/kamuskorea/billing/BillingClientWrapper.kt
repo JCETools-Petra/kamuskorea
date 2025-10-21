@@ -43,6 +43,7 @@ class BillingClientWrapper @Inject constructor(
                 }
             }
         }
+        // Panggil checkSubscriptionStatus() setelah pembelian berhasil atau gagal
         checkSubscriptionStatus()
     }
 
@@ -59,6 +60,9 @@ class BillingClientWrapper @Inject constructor(
     private fun startConnection() {
         if (billingClient.isReady) {
             Log.d(TAG, "Koneksi sudah siap, tidak perlu memulai lagi.")
+            // Tetap panggil query dan check status jika koneksi sudah siap
+            queryProductDetails()
+            checkSubscriptionStatus()
             return
         }
         Log.d(TAG, "Memulai koneksi ke Google Play Billing Service...")
@@ -120,12 +124,15 @@ class BillingClientWrapper @Inject constructor(
             val hasSub = purchases.any { it.products.contains(productId) && it.purchaseState == Purchase.PurchaseState.PURCHASED }
             _hasActiveSubscription.value = hasSub
 
-            // **INTEGRASI DENGAN USER REPOSITORY**
-            // Update status premium di UserRepository agar seluruh aplikasi tahu
+            // --- PERBAIKAN DI SINI ---
+            // Kita panggil checkPremiumStatus() dari UserRepository
+            // yang akan mengambil status terbaru dari API Anda.
             scope.launch {
-                userRepository.updatePremiumStatus(hasSub)
+                userRepository.checkPremiumStatus()
             }
-            Log.d(TAG, "Pengecekan selesai. Pengguna memiliki langganan aktif: $hasSub")
+            // --- AKHIR PERBAIKAN ---
+
+            Log.d(TAG, "Pengecekan selesai. Pengguna memiliki langganan aktif (dari Google Play): $hasSub")
         }
     }
 
@@ -135,6 +142,7 @@ class BillingClientWrapper @Inject constructor(
             Log.d(TAG, "Pembelian di-acknowledge. Kode: ${billingResult.responseCode}")
             // Setelah acknowledge, cek kembali status langganan untuk memastikan semuanya terupdate
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                // Panggil checkSubscriptionStatus() yang sekarang akan memicu refresh dari API
                 checkSubscriptionStatus()
             }
         }

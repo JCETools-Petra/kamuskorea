@@ -1,125 +1,131 @@
 package com.webtech.kamuskorea.ui.screens
 
+import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.*
+// Import Material 3 (M3)
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.webtech.kamuskorea.data.Ebook
 import com.webtech.kamuskorea.ui.screens.ebook.EbookViewModel
 
 @Composable
 fun EbookScreen(
-    viewModel: EbookViewModel,
-    onNavigateToPdf: (pdfUrl: String, title: String) -> Unit,
+    viewModel: EbookViewModel = hiltViewModel(),
+    onNavigateToPdf: (String, String) -> Unit,
     onNavigateToPremiumLock: () -> Unit
 ) {
-    val ebooks by viewModel.ebooks
-    val isLoading by viewModel.isLoading
-    val error by viewModel.error
+    val ebooks by viewModel.ebooks.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+        }
+
+        errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error, // M3: colorScheme
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .align(Alignment.Center)
+            )
+        }
+
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxSize()
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(ebooks) { ebook ->
+            items(items = ebooks, key = { it.id }) { ebook ->
                 EbookItem(
                     ebook = ebook,
-                    onEbookClick = {
-                        if (ebook.pdfUrl.isEmpty()) {
+                    onClick = {
+                        if (ebook.pdfUrl.isNotEmpty()) {
+                            onNavigateToPdf(Uri.encode(ebook.pdfUrl), ebook.title)
+                        } else if (ebook.isPremium) {
                             onNavigateToPremiumLock()
-                        } else {
-                            onNavigateToPdf(ebook.pdfUrl, ebook.title)
                         }
                     }
                 )
             }
-        }
-
-        if (isLoading) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-        } else if (error != null) {
-            Text(
-                text = error!!,
-                modifier = Modifier.align(Alignment.Center).padding(16.dp)
-            )
         }
     }
 }
 
 @Composable
-fun EbookItem(ebook: Ebook, onEbookClick: () -> Unit) {
+fun EbookItem(ebook: Ebook, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.clickable(onClick = onEbookClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(0.7f)
+            .clickable(onClick = onClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp), // M3: elevation
+        shape = RoundedCornerShape(8.dp)
     ) {
-        Column {
-            Box(contentAlignment = Alignment.TopEnd) {
-                AsyncImage(
-                    model = ebook.coverImageUrl,
-                    contentDescription = ebook.title,
+        Box(contentAlignment = Alignment.BottomStart) {
+            AsyncImage(
+                model = ebook.coverImageUrl,
+                contentDescription = ebook.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(8.dp))
+            )
+            // Tampilkan ikon gembok jika premium dan URL PDF kosong
+            if (ebook.isPremium && ebook.pdfUrl.isEmpty()) {
+                Box(
                     modifier = Modifier
-                        .height(180.dp)
-                        .fillMaxWidth()
-                        .clip(MaterialTheme.shapes.medium),
-                    contentScale = ContentScale.Crop
-                )
-                if (ebook.isPremium) {
-                    Badge(
-                        modifier = Modifier.padding(8.dp),
-                        containerColor = if (ebook.pdfUrl.isEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
-                    ) {
-                        if (ebook.pdfUrl.isEmpty()) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = "Terkunci",
-                                modifier = Modifier.size(12.dp),
-                                tint = Color.White
-                            )
-                        } else {
-                            Text(
-                                text = "Premium",
-                                color = Color.White,
-                                fontSize = 10.sp,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Premium",
+                        tint = Color.White,
+                        modifier = Modifier.size(48.dp)
+                    )
                 }
             }
             Text(
                 text = ebook.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 8.dp)
-            )
-            Text(
-                text = ebook.description,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), // M3: titleMedium
+                color = Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(8.dp)
             )
         }
     }

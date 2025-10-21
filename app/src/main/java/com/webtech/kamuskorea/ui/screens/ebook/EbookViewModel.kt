@@ -1,79 +1,73 @@
 package com.webtech.kamuskorea.ui.screens.ebook
 
 import android.util.Log
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
-import com.google.firebase.remoteconfig.FirebaseRemoteConfig
+import com.google.firebase.auth.FirebaseAuth
 import com.webtech.kamuskorea.data.Ebook
-import com.webtech.kamuskorea.data.UserRepository
+import com.webtech.kamuskorea.data.network.ApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
 class EbookViewModel @Inject constructor(
-    private val firestore: FirebaseFirestore,
-    private val remoteConfig: FirebaseRemoteConfig,
-    private val userRepository: UserRepository
+    private val apiService: ApiService
 ) : ViewModel() {
 
-    private val _ebooks = mutableStateOf<List<Ebook>>(emptyList())
-    val ebooks: State<List<Ebook>> = _ebooks
+    private val _ebooks = MutableStateFlow<List<Ebook>>(emptyList())
+    val ebooks: StateFlow<List<Ebook>> = _ebooks.asStateFlow()
 
-    private val _isLoading = mutableStateOf(false)
-    val isLoading: State<Boolean> = _isLoading
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _error = mutableStateOf<String?>(null)
-    val error: State<String?> = _error
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     init {
         fetchEbooks()
     }
 
-    private fun fetchEbooks() {
+    fun fetchEbooks() {
         viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+
             try {
-                _isLoading.value = true
+                // Dapatkan token (bisa null jika tidak login, tidak perlu force refresh)
+                val token = FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
+                val authHeader = if (token != null) "Bearer $token" else null
+                Log.d("EbookViewModel", "Memanggil API getEbooks dengan header: ${authHeader != null}")
 
-                // --- PERUBAHAN DI SINI ---
-                // Menggunakan nama properti yang benar: 'isPremium'
-                val isPremiumUser = userRepository.isPremium.first()
+                val response = apiService.getEbooks(authHeader)
 
-                val snapshot = firestore.collection("ebooks")
-                    .orderBy("order", Query.Direction.ASCENDING)
-                    .get()
-                    .await()
-
-                val ebooksList = snapshot.documents.mapNotNull { document ->
-                    val ebook = document.toObject(Ebook::class.java)?.copy(id = document.id)
-                    if (ebook != null) {
-                        if (!isPremiumUser && ebook.isPremium) {
-                            ebook.copy(pdfUrl = "")
-                        } else {
-                            ebook
-                        }
-                    } else {
-                        null
+                if (response.isSuccessful) {
+                    val apiEbooks = response.body() ?: emptyList()
+                    Log.d("EbookViewModel", "API Ebooks sukses, jumlah: ${apiEbooks.size}")
+                    // Konversi dari EbookApiResponse ke Ebook (data class lokal)
+                    _ebooks.value = apiEbooks.map { apiBook ->
+                        Ebook(
+                            id = apiBook.id.toString(),
+                            title = apiBook.title,
+                            description = apiBook.description,
+                            coverImageUrl = apiBook.coverImageUrl,
+                            pdfUrl = apiBook.pdfUrl, // Akan kosong jika premium & user non-premium
+                            order = apiBook.order,
+                            isPremium = apiBook.isPremium
+                        )
                     }
-                }
-
-                if (ebooksList.isNotEmpty()) {
-                    Log.d("EbookViewModel", "Berhasil mengambil ${ebooksList.size} dokumen dari Firestore.")
-                    _ebooks.value = ebooksList
                 } else {
-                    Log.w("EbookViewModel", "Tidak ada dokumen e-book yang ditemukan di Firestore.")
-                    _ebooks.value = emptyList()
+                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                    Log.e("EbookViewModel", "Error fetching ebooks API: ${response.code()} - $errorBody")
+                    _errorMessage.value = "Gagal memuat ebook: ${response.message()}"
                 }
-
             } catch (e: Exception) {
-                Log.e("EbookViewModel", "Gagal mengambil e-books", e)
-                _error.value = "Gagal memuat e-book. Periksa koneksi internet Anda."
+                Log.e("EbookViewModel", "Exception fetching ebooks", e)
+                _errorMessage.value = "Terjadi kesalahan: ${e.message}"
             } finally {
                 _isLoading.value = false
             }

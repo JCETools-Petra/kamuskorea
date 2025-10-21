@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels // <-- TAMBAHKAN IMPORT INI
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -40,6 +41,8 @@ import com.webtech.kamuskorea.ui.navigation.Screen
 import com.webtech.kamuskorea.ui.screens.*
 import com.webtech.kamuskorea.ui.screens.auth.LoginScreen
 import com.webtech.kamuskorea.ui.screens.auth.RegisterScreen
+// TAMBAHKAN IMPORT INI
+import com.webtech.kamuskorea.ui.screens.dictionary.KamusSyncViewModel
 import com.webtech.kamuskorea.ui.screens.ebook.PdfViewerScreen
 import com.webtech.kamuskorea.ui.screens.profile.ProfileScreen
 import com.webtech.kamuskorea.ui.screens.settings.SettingsScreen
@@ -58,10 +61,20 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var firebaseAuth: FirebaseAuth
 
+    // TAMBAHKAN INJEKSI VIEWMODEL UNTUK SINKRONISASI
+    private val kamusSyncViewModel: KamusSyncViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         installSplashScreen()
+
+        // TAMBAHKAN PANGGILAN UNTUK SINKRONISASI DATABASE
+        // Ini akan mengecek versi DB di API vs lokal saat aplikasi dimulai
+        kamusSyncViewModel.syncDatabase()
+
         setContent {
+            // Kode Anda untuk mengambil status premium sudah benar dan
+            // akan berfungsi dengan UserRepository yang telah dimodifikasi
             val isPremium by userRepository.isPremium.collectAsState(initial = false)
             MainApp(
                 firebaseAuth = firebaseAuth,
