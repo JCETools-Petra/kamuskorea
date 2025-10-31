@@ -14,7 +14,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// TAG untuk filter di Logcat
 private const val TAG = "BillingClientDebug"
 
 @Singleton
@@ -22,8 +21,25 @@ class BillingClientWrapper @Inject constructor(
     @ApplicationContext private val context: Context,
     private val userRepository: UserRepository
 ) {
-    // Ganti dengan ID langganan yang kamu buat di Google Play Console
-    private val productId: String = "langganan_pro_bulanan"
+    /**
+     * PENTING: Product ID harus sama dengan yang dibuat di Google Play Console
+     *
+     * Cara membuat Product ID:
+     * 1. Buka Google Play Console
+     * 2. Pilih aplikasi Anda
+     * 3. Monetization > Subscriptions
+     * 4. Create subscription
+     * 5. Masukkan Product ID (contoh: "langganan_pro_bulanan")
+     * 6. Set harga dan periode billing
+     * 7. Aktifkan subscription
+     *
+     * Untuk testing:
+     * - Tambahkan email tester di Google Play Console > Setup > License testing
+     * - Gunakan test card atau account yang sudah ditambahkan
+     *
+     * GANTI NILAI DI BAWAH INI DENGAN PRODUCT ID YANG ANDA BUAT!
+     */
+    private val productId: String = "langganan_pro_bulanan" // TODO: Ganti dengan Product ID Anda
 
     private val _productDetails = MutableStateFlow<ProductDetails?>(null)
     val productDetails = _productDetails.asStateFlow()
@@ -31,20 +47,30 @@ class BillingClientWrapper @Inject constructor(
     private val _hasActiveSubscription = MutableStateFlow(false)
     val hasActiveSubscription = _hasActiveSubscription.asStateFlow()
 
-    // Gunakan CoroutineScope internal agar tidak bergantung dari luar
     private val scope = CoroutineScope(Dispatchers.IO)
 
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
         Log.d(TAG, "purchasesUpdatedListener dipanggil. Kode: ${billingResult.responseCode}")
-        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
-            for (purchase in purchases) {
-                if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED && !purchase.isAcknowledged) {
-                    acknowledgePurchase(purchase)
+
+        when (billingResult.responseCode) {
+            BillingClient.BillingResponseCode.OK -> {
+                if (purchases != null) {
+                    for (purchase in purchases) {
+                        handlePurchase(purchase)
+                    }
                 }
             }
+            BillingClient.BillingResponseCode.USER_CANCELED -> {
+                Log.d(TAG, "User membatalkan pembelian")
+            }
+            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
+                Log.d(TAG, "Item sudah dimiliki")
+                checkSubscriptionStatus()
+            }
+            else -> {
+                Log.e(TAG, "Error pembelian: ${billingResult.debugMessage}")
+            }
         }
-        // Panggil checkSubscriptionStatus() setelah pembelian berhasil atau gagal
-        checkSubscriptionStatus()
     }
 
     private var billingClient: BillingClient = BillingClient.newBuilder(context)
@@ -60,25 +86,28 @@ class BillingClientWrapper @Inject constructor(
     private fun startConnection() {
         if (billingClient.isReady) {
             Log.d(TAG, "Koneksi sudah siap, tidak perlu memulai lagi.")
-            // Tetap panggil query dan check status jika koneksi sudah siap
             queryProductDetails()
             checkSubscriptionStatus()
             return
         }
+
         Log.d(TAG, "Memulai koneksi ke Google Play Billing Service...")
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
-                Log.d(TAG, "onBillingSetupFinished. Kode Respons: ${billingResult.responseCode} - Pesan: ${billingResult.debugMessage}")
+                Log.d(TAG, "onBillingSetupFinished. Kode: ${billingResult.responseCode} - Pesan: ${billingResult.debugMessage}")
+
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     Log.d(TAG, "Koneksi SUKSES. Memuat detail produk.")
                     queryProductDetails()
                     checkSubscriptionStatus()
                 } else {
-                    Log.e(TAG, "Koneksi GAGAL.")
+                    Log.e(TAG, "Koneksi GAGAL. Kode: ${billingResult.responseCode}")
                 }
             }
+
             override fun onBillingServiceDisconnected() {
                 Log.w(TAG, "Layanan terputus. Mencoba menghubungkan kembali...")
+                // Retry connection with exponential backoff bisa ditambahkan di sini
                 startConnection()
             }
         })
@@ -87,12 +116,14 @@ class BillingClientWrapper @Inject constructor(
     private fun queryProductDetails() {
         Log.d(TAG, "--- Memulai Query Produk ---")
         Log.d(TAG, "ID Produk yang dicari: '$productId'")
+
         val productList = listOf(
             QueryProductDetailsParams.Product.newBuilder()
                 .setProductId(productId)
                 .setProductType(BillingClient.ProductType.SUBS)
                 .build()
         )
+
         val queryProductDetailsParams = QueryProductDetailsParams.newBuilder()
             .setProductList(productList)
             .build()
@@ -106,61 +137,117 @@ class BillingClientWrapper @Inject constructor(
                     _productDetails.value = productDetailsList[0]
                     Log.d(TAG, "SUKSES: Detail produk ditemukan untuk '$productId'. Nama: ${productDetailsList[0].name}")
                 } else {
-                    Log.e(TAG, "GAGAL: Query berhasil, tetapi daftar produk KOSONG. Tidak ada produk dengan ID '$productId' yang ditemukan di Play Console untuk aplikasi ini.")
+                    Log.e(TAG, "GAGAL: Daftar produk KOSONG. Product ID '$productId' tidak ditemukan.")
+                    Log.e(TAG, "Pastikan Product ID sudah dibuat di Google Play Console.")
                 }
             } else {
-                Log.e(TAG, "GAGAL: Query produk gagal. Ini sering terjadi jika akun penguji belum di-setup dengan benar.")
+                Log.e(TAG, "GAGAL: Query produk gagal.")
+                when (billingResult.responseCode) {
+                    BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> {
+                        Log.e(TAG, "Billing tidak tersedia. Periksa Google Play Services.")
+                    }
+                    BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED -> {
+                        Log.e(TAG, "Fitur tidak didukung di device ini.")
+                    }
+                    BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE -> {
+                        Log.e(TAG, "Service tidak tersedia. Periksa koneksi internet.")
+                    }
+                    BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
+                        Log.e(TAG, "Developer error. Periksa konfigurasi di Play Console.")
+                    }
+                }
             }
         }
     }
 
     fun checkSubscriptionStatus() {
         Log.d(TAG, "Memeriksa status langganan yang sudah ada...")
+
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)
             .build()
 
         billingClient.queryPurchasesAsync(params) { billingResult, purchases ->
-            val hasSub = purchases.any { it.products.contains(productId) && it.purchaseState == Purchase.PurchaseState.PURCHASED }
-            _hasActiveSubscription.value = hasSub
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                val hasSub = purchases.any {
+                    it.products.contains(productId) &&
+                            it.purchaseState == Purchase.PurchaseState.PURCHASED
+                }
+                _hasActiveSubscription.value = hasSub
 
-            // --- PERBAIKAN DI SINI ---
-            // Kita panggil checkPremiumStatus() dari UserRepository
-            // yang akan mengambil status terbaru dari API Anda.
-            scope.launch {
-                userRepository.checkPremiumStatus()
+                Log.d(TAG, "Status langganan: ${if (hasSub) "AKTIF" else "TIDAK AKTIF"}")
+
+                // Sinkronkan dengan backend
+                scope.launch {
+                    userRepository.checkPremiumStatus()
+                }
+            } else {
+                Log.e(TAG, "Error memeriksa purchases: ${billingResult.debugMessage}")
             }
-            // --- AKHIR PERBAIKAN ---
+        }
+    }
 
-            Log.d(TAG, "Pengecekan selesai. Pengguna memiliki langganan aktif (dari Google Play): $hasSub")
+    private fun handlePurchase(purchase: Purchase) {
+        if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+            if (!purchase.isAcknowledged) {
+                acknowledgePurchase(purchase)
+            } else {
+                Log.d(TAG, "Purchase sudah di-acknowledge sebelumnya")
+                checkSubscriptionStatus()
+            }
+        } else if (purchase.purchaseState == Purchase.PurchaseState.PENDING) {
+            Log.d(TAG, "Purchase sedang pending")
         }
     }
 
     private fun acknowledgePurchase(purchase: Purchase) {
-        val params = AcknowledgePurchaseParams.newBuilder().setPurchaseToken(purchase.purchaseToken).build()
+        val params = AcknowledgePurchaseParams.newBuilder()
+            .setPurchaseToken(purchase.purchaseToken)
+            .build()
+
         billingClient.acknowledgePurchase(params) { billingResult ->
             Log.d(TAG, "Pembelian di-acknowledge. Kode: ${billingResult.responseCode}")
-            // Setelah acknowledge, cek kembali status langganan untuk memastikan semuanya terupdate
+
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                // Panggil checkSubscriptionStatus() yang sekarang akan memicu refresh dari API
+                Log.d(TAG, "Acknowledge sukses, refresh status")
                 checkSubscriptionStatus()
+            } else {
+                Log.e(TAG, "Acknowledge gagal: ${billingResult.debugMessage}")
             }
         }
     }
 
     fun launchPurchaseFlow(productDetails: ProductDetails, activity: Activity) {
         val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
+
         if (offerToken == null) {
             Log.e(TAG, "Gagal memulai pembelian: Tidak ada offer token ditemukan.")
             return
         }
+
         val paramsList = listOf(
             BillingFlowParams.ProductDetailsParams.newBuilder()
                 .setProductDetails(productDetails)
                 .setOfferToken(offerToken)
                 .build()
         )
-        val flowParams = BillingFlowParams.newBuilder().setProductDetailsParamsList(paramsList).build()
-        billingClient.launchBillingFlow(activity, flowParams)
+
+        val flowParams = BillingFlowParams.newBuilder()
+            .setProductDetailsParamsList(paramsList)
+            .build()
+
+        val billingResult = billingClient.launchBillingFlow(activity, flowParams)
+
+        if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+            Log.e(TAG, "Error launching billing flow: ${billingResult.debugMessage}")
+        }
+    }
+
+    /**
+     * Call this when the app is being destroyed
+     */
+    fun endConnection() {
+        Log.d(TAG, "Menutup koneksi billing")
+        billingClient.endConnection()
     }
 }

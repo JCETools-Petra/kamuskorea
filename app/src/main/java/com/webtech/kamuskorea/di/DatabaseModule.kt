@@ -1,12 +1,12 @@
 package com.webtech.kamuskorea.di
 
 import android.content.Context
-import androidx.datastore.core.DataStore // <-- TAMBAHKAN IMPORT INI
-import androidx.datastore.preferences.core.Preferences // <-- TAMBAHKAN IMPORT INI
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.room.Room
 import com.webtech.kamuskorea.data.local.AppDatabase
 import com.webtech.kamuskorea.data.local.WordDao
-import com.webtech.kamuskorea.ui.datastore.dataStore // <-- TAMBAHKAN IMPORT INI (delegate)
+import com.webtech.kamuskorea.ui.datastore.dataStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -24,9 +24,14 @@ object DatabaseModule {
         return Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
-            "kamus_korea.db"
+            "kamus_database" // Konsisten dengan AppDatabase.kt
         )
-            .createFromAsset("database/kamus_korea.db")
+            // CATATAN: Jika Anda memiliki file database pre-populated di assets,
+            // uncomment baris berikut dan pastikan file ada di app/src/main/assets/database/kamus_korea.db
+            // .createFromAsset("database/kamus_korea.db")
+
+            // Fallback strategy jika database corrupt atau tidak tersedia
+            .fallbackToDestructiveMigration()
             .build()
     }
 
@@ -36,14 +41,9 @@ object DatabaseModule {
         return appDatabase.wordDao()
     }
 
-    // --- PERUBAHAN DI SINI ---
-    // Menyediakan DataStore<Preferences> secara langsung sebagai Singleton
     @Provides
     @Singleton
     fun providePreferencesDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
-        // Menggunakan delegate 'dataStore' yang didefinisikan di SettingsDataStore.kt
         return context.dataStore
     }
-    // Fungsi provideSettingsDataStore dihapus
-    // --- AKHIR PERUBAHAN ---
 }

@@ -11,18 +11,30 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
-class AuthViewModel : ViewModel() {
-
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+@HiltViewModel
+class AuthViewModel @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val firestore: FirebaseFirestore
+) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
     val authState = _authState.asStateFlow()
+
+    // PENTING: Ganti dengan Web Client ID Anda dari Firebase Console
+    // Lokasi: Firebase Console > Project Settings > General > Web API Key
+    // ATAU dari file google-services.json: "client" -> "oauth_client" -> "client_id" (type 3)
+    private companion object {
+        // TODO: GANTI INI DENGAN WEB CLIENT ID ANDA!
+        // Contoh format: "123456789012-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com"
+        const val WEB_CLIENT_ID = "214644364883-f0oh0k0lnd3buj07se4rlpmqd2s1lo33.apps.googleusercontent.com"
+    }
 
     // Fungsi Sign In dengan Email/Password
     fun signIn(email: String, password: String) {
@@ -32,6 +44,7 @@ class AuthViewModel : ViewModel() {
                 auth.signInWithEmailAndPassword(email, password).await()
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
+                Log.e("AuthViewModel", "Sign in failed", e)
                 _authState.value = AuthState.Error(e.message ?: "Login Gagal")
             }
         }
@@ -60,23 +73,43 @@ class AuthViewModel : ViewModel() {
             try {
                 val authResult = auth.createUserWithEmailAndPassword(email, password).await()
                 val user = authResult.user
-                val profileUpdates = UserProfileChangeRequest.Builder().setDisplayName(name).build()
+
+                // Update display name di Firebase Auth
+                val profileUpdates = UserProfileChangeRequest.Builder()
+                    .setDisplayName(name)
+                    .build()
                 user?.updateProfile(profileUpdates)?.await()
+
+                // Simpan data user ke Firestore
                 if (user != null) {
-                    val userMap = hashMapOf("uid" to user.uid, "name" to name, "email" to email, "isPremium" to false)
-                    firestore.collection("users").document(user.uid).set(userMap).await()
+                    val userMap = hashMapOf(
+                        "uid" to user.uid,
+                        "name" to name,
+                        "email" to email,
+                        "isPremium" to false,
+                        "createdAt" to System.currentTimeMillis()
+                    )
+                    firestore.collection("users")
+                        .document(user.uid)
+                        .set(userMap)
+                        .await()
                 }
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
+                Log.e("AuthViewModel", "Sign up failed", e)
                 _authState.value = AuthState.Error(e.message ?: "Pendaftaran Gagal")
             }
         }
     }
 
-    // --- FUNGSI GOOGLE SIGN-IN YANG DIKEMBALIKAN ---
+    // Fungsi untuk mendapatkan Google Sign-In Intent
     fun getGoogleSignInIntent(context: Context): Intent {
+        if (WEB_CLIENT_ID == "214644364883-f0oh0k0lnd3buj07se4rlpmqd2s1lo33.apps.googleusercontent.com") {
+            Log.e("AuthViewModel", "WEB_CLIENT_ID belum diset! Ganti dengan Web Client ID yang benar dari Firebase Console.")
+        }
+
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken("YOUR_WEB_CLIENT_ID") // GANTI DENGAN WEB CLIENT ID ANDA
+            .requestIdToken(WEB_CLIENT_ID)
             .requestEmail()
             .build()
         return GoogleSignIn.getClient(context, gso).signInIntent
@@ -96,12 +129,18 @@ class AuthViewModel : ViewModel() {
                         "uid" to user.uid,
                         "name" to user.displayName,
                         "email" to user.email,
-                        "isPremium" to false
+                        "profilePictureUrl" to user.photoUrl?.toString(),
+                        "isPremium" to false,
+                        "createdAt" to System.currentTimeMillis()
                     )
-                    firestore.collection("users").document(user.uid).set(userMap).await()
+                    firestore.collection("users")
+                        .document(user.uid)
+                        .set(userMap)
+                        .await()
                 }
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
+                Log.e("AuthViewModel", "Google sign in failed", e)
                 _authState.value = AuthState.Error(e.message ?: "Google Sign-In Gagal")
             }
         }

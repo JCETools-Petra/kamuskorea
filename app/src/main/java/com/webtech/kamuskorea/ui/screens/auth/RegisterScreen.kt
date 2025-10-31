@@ -20,14 +20,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.webtech.kamuskorea.R
 import kotlin.random.Random
 
 @Composable
 fun RegisterScreen(
     onNavigateToLogin: () -> Unit,
-    authViewModel: AuthViewModel = viewModel()
+    authViewModel: AuthViewModel = hiltViewModel() // Gunakan hiltViewModel()
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -48,15 +48,27 @@ fun RegisterScreen(
         if (authState is AuthState.Success) {
             // Tampilan Sukses
             Column(
-                modifier = Modifier.fillMaxSize().padding(24.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Pendaftaran Berhasil!", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    "Pendaftaran Berhasil!",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Akun Anda telah dibuat. Silakan kembali untuk login.", textAlign = TextAlign.Center)
+                Text(
+                    "Akun Anda telah dibuat. Silakan kembali untuk login.",
+                    textAlign = TextAlign.Center
+                )
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(onClick = onNavigateToLogin, modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onNavigateToLogin,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text("Kembali ke Login")
                 }
             }
@@ -76,24 +88,81 @@ fun RegisterScreen(
                     modifier = Modifier.size(80.dp)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Buat Akun Baru", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    "Buat Akun Baru",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.height(32.dp))
 
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama Lengkap") }, leadingIcon = { Icon(Icons.Default.Person, "Name") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nama Lengkap") },
+                    leadingIcon = { Icon(Icons.Default.Person, "Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, leadingIcon = { Icon(Icons.Default.Email, "Email") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
+                    leadingIcon = { Icon(Icons.Default.Email, "Email") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, leadingIcon = { Icon(Icons.Default.Lock, "Password") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    leadingIcon = { Icon(Icons.Default.Lock, "Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(value = confirmPassword, onValueChange = { confirmPassword = it }, label = { Text("Konfirmasi Password") }, leadingIcon = { Icon(Icons.Default.Lock, "Confirm Password") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = { Text("Konfirmasi Password") },
+                    leadingIcon = { Icon(Icons.Default.Lock, "Confirm Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Verifikasi Anti-Bot
-                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
                     Column(Modifier.padding(16.dp)) {
-                        Text("Verifikasi Keamanan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("Berapa hasil dari $num1 + $num2 ?", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "Verifikasi Keamanan",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Berapa hasil dari $num1 + $num2 ?",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = mathAnswer,
@@ -102,7 +171,8 @@ fun RegisterScreen(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth(),
                             isError = mathAnswer.isNotEmpty() && !isMathCorrect,
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            singleLine = true
                         )
                     }
                 }
@@ -113,12 +183,19 @@ fun RegisterScreen(
                     CircularProgressIndicator()
                 } else {
                     Button(
-                        onClick = { authViewModel.signUp(name, email, password, confirmPassword) },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        enabled = isMathCorrect,
+                        onClick = {
+                            authViewModel.signUp(name, email, password, confirmPassword)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        enabled = isMathCorrect && name.isNotBlank() && email.isNotBlank() && password.isNotBlank(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Daftar", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Daftar",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
                     }
                 }
 
@@ -130,6 +207,7 @@ fun RegisterScreen(
                         textAlign = TextAlign.Center
                     )
                 }
+
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }

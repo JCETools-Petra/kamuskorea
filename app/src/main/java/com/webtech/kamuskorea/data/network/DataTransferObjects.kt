@@ -9,7 +9,6 @@ data class KamusUpdateResponse(
 )
 
 data class WordApi(
-    // Sesuaikan tipe data 'id' jika di server bukan Int
     val id: Int,
     val korean: String,
     val romanization: String,
@@ -24,10 +23,9 @@ data class UserProfileUpdateRequest(
 
 data class ProfilePictureUpdateResponse(
     val success: Boolean,
-    val profilePictureUrl: String? // Bisa null jika gagal update DB
+    val profilePictureUrl: String? // Nullable jika gagal update DB
 )
 
-// --- TAMBAHAN: Untuk GET User Profile ---
 data class UserProfileResponse(
     val name: String?,
     val dob: String?, // Format "YYYY-MM-DD" atau null
@@ -45,8 +43,10 @@ data class EbookApiResponse(
     val id: Int,
     val title: String,
     val description: String,
-    val coverImageUrl: String,
-    @SerializedName("order") val order: Int,
+    @SerializedName("coverImageUrl")
+    val coverImageUrl: String?, // DIPERBAIKI: Nullable untuk menghindari crash jika API return null
+    @SerializedName("order")
+    val order: Int,
     val isPremium: Boolean,
-    val pdfUrl: String
+    val pdfUrl: String // Kosong jika premium dan user non-premium
 )

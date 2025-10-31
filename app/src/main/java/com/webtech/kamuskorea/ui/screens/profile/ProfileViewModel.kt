@@ -1,19 +1,18 @@
 package com.webtech.kamuskorea.ui.screens.profile
 
-import android.app.Application
 import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
-// Import UserProfileChangeRequest untuk update Firebase Auth
-import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.auth.userProfileChangeRequest
 import com.webtech.kamuskorea.billing.BillingClientWrapper
 import com.webtech.kamuskorea.data.UserRepository
 import com.webtech.kamuskorea.data.network.ApiService
 import com.webtech.kamuskorea.data.network.UserProfileUpdateRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,7 +30,7 @@ class ProfileViewModel @Inject constructor(
     private val apiService: ApiService,
     private val billingClient: BillingClientWrapper,
     private val userRepository: UserRepository,
-    private val application: Application
+    @ApplicationContext private val context: Context // DIPERBAIKI: Gunakan Context, bukan Application
 ) : ViewModel() {
 
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
@@ -61,19 +60,16 @@ class ProfileViewModel @Inject constructor(
     private val _dateOfBirth = MutableStateFlow("") // Format "YYYY-MM-DD"
     val dateOfBirth = _dateOfBirth.asStateFlow()
 
-    // State untuk loading data awal
     private val _isLoadingProfile = MutableStateFlow(true)
     val isLoadingProfile = _isLoadingProfile.asStateFlow()
-
 
     init {
         fetchUserProfile()
     }
 
     private fun fetchUserProfile() {
-        _isLoadingProfile.value = true // Mulai loading
+        _isLoadingProfile.value = true
         viewModelScope.launch {
-            // Coba dapatkan token tanpa force refresh dulu
             var token = getFirebaseIdToken(false)
             if (token == null && auth.currentUser != null) {
                 Log.w("ProfileViewModel", "Mencoba force refresh token untuk fetch profil...")
@@ -85,7 +81,7 @@ class ProfileViewModel @Inject constructor(
                 _displayName.value = auth.currentUser?.displayName ?: ""
                 _profilePictureUrl.value = auth.currentUser?.photoUrl?.toString()
                 _dateOfBirth.value = ""
-                _isLoadingProfile.value = false // Selesai loading (gagal)
+                _isLoadingProfile.value = false
                 return@launch
             }
 
@@ -97,10 +93,9 @@ class ProfileViewModel @Inject constructor(
                     profileData?.let {
                         _displayName.value = it.name ?: auth.currentUser?.displayName ?: ""
                         _dateOfBirth.value = it.dob ?: ""
-                        _profilePictureUrl.value = it.profilePictureUrl // URL foto dari API
+                        _profilePictureUrl.value = it.profilePictureUrl
                         Log.d("ProfileViewModel", "Profil diambil: Nama=${it.name}, DOB=${it.dob}, Foto=${it.profilePictureUrl}")
                     } ?: run {
-                        // Response sukses tapi body null, fallback
                         _displayName.value = auth.currentUser?.displayName ?: ""
                         _profilePictureUrl.value = auth.currentUser?.photoUrl?.toString()
                         _dateOfBirth.value = ""
@@ -118,18 +113,16 @@ class ProfileViewModel @Inject constructor(
                 _profilePictureUrl.value = auth.currentUser?.photoUrl?.toString()
                 _dateOfBirth.value = ""
             } finally {
-                _isLoadingProfile.value = false // Selesai loading
+                _isLoadingProfile.value = false
             }
         }
     }
 
     fun onDisplayNameChange(name: String) {
-        // Hanya update state lokal, kirim saat simpan
         _displayName.value = name
     }
 
     fun onDateOfBirthChange(dob: String) {
-        // Hanya update state lokal, kirim saat simpan
         _dateOfBirth.value = dob
     }
 
@@ -144,7 +137,6 @@ class ProfileViewModel @Inject constructor(
 
     fun updateProfileDetails() {
         viewModelScope.launch {
-            // Selalu refresh token saat melakukan aksi update
             val token = getFirebaseIdToken(true)
             if (token == null) {
                 _updateStatus.value = "Gagal: Sesi tidak valid. Silakan login ulang."
@@ -170,16 +162,18 @@ class ProfileViewModel @Inject constructor(
 
                 if (response.isSuccessful) {
                     _updateStatus.value = "Profil berhasil diperbarui."
-                    // Update display name di Firebase Auth (opsional, untuk konsistensi di tempat lain)
-                    val profileUpdates = com.google.firebase.auth.userProfileChangeRequest {
+
+                    // Update display name di Firebase Auth
+                    val profileUpdates = userProfileChangeRequest {
                         displayName = nameToSend
                     }
-                    try { auth.currentUser?.updateProfile(profileUpdates)?.await() }
-                    catch (e: Exception) { Log.w("ProfileViewModel", "Gagal update display name di Firebase Auth", e)}
+                    try {
+                        auth.currentUser?.updateProfile(profileUpdates)?.await()
+                    } catch (e: Exception) {
+                        Log.w("ProfileViewModel", "Gagal update display name di Firebase Auth", e)
+                    }
 
-                    // Refresh data profil dari server setelah update berhasil
                     fetchUserProfile()
-
                 } else {
                     val errorBody = response.errorBody()?.string() ?: "Error tidak diketahui"
                     _updateStatus.value = "Gagal memperbarui profil: ${response.code()} - $errorBody"
@@ -194,7 +188,6 @@ class ProfileViewModel @Inject constructor(
 
     fun uploadProfilePicture(uri: Uri) {
         viewModelScope.launch {
-            // Selalu refresh token saat melakukan aksi update
             val token = getFirebaseIdToken(true)
             if (token == null) {
                 _updateStatus.value = "Gagal: Sesi tidak valid. Silakan login ulang."
@@ -203,7 +196,6 @@ class ProfileViewModel @Inject constructor(
 
             try {
                 _updateStatus.value = "Mengunggah foto..."
-                val context: Context = application.applicationContext
                 val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
                 val fileBytes = inputStream?.readBytes()
                 inputStream?.close()
@@ -218,28 +210,24 @@ class ProfileViewModel @Inject constructor(
                 )
                 val body = MultipartBody.Part.createFormData("image", "profile_picture.jpg", requestFile)
 
-                // 1. Upload ke API Anda
                 val response = apiService.updateProfilePicture("Bearer $token", body)
 
                 if (response.isSuccessful && response.body()?.success == true) {
                     val newPhotoUrl = response.body()?.profilePictureUrl
                     if (newPhotoUrl != null) {
+                        // Update Firebase Auth photoUri
+                        val profileUpdates = userProfileChangeRequest {
+                            photoUri = Uri.parse(newPhotoUrl)
+                        }
+                        try {
+                            auth.currentUser?.updateProfile(profileUpdates)?.await()
+                        } catch (e: Exception) {
+                            Log.w("ProfileViewModel", "Gagal update photoUri di Firebase Auth", e)
+                        }
 
-                        // --- OPSI A: Update Firebase Auth juga ---
-                        val profileUpdates = UserProfileChangeRequest.Builder()
-                            .setPhotoUri(Uri.parse(newPhotoUrl))
-                            .build()
-                        try { auth.currentUser?.updateProfile(profileUpdates)?.await() }
-                        catch (e: Exception) { Log.w("ProfileViewModel", "Gagal update photoUri di Firebase Auth", e)}
-                        // ------------------------------------
-
-                        // Update state flow dengan URL baru dari API
                         _profilePictureUrl.value = newPhotoUrl
                         _updateStatus.value = "Foto profil berhasil diperbarui."
-
-                        // Refresh data profil dari server setelah update berhasil
                         fetchUserProfile()
-
                     } else {
                         _updateStatus.value = "Gagal: URL gambar tidak diterima dari server."
                     }
@@ -248,7 +236,6 @@ class ProfileViewModel @Inject constructor(
                     _updateStatus.value = "Gagal mengunggah foto: ${response.code()} - $errorBody"
                     Log.e("ProfileViewModel", "Gagal upload foto API: ${response.code()} - $errorBody")
                 }
-
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error uploading profile picture", e)
                 _updateStatus.value = "Gagal: Terjadi kesalahan. ${e.message}"
