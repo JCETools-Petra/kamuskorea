@@ -15,4 +15,5 @@ sealed class Screen(val route: String) {
     // Hapus argumen dari definisi dasar rute.
     object PdfViewer : Screen("pdf_viewer_screen")
     object PremiumLock : Screen("premium_lock")
+    object Onboarding : Screen("onboarding_screen")
 }

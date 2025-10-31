@@ -7,6 +7,8 @@ import com.webtech.kamuskorea.data.network.PremiumActivationRequest
 import com.webtech.kamuskorea.data.network.PremiumStatusResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,20 +29,49 @@ class UserRepository @Inject constructor(
     private val _premiumStatusResponse = MutableStateFlow<PremiumStatusResponse?>(null)
     val premiumStatusResponse: StateFlow<PremiumStatusResponse?> = _premiumStatusResponse.asStateFlow()
 
+    // ✅ TAMBAHAN: Job untuk periodic check
+    private var periodicCheckJob: Job? = null
+
     init {
         auth.addAuthStateListener { firebaseAuth ->
             val user = firebaseAuth.currentUser
             if (user != null) {
                 checkPremiumStatus()
+                // ✅ MULAI periodic check saat user login
+                startPeriodicStatusCheck()
             } else {
                 _isPremium.value = false
                 _premiumStatusResponse.value = null
+                // ✅ STOP periodic check saat user logout
+                stopPeriodicStatusCheck()
             }
         }
 
         if (auth.currentUser != null) {
             checkPremiumStatus()
+            startPeriodicStatusCheck()
         }
+    }
+
+    // ✅ FUNGSI BARU: Periodic check setiap 5 menit
+    private fun startPeriodicStatusCheck() {
+        // Cancel existing job jika ada
+        periodicCheckJob?.cancel()
+
+        periodicCheckJob = CoroutineScope(Dispatchers.IO).launch {
+            while (true) {
+                delay(5 * 60 * 1000L) // 5 menit
+                Log.d("UserRepository", "🔄 Periodic premium status check...")
+                checkPremiumStatus()
+            }
+        }
+        Log.d("UserRepository", "▶️ Periodic status check dimulai (setiap 5 menit)")
+    }
+
+    private fun stopPeriodicStatusCheck() {
+        periodicCheckJob?.cancel()
+        periodicCheckJob = null
+        Log.d("UserRepository", "⏸️ Periodic status check dihentikan")
     }
 
     private suspend fun getFirebaseIdToken(forceRefresh: Boolean = true): String? {
@@ -80,6 +111,11 @@ class UserRepository @Inject constructor(
                         val premiumStatus = response.body()
                         val isPremiumValue = premiumStatus?.isPremium ?: false
 
+                        // ✅ LOGGING PERUBAHAN STATUS
+                        if (_isPremium.value != isPremiumValue) {
+                            Log.w("UserRepository", "⚠️ STATUS PREMIUM BERUBAH: ${_isPremium.value} → $isPremiumValue")
+                        }
+
                         _isPremium.value = isPremiumValue
                         _premiumStatusResponse.value = premiumStatus
 
@@ -103,16 +139,12 @@ class UserRepository @Inject constructor(
         }
     }
 
-    /**
-     * FUNGSI BARU: Aktivasi premium dengan purchase token
-     */
     suspend fun activatePremiumWithPurchase(purchaseToken: String): Boolean {
         Log.d("UserRepository", "=== ACTIVATE PREMIUM WITH PURCHASE ===")
         Log.d("UserRepository", "Purchase Token: $purchaseToken")
 
         return withContext(Dispatchers.IO) {
             try {
-                // Pastikan user sudah login
                 if (auth.currentUser == null) {
                     Log.e("UserRepository", "❌ User belum login!")
                     return@withContext false
@@ -120,10 +152,9 @@ class UserRepository @Inject constructor(
 
                 Log.d("UserRepository", "📡 Memanggil API activatePremium...")
 
-                // Buat request body
                 val request = PremiumActivationRequest(
                     purchase_token = purchaseToken,
-                    duration_days = 30 // Sesuaikan dengan durasi langganan Anda
+                    duration_days = 30
                 )
 
                 val response = apiService.activatePremium(request)
@@ -134,13 +165,11 @@ class UserRepository @Inject constructor(
                     Log.d("UserRepository", "Is Premium: ${result?.isPremium}")
                     Log.d("UserRepository", "Expiry Date: ${result?.expiryDate}")
 
-                    // Update state lokal
                     withContext(Dispatchers.Main) {
                         _isPremium.value = result?.isPremium ?: true
                         _premiumStatusResponse.value = result
                     }
 
-                    // Refresh status untuk memastikan sinkronisasi
                     checkPremiumStatus()
 
                     return@withContext true

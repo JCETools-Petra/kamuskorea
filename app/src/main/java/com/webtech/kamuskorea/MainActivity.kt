@@ -3,6 +3,7 @@ package com.webtech.kamuskorea
 import android.app.Application
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -60,25 +61,39 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var firebaseAuth: FirebaseAuth
 
-    // TAMBAHKAN INJEKSI VIEWMODEL UNTUK SINKRONISASI
     private val kamusSyncViewModel: KamusSyncViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         installSplashScreen()
 
-        // TAMBAHKAN PANGGILAN UNTUK SINKRONISASI DATABASE
-        // Ini akan mengecek versi DB di API vs lokal saat aplikasi dimulai
+        // Sinkronisasi database kamus saat aplikasi dimulai
         kamusSyncViewModel.syncDatabase()
 
         setContent {
-            // Kode Anda untuk mengambil status premium sudah benar dan
-            // akan berfungsi dengan UserRepository yang telah dimodifikasi
             val isPremium by userRepository.isPremium.collectAsState(initial = false)
             MainApp(
                 firebaseAuth = firebaseAuth,
                 isPremium = isPremium
             )
+        }
+    }
+
+    // ✅ SOLUSI 2: Refresh status premium saat app resume
+    override fun onResume() {
+        super.onResume()
+        if (firebaseAuth.currentUser != null) {
+            Log.d("MainActivity", "🔄 App resumed, checking premium status...")
+            userRepository.checkPremiumStatus()
+        }
+    }
+
+    // ✅ BONUS: Juga refresh saat app kembali dari background (opsional)
+    override fun onStart() {
+        super.onStart()
+        if (firebaseAuth.currentUser != null) {
+            Log.d("MainActivity", "▶️ App started, checking premium status...")
+            userRepository.checkPremiumStatus()
         }
     }
 }
@@ -108,7 +123,15 @@ fun MainApp(
     KamusKoreaTheme(darkTheme = useDarkTheme, dynamicColor = false, colorScheme = colors) {
 
         val navController = rememberNavController()
-        val startDestination = if (firebaseAuth.currentUser != null) Screen.Home.route else Screen.Login.route
+        val hasSeenOnboarding = remember {
+            // Cek dari DataStore atau SharedPreferences
+            mutableStateOf(false)
+        }
+        val startDestination = when {
+            !hasSeenOnboarding.value -> Screen.Onboarding.route
+            firebaseAuth.currentUser != null -> Screen.Home.route
+            else -> Screen.Login.route
+        }
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
         var currentTitle by remember { mutableStateOf("Kamus Korea") }
@@ -144,7 +167,6 @@ fun MainApp(
 
         ModalNavigationDrawer(
             drawerState = drawerState,
-            // --- INI BAGIAN YANG DIPERBAIKI ---
             gesturesEnabled = !isAuthScreen && !isPdfViewerScreen,
             drawerContent = {
                 ModalDrawerSheet {
@@ -234,12 +256,29 @@ fun MainApp(
                 ) {
                     composable(Screen.Login.route) { LoginScreen(onLoginSuccess = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Login.route) { inclusive = true } } }, onNavigateToRegister = { navController.navigate(Screen.Register.route) }) }
                     composable(Screen.Register.route) { RegisterScreen(onNavigateToLogin = { navController.popBackStack() }) }
-                    composable(Screen.Home.route) { HomeScreen(navController = navController) }
-                    composable(Screen.Dictionary.route) { DictionaryScreen(viewModel = hiltViewModel()) }
+                    composable(Screen.Home.route) {
+                        ModernHomeScreen(
+                            navController = navController,
+                            isPremium = isPremium
+                        )
+                    }
+                    composable(Screen.Dictionary.route) {
+                        ModernDictionaryScreen(viewModel = hiltViewModel())
+                    }
                     composable(Screen.Memorization.route) { MemorizationScreen(isPremium = isPremium, onNavigateToProfile = { navController.navigate(Screen.Profile.route) }) }
                     composable(Screen.Quiz.route) { QuizScreen(isPremium = isPremium, onNavigateToProfile = { navController.navigate(Screen.Profile.route) }) }
                     composable(Screen.Settings.route) { SettingsScreen(viewModel = hiltViewModel()) }
-
+                    composable(Screen.Onboarding.route) {
+                        OnboardingScreen(
+                            onFinish = {
+                                // Simpan flag ke DataStore
+                                hasSeenOnboarding.value = true
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.Onboarding.route) { inclusive = true }
+                                }
+                            }
+                        )
+                    }
                     composable(Screen.Ebook.route) {
                         EbookScreen(
                             viewModel = hiltViewModel(),

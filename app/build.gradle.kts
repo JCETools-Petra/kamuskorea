@@ -36,7 +36,6 @@ android {
         }
     }
 
-    // DIPERBAIKI: Java 17 untuk Compose dan modern libraries
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -46,7 +45,6 @@ android {
         jvmTarget = "17"
     }
 
-    // DIPERBAIKI: Gabungkan semua buildFeatures
     buildFeatures {
         compose = true
         buildConfig = true
@@ -92,7 +90,6 @@ dependencies {
 
     // PDF Handling
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
-    // PDF viewing dengan Pdfium
     implementation("com.github.mhiew:android-pdf-viewer:3.2.0-beta.1")
 
     // Room Database
@@ -126,6 +123,11 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // ✅ TAMBAHAN BARU: Accompanist untuk Onboarding dan Animasi
+    implementation("com.google.accompanist:accompanist-pager:0.32.0")
+    implementation("com.google.accompanist:accompanist-pager-indicators:0.32.0")
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.32.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
