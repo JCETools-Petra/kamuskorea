@@ -84,7 +84,9 @@ class UserRepository @Inject constructor(
 
             try {
                 Log.d("UserRepository", "Memanggil API checkPremiumStatus...")
-                val response = apiService.checkPremiumStatus("Bearer $token")
+                // --- PERBAIKAN DI SINI ---
+                val response = apiService.checkUserStatus() // Menggunakan nama fungsi yang benar
+                // --- AKHIR PERBAIKAN ---
 
                 withContext(Dispatchers.Main) {
                     if (response.isSuccessful) {

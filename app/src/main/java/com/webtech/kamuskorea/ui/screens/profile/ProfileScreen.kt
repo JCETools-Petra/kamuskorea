@@ -12,31 +12,35 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.* // Import all filled icons
-import androidx.compose.material.icons.outlined.AccountCircle // Import specific outlined icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.WorkspacePremium
-import androidx.compose.material3.* // M3 imports
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.google.firebase.auth.FirebaseAuth // Import FirebaseAuth
+import com.google.firebase.auth.FirebaseAuth
 import com.webtech.kamuskorea.R
-import com.webtech.kamuskorea.ui.theme.KamusKoreaTheme // Import your theme
+import com.webtech.kamuskorea.ui.theme.KamusKoreaTheme
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.Calendar
+
+// Impor untuk DatePicker Material 3
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +48,7 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val activity = context as? Activity // Safely cast to Activity
+    val activity = context as? Activity
 
     // Get states from ViewModel
     val productDetails by viewModel.productDetails.collectAsState()
@@ -52,12 +56,11 @@ fun ProfileScreen(
     val updateStatus by viewModel.updateStatus.collectAsState()
     val displayName by viewModel.displayName.collectAsState()
     val profilePictureUrl by viewModel.profilePictureUrl.collectAsState()
-    val dateOfBirth by viewModel.dateOfBirth.collectAsState()
-    val userEmail = FirebaseAuth.getInstance().currentUser?.email // Get email directly
+    val dateOfBirth by viewModel.dateOfBirth.collectAsState() // Ini dari VM
+    val userEmail = FirebaseAuth.getInstance().currentUser?.email
 
-    // Local states for editing
-    var editedDisplayName by remember(displayName) { mutableStateOf(displayName) }
-    var editedDateOfBirth by remember(dateOfBirth) { mutableStateOf(dateOfBirth) }
+    // --- STATE LOKAL YANG BERLEBIHAN TELAH DIHAPUS ---
+    // Kita akan membaca dan menulis langsung ke ViewModel
 
     // Image Picker Launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -66,31 +69,62 @@ fun ProfileScreen(
         uri?.let { viewModel.uploadProfilePicture(it) }
     }
 
-    // Date Picker Dialog
-    val calendar = Calendar.getInstance()
-    // Set initial date from state if valid, otherwise use today
-    LaunchedEffect(dateOfBirth) {
-        if (dateOfBirth.matches("""^\d{4}-\d{2}-\d{2}$""".toRegex())) {
-            try {
-                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                calendar.time = sdf.parse(dateOfBirth) ?: Date()
-            } catch (e: Exception) {
-                // Keep default calendar instance if parsing fails
+    // --- Logika Date Picker Dialog (Material 3) ---
+    val showDatePicker = remember { mutableStateOf(false) }
+
+    if (showDatePicker.value) {
+        // Coba parse tanggal yang ada (dari ViewModel), jika gagal, gunakan hari ini
+        val initialSelectedDateMillis = remember(dateOfBirth) {
+            if (dateOfBirth.matches("""^\d{4}-\d{2}-\d{2}$""".toRegex())) {
+                try {
+                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(dateOfBirth)?.time
+                } catch (e: Exception) {
+                    Calendar.getInstance().timeInMillis
+                }
+            } else {
+                Calendar.getInstance().timeInMillis
             }
         }
+
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = initialSelectedDateMillis
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker.value = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        // Konversi milidetik ke tanggal YYYY-MM-DD
+                        val selectedCalendar = Calendar.getInstance().apply {
+                            timeInMillis = millis
+                        }
+                        val formattedDate = String.format("%04d-%02d-%02d",
+                            selectedCalendar.get(Calendar.YEAR),
+                            selectedCalendar.get(Calendar.MONTH) + 1, // Bulan dimulai dari 0
+                            selectedCalendar.get(Calendar.DAY_OF_MONTH)
+                        )
+
+                        // --- PERBAIKAN: LANGSUNG UPDATE VIEWMODEL ---
+                        viewModel.onDateOfBirthChange(formattedDate)
+                        // --- AKHIR PERBAIKAN ---
+                    }
+                    showDatePicker.value = false
+                }) {
+                    Text("Pilih")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker.value = false }) {
+                    Text("Batal")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
-    val datePickerDialog = android.app.DatePickerDialog(
-        context,
-        { _, year, month, dayOfMonth ->
-            val selectedCalendar = Calendar.getInstance().apply { set(year, month, dayOfMonth) }
-            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            editedDateOfBirth = sdf.format(selectedCalendar.time)
-            viewModel.onDateOfBirthChange(editedDateOfBirth) // Update ViewModel state
-        },
-        calendar.get(Calendar.YEAR),
-        calendar.get(Calendar.MONTH),
-        calendar.get(Calendar.DAY_OF_MONTH)
-    )
+    // --- Akhir Logika Date Picker ---
+
 
     // Snackbar Host State
     val snackbarHostState = remember { SnackbarHostState() }
@@ -111,10 +145,10 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState()) // Make the whole screen scrollable
-                .padding(16.dp), // Add overall padding
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp) // Spacing between sections
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // --- Profile Header Section ---
             ProfileHeader(
@@ -126,14 +160,13 @@ fun ProfileScreen(
 
             // --- Edit Profile Section ---
             EditProfileCard(
-                editedDisplayName = editedDisplayName,
-                editedDateOfBirth = editedDateOfBirth,
-                onDisplayNameChange = {
-                    editedDisplayName = it
-                    viewModel.onDisplayNameChange(it)
-                },
-                onDobClick = { datePickerDialog.show() },
-                onSaveClick = { viewModel.updateProfileDetails() }
+                // --- PERBAIKAN: Gunakan state langsung dari ViewModel ---
+                editedDisplayName = displayName,
+                editedDateOfBirth = dateOfBirth,
+                // --- PERBAIKAN: Kirim perubahan langsung ke ViewModel ---
+                onDisplayNameChange = viewModel::onDisplayNameChange,
+                onDobClick = { showDatePicker.value = true },
+                onSaveClick = { viewModel.updateProfileDetails() } // Ini sekarang akan berhasil
             )
 
             // --- Subscription Section ---
@@ -169,23 +202,22 @@ fun ProfileHeader(
                     .clip(CircleShape)
                     .clickable(onClick = onEditClick)
             )
-            // Edit Icon with better contrast and padding
             Icon(
                 imageVector = Icons.Filled.Edit,
                 contentDescription = "Edit Foto",
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier
-                    .offset(x = 4.dp, y = 4.dp) // Adjust position slightly
+                    .offset(x = 4.dp, y = 4.dp)
                     .size(32.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primaryContainer)
                     .padding(6.dp)
-                    .clickable(onClick = onEditClick) // Make icon clickable too
+                    .clickable(onClick = onEditClick)
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = displayName.ifBlank { "Pengguna" }, // Handle blank name
+            text = displayName.ifBlank { "Pengguna" },
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
@@ -193,14 +225,13 @@ fun ProfileHeader(
             Text(
                 text = email,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant // Use a secondary text color
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 }
 
 // --- Composable for Edit Profile Card ---
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileCard(
     editedDisplayName: String,
@@ -221,14 +252,14 @@ fun EditProfileCard(
             Text("Edit Profil", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(
                 value = editedDisplayName,
-                onValueChange = onDisplayNameChange,
+                onValueChange = onDisplayNameChange, // Ini akan memanggil viewModel.onDisplayNameChange
                 label = { Text("Nama Tampilan") },
                 modifier = Modifier.fillMaxWidth(),
                 leadingIcon = { Icon(Icons.Outlined.AccountCircle, contentDescription = "Nama") }
             )
             OutlinedTextField(
                 value = editedDateOfBirth,
-                onValueChange = {}, // ReadOnly
+                onValueChange = {}, // Tetap ReadOnly
                 label = { Text("Tanggal Lahir") },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -259,7 +290,6 @@ fun SubscriptionCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            // Use different background if premium
             containerColor = if (hasActiveSubscription) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
@@ -274,7 +304,7 @@ fun SubscriptionCard(
                     Icon(
                         imageVector = Icons.Filled.WorkspacePremium,
                         contentDescription = "Premium",
-                        tint = MaterialTheme.colorScheme.primary // Use primary color for premium icon
+                        tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -283,13 +313,10 @@ fun SubscriptionCard(
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
-                // Anda bisa menambahkan info tanggal kadaluarsa di sini jika tersedia dari API/ViewModel
-                // Text("Berlaku hingga: $expiryDate", style = MaterialTheme.typography.bodySmall)
-
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Filled.MoneyOff, // Icon for free status
+                        imageVector = Icons.Filled.MoneyOff,
                         contentDescription = "Gratis",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -308,7 +335,6 @@ fun SubscriptionCard(
                         ?.formattedPrice ?: "N/A"
 
                     Text(
-                        // Gunakan nama produk dari Play Store jika tersedia
                         text = details.name.ifBlank { "Tingkatkan ke Premium" },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
@@ -321,13 +347,12 @@ fun SubscriptionCard(
                     Button(
                         onClick = onSubscribeClick,
                         modifier = Modifier.fillMaxWidth(),
-                        // Beri warna berbeda untuk tombol subscribe
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
-                        Text("Berlangganan ($price/bulan)")
+                        Text("Berlangganan ($price/bulan)") // Teks ini mungkin perlu disesuaikan
                     }
                 } ?: run {
-                    // Show loading or placeholder if details not loaded yet
+                    // Show loading
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -346,14 +371,11 @@ fun SubscriptionCard(
     }
 }
 
-// --- Preview Function (Optional) ---
+// --- Preview Function ---
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenPreview() {
-    KamusKoreaTheme { // Gunakan tema Anda
-        // Anda mungkin perlu membuat instance ViewModel palsu atau menyediakan data dummy di sini
-        // untuk melihat preview yang lebih representatif.
-        // Untuk saat ini, kita tampilkan saja strukturnya.
+    KamusKoreaTheme {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -362,7 +384,7 @@ fun ProfileScreenPreview() {
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             ProfileHeader(
-                profilePictureUrl = null, // Gunakan null atau URL placeholder
+                profilePictureUrl = null,
                 displayName = "Nama Pengguna",
                 email = "email@contoh.com",
                 onEditClick = {}
@@ -375,8 +397,8 @@ fun ProfileScreenPreview() {
                 onSaveClick = {}
             )
             SubscriptionCard(
-                hasActiveSubscription = false, // Coba ganti true/false
-                productDetails = null, // Beri null atau data ProductDetails dummy
+                hasActiveSubscription = false,
+                productDetails = null,
                 onSubscribeClick = {}
             )
         }

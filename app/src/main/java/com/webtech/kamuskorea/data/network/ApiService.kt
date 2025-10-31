@@ -4,43 +4,58 @@ import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.*
 
+/**
+ * Interface Retrofit untuk semua panggilan jaringan.
+ * SEMUA data class telah dipindahkan ke DataTransferObjects.kt
+ */
 interface ApiService {
 
-    // Endpoint kamus (sesuaikan jika path berbeda)
+    /**
+     * Mengambil update kamus berdasarkan versi lokal.
+     */
     @GET("api.php/kamus/updates")
     suspend fun getKamusUpdates(@Query("version") localVersion: Int): Response<KamusUpdateResponse>
 
-    // Endpoint status premium (sesuaikan jika path berbeda)
+    /**
+     * Memeriksa status premium pengguna yang sedang login.
+     */
     @GET("api.php/user/premium/status")
-    suspend fun checkPremiumStatus(
-        @Header("Authorization") token: String // "Bearer <FirebaseIdToken>"
-    ): Response<PremiumStatusResponse>
+    suspend fun checkUserStatus(): Response<PremiumStatusResponse>
 
-    // --- TAMBAHAN: Endpoint GET User Profile ---
-    @GET("api.php/user/profile") // Atau "api.php/user"
-    suspend fun getUserProfile(
-        @Header("Authorization") token: String
-    ): Response<UserProfileResponse>
-    // --- AKHIR TAMBAHAN ---
+    /**
+     * Mengaktifkan status premium untuk pengguna.
+     * Tipe data 'PremiumActivationRequest' sekarang akan ditemukan
+     * karena sudah ada di DataTransferObjects.kt
+     */
+    @POST("api.php/user/premium/activate")
+    suspend fun activatePremium(@Body request: PremiumActivationRequest): Response<PremiumStatusResponse>
 
-    // Endpoint update detail profil (sesuaikan jika path berbeda)
+    /**
+     * Mengambil profil pengguna yang sedang login.
+     */
+    @GET("api.php/user/profile")
+    suspend fun getUserProfile(): Response<UserProfileResponse>
+
+    /**
+     * Memperbarui detail profil (nama, tgl lahir) pengguna.
+     */
     @PATCH("api.php/user/profile")
-    suspend fun updateProfileDetails(
-        @Header("Authorization") token: String,
-        @Body profileData: UserProfileUpdateRequest
-    ): Response<Unit> // Asumsi respons sukses 2xx tanpa body spesifik
+    suspend fun updateProfileDetails(@Body profileData: UserProfileUpdateRequest): Response<Unit>
 
-    // Endpoint upload foto profil (sesuaikan jika path berbeda)
+    /**
+     * Mengunggah foto profil baru.
+     */
     @Multipart
     @POST("api.php/user/profile/picture")
     suspend fun updateProfilePicture(
-        @Header("Authorization") token: String,
-        @Part image: MultipartBody.Part // Nama part harus "image" sesuai PHP
+        @Part image: MultipartBody.Part // Nama part "image" harus cocok dengan api.php
     ): Response<ProfilePictureUpdateResponse>
 
-    // Endpoint Ebook (sesuaikan jika path berbeda)
+    /**
+     * Mengambil daftar Ebook.
+     */
     @GET("api.php/ebooks")
-    suspend fun getEbooks(
-        @Header("Authorization") token: String? // Token bisa null jika user belum login
-    ): Response<List<EbookApiResponse>>
+    suspend fun getEbooks(): Response<List<EbookApiResponse>>
+
+    // Tidak ada data class di sini
 }
