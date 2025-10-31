@@ -56,11 +56,8 @@ fun ProfileScreen(
     val updateStatus by viewModel.updateStatus.collectAsState()
     val displayName by viewModel.displayName.collectAsState()
     val profilePictureUrl by viewModel.profilePictureUrl.collectAsState()
-    val dateOfBirth by viewModel.dateOfBirth.collectAsState() // Ini dari VM
+    val dateOfBirth by viewModel.dateOfBirth.collectAsState()
     val userEmail = FirebaseAuth.getInstance().currentUser?.email
-
-    // --- STATE LOKAL YANG BERLEBIHAN TELAH DIHAPUS ---
-    // Kita akan membaca dan menulis langsung ke ViewModel
 
     // Image Picker Launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -101,13 +98,11 @@ fun ProfileScreen(
                         }
                         val formattedDate = String.format("%04d-%02d-%02d",
                             selectedCalendar.get(Calendar.YEAR),
-                            selectedCalendar.get(Calendar.MONTH) + 1, // Bulan dimulai dari 0
+                            selectedCalendar.get(Calendar.MONTH) + 1,
                             selectedCalendar.get(Calendar.DAY_OF_MONTH)
                         )
 
-                        // --- PERBAIKAN: LANGSUNG UPDATE VIEWMODEL ---
                         viewModel.onDateOfBirthChange(formattedDate)
-                        // --- AKHIR PERBAIKAN ---
                     }
                     showDatePicker.value = false
                 }) {
@@ -160,13 +155,11 @@ fun ProfileScreen(
 
             // --- Edit Profile Section ---
             EditProfileCard(
-                // --- PERBAIKAN: Gunakan state langsung dari ViewModel ---
                 editedDisplayName = displayName,
                 editedDateOfBirth = dateOfBirth,
-                // --- PERBAIKAN: Kirim perubahan langsung ke ViewModel ---
                 onDisplayNameChange = viewModel::onDisplayNameChange,
                 onDobClick = { showDatePicker.value = true },
-                onSaveClick = { viewModel.updateProfileDetails() } // Ini sekarang akan berhasil
+                onSaveClick = { viewModel.updateProfileDetails() }
             )
 
             // --- Subscription Section ---
@@ -232,6 +225,7 @@ fun ProfileHeader(
 }
 
 // --- Composable for Edit Profile Card ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileCard(
     editedDisplayName: String,
@@ -250,27 +244,44 @@ fun EditProfileCard(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text("Edit Profil", style = MaterialTheme.typography.titleMedium)
+
             OutlinedTextField(
                 value = editedDisplayName,
-                onValueChange = onDisplayNameChange, // Ini akan memanggil viewModel.onDisplayNameChange
+                onValueChange = onDisplayNameChange,
                 label = { Text("Nama Tampilan") },
                 modifier = Modifier.fillMaxWidth(),
                 leadingIcon = { Icon(Icons.Outlined.AccountCircle, contentDescription = "Nama") }
             )
-            OutlinedTextField(
-                value = editedDateOfBirth,
-                onValueChange = {}, // Tetap ReadOnly
-                label = { Text("Tanggal Lahir") },
+
+            // PERBAIKAN: Gunakan Box dengan clickable untuk membuat field bisa diklik
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onDobClick), // Make the whole field clickable
-                readOnly = true,
-                leadingIcon = { Icon(Icons.Outlined.CalendarMonth, contentDescription = "Tanggal Lahir") },
-                trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = "Pilih Tanggal") }
-            )
+                    .clickable(onClick = onDobClick)
+            ) {
+                OutlinedTextField(
+                    value = editedDateOfBirth.ifBlank { "Belum diatur" },
+                    onValueChange = {},
+                    label = { Text("Tanggal Lahir") },
+                    modifier = Modifier.fillMaxWidth(),
+                    readOnly = true,
+                    enabled = false, // Disable untuk mencegah keyboard muncul
+                    leadingIcon = { Icon(Icons.Outlined.CalendarMonth, contentDescription = "Tanggal Lahir") },
+                    trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = "Pilih Tanggal") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+            }
+
             Button(
                 onClick = onSaveClick,
-                modifier = Modifier.align(Alignment.End) // Align button to the right
+                modifier = Modifier.align(Alignment.End)
             ) {
                 Text("Simpan Perubahan")
             }
@@ -282,7 +293,7 @@ fun EditProfileCard(
 @Composable
 fun SubscriptionCard(
     hasActiveSubscription: Boolean,
-    productDetails: com.android.billingclient.api.ProductDetails?, // Use specific type
+    productDetails: com.android.billingclient.api.ProductDetails?,
     onSubscribeClick: () -> Unit
 ) {
     Card(
@@ -349,7 +360,7 @@ fun SubscriptionCard(
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
-                        Text("Berlangganan ($price/bulan)") // Teks ini mungkin perlu disesuaikan
+                        Text("Berlangganan ($price/bulan)")
                     }
                 } ?: run {
                     // Show loading
