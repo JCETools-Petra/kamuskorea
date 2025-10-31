@@ -5,7 +5,7 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels // <-- TAMBAHKAN IMPORT INI
+import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -41,7 +41,6 @@ import com.webtech.kamuskorea.ui.navigation.Screen
 import com.webtech.kamuskorea.ui.screens.*
 import com.webtech.kamuskorea.ui.screens.auth.LoginScreen
 import com.webtech.kamuskorea.ui.screens.auth.RegisterScreen
-// TAMBAHKAN IMPORT INI
 import com.webtech.kamuskorea.ui.screens.dictionary.KamusSyncViewModel
 import com.webtech.kamuskorea.ui.screens.ebook.PdfViewerScreen
 import com.webtech.kamuskorea.ui.screens.profile.ProfileScreen

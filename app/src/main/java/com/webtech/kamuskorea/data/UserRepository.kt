@@ -1,10 +1,9 @@
 package com.webtech.kamuskorea.data
 
 import android.util.Log
-import androidx.datastore.core.DataStore // Import DataStore
-import androidx.datastore.preferences.core.Preferences // Import Preferences
 import com.google.firebase.auth.FirebaseAuth
 import com.webtech.kamuskorea.data.network.ApiService
+import com.webtech.kamuskorea.data.network.PremiumActivationRequest
 import com.webtech.kamuskorea.data.network.PremiumStatusResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,9 +19,7 @@ import javax.inject.Singleton
 @Singleton
 class UserRepository @Inject constructor(
     private val apiService: ApiService,
-    private val auth: FirebaseAuth,
-    // Inject DataStore jika perlu menyimpan preferensi terkait user
-    // private val dataStore: DataStore<Preferences>
+    private val auth: FirebaseAuth
 ) {
     private val _isPremium = MutableStateFlow(false)
     val isPremium: StateFlow<Boolean> = _isPremium.asStateFlow()
@@ -40,16 +37,12 @@ class UserRepository @Inject constructor(
                 _premiumStatusResponse.value = null
             }
         }
-        // Panggil saat inisialisasi jika user sudah login
+
         if (auth.currentUser != null) {
             checkPremiumStatus()
         }
     }
 
-    /**
-     * Helper suspend function untuk mendapatkan Firebase ID Token user saat ini.
-     * Menggunakan force refresh (true) untuk mendapatkan token terbaru.
-     */
     private suspend fun getFirebaseIdToken(forceRefresh: Boolean = true): String? {
         return try {
             auth.currentUser?.getIdToken(forceRefresh)?.await()?.token
@@ -59,22 +52,18 @@ class UserRepository @Inject constructor(
         }
     }
 
-    /**
-     * Memanggil API backend untuk mengecek status premium user.
-     * Hasilnya akan diperbarui di state flow `isPremium`.
-     */
     fun checkPremiumStatus() {
+        Log.d("UserRepository", "=== CHECK PREMIUM STATUS ===")
+
         CoroutineScope(Dispatchers.IO).launch {
-            // Coba dapatkan token tanpa force refresh dulu, baru force jika perlu
             var token = getFirebaseIdToken(false)
             if (token == null && auth.currentUser != null) {
-                Log.w("UserRepository", "Mencoba force refresh token untuk cek premium...")
+                Log.w("UserRepository", "Token null, mencoba force refresh...")
                 token = getFirebaseIdToken(true)
             }
 
-
             if (token == null) {
-                Log.w("UserRepository", "User tidak login atau token tidak valid, tidak bisa cek premium status API")
+                Log.w("UserRepository", "❌ User tidak login atau token tidak valid")
                 withContext(Dispatchers.Main) {
                     _isPremium.value = false
                     _premiumStatusResponse.value = null
@@ -83,27 +72,29 @@ class UserRepository @Inject constructor(
             }
 
             try {
-                Log.d("UserRepository", "Memanggil API checkPremiumStatus...")
-                // --- PERBAIKAN DI SINI ---
-                val response = apiService.checkUserStatus() // Menggunakan nama fungsi yang benar
-                // --- AKHIR PERBAIKAN ---
+                Log.d("UserRepository", "📡 Memanggil API checkUserStatus...")
+                val response = apiService.checkUserStatus()
 
                 withContext(Dispatchers.Main) {
                     if (response.isSuccessful) {
                         val premiumStatus = response.body()
-                        _isPremium.value = premiumStatus?.isPremium ?: false
+                        val isPremiumValue = premiumStatus?.isPremium ?: false
+
+                        _isPremium.value = isPremiumValue
                         _premiumStatusResponse.value = premiumStatus
-                        Log.d("UserRepository", "Status premium dari API: ${premiumStatus?.isPremium}, Expiry: ${premiumStatus?.expiryDate}")
+
+                        Log.d("UserRepository", "✅ Status premium dari API: $isPremiumValue")
+                        Log.d("UserRepository", "Expiry Date: ${premiumStatus?.expiryDate}")
                     } else {
                         val errorBody = response.errorBody()?.string() ?: "Unknown error"
-                        Log.e("UserRepository", "Error cek premium API: ${response.code()} - $errorBody")
-                        _isPremium.value = false // Set ke false jika error
+                        Log.e("UserRepository", "❌ Error cek premium API: ${response.code()} - $errorBody")
+                        _isPremium.value = false
                         _premiumStatusResponse.value = null
                     }
                 }
 
             } catch (e: Exception) {
-                Log.e("UserRepository", "Exception saat cek premium API", e)
+                Log.e("UserRepository", "❌ Exception saat cek premium API", e)
                 withContext(Dispatchers.Main) {
                     _isPremium.value = false
                     _premiumStatusResponse.value = null
@@ -112,6 +103,59 @@ class UserRepository @Inject constructor(
         }
     }
 
+    /**
+     * FUNGSI BARU: Aktivasi premium dengan purchase token
+     */
+    suspend fun activatePremiumWithPurchase(purchaseToken: String): Boolean {
+        Log.d("UserRepository", "=== ACTIVATE PREMIUM WITH PURCHASE ===")
+        Log.d("UserRepository", "Purchase Token: $purchaseToken")
+
+        return withContext(Dispatchers.IO) {
+            try {
+                // Pastikan user sudah login
+                if (auth.currentUser == null) {
+                    Log.e("UserRepository", "❌ User belum login!")
+                    return@withContext false
+                }
+
+                Log.d("UserRepository", "📡 Memanggil API activatePremium...")
+
+                // Buat request body
+                val request = PremiumActivationRequest(
+                    purchase_token = purchaseToken,
+                    duration_days = 30 // Sesuaikan dengan durasi langganan Anda
+                )
+
+                val response = apiService.activatePremium(request)
+
+                if (response.isSuccessful) {
+                    val result = response.body()
+                    Log.d("UserRepository", "✅ Premium activated successfully!")
+                    Log.d("UserRepository", "Is Premium: ${result?.isPremium}")
+                    Log.d("UserRepository", "Expiry Date: ${result?.expiryDate}")
+
+                    // Update state lokal
+                    withContext(Dispatchers.Main) {
+                        _isPremium.value = result?.isPremium ?: true
+                        _premiumStatusResponse.value = result
+                    }
+
+                    // Refresh status untuk memastikan sinkronisasi
+                    checkPremiumStatus()
+
+                    return@withContext true
+                } else {
+                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                    Log.e("UserRepository", "❌ Error aktivasi premium: ${response.code()} - $errorBody")
+                    return@withContext false
+                }
+
+            } catch (e: Exception) {
+                Log.e("UserRepository", "❌ Exception saat aktivasi premium", e)
+                return@withContext false
+            }
+        }
+    }
 
     fun isUserLoggedIn(): Boolean {
         return auth.currentUser != null
