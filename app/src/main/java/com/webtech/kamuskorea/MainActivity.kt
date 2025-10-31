@@ -44,6 +44,7 @@ import com.webtech.kamuskorea.ui.screens.auth.LoginScreen
 import com.webtech.kamuskorea.ui.screens.auth.RegisterScreen
 import com.webtech.kamuskorea.ui.screens.dictionary.KamusSyncViewModel
 import com.webtech.kamuskorea.ui.screens.ebook.PdfViewerScreen
+import com.webtech.kamuskorea.ui.screens.onboarding.OnboardingScreen
 import com.webtech.kamuskorea.ui.screens.profile.ProfileScreen
 import com.webtech.kamuskorea.ui.screens.settings.SettingsScreen
 import com.webtech.kamuskorea.ui.screens.settings.SettingsViewModel
@@ -79,7 +80,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // ✅ SOLUSI 2: Refresh status premium saat app resume
     override fun onResume() {
         super.onResume()
         if (firebaseAuth.currentUser != null) {
@@ -88,7 +88,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // ✅ BONUS: Juga refresh saat app kembali dari background (opsional)
     override fun onStart() {
         super.onStart()
         if (firebaseAuth.currentUser != null) {
@@ -123,10 +122,7 @@ fun MainApp(
     KamusKoreaTheme(darkTheme = useDarkTheme, dynamicColor = false, colorScheme = colors) {
 
         val navController = rememberNavController()
-        val hasSeenOnboarding = remember {
-            // Cek dari DataStore atau SharedPreferences
-            mutableStateOf(false)
-        }
+        val hasSeenOnboarding = remember { mutableStateOf(false) }
         val startDestination = when {
             !hasSeenOnboarding.value -> Screen.Onboarding.route
             firebaseAuth.currentUser != null -> Screen.Home.route
@@ -271,7 +267,6 @@ fun MainApp(
                     composable(Screen.Onboarding.route) {
                         OnboardingScreen(
                             onFinish = {
-                                // Simpan flag ke DataStore
                                 hasSeenOnboarding.value = true
                                 navController.navigate(Screen.Login.route) {
                                     popUpTo(Screen.Onboarding.route) { inclusive = true }

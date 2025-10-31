@@ -37,7 +37,7 @@ fun ModernDictionaryScreen(
                 SearchBar(
                     query = searchQuery,
                     onQueryChange = { viewModel.onSearchQueryChange(it) },
-                    onFilterClick = { showFilterMenu = !showFilterMenu },
+                    onSearch = { /* Do nothing or handle search */ },
                     active = searchQuery.isNotEmpty(),
                     onActiveChange = {},
                     placeholder = { Text("Cari kata dalam Korea, Romanisasi, atau Indonesia...") },

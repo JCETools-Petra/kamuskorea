@@ -174,6 +174,7 @@ fun ModernHomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             menuCards.forEachIndexed { index, card ->
+                // Remove the delay that causes suspend function error
                 AnimatedVisibility(
                     visible = showContent,
                     enter = fadeIn(
@@ -194,7 +195,6 @@ fun ModernHomeScreen(
                         }
                     )
                 }
-                kotlinx.coroutines.delay(100L * index)
             }
         }
 
