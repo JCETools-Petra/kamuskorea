@@ -24,10 +24,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -38,6 +39,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.webtech.kamuskorea.data.UserRepository
+import com.webtech.kamuskorea.ui.localization.LocalizationProvider
+import com.webtech.kamuskorea.ui.localization.LocalStrings
 import com.webtech.kamuskorea.ui.navigation.Screen
 import com.webtech.kamuskorea.ui.screens.*
 import com.webtech.kamuskorea.ui.screens.auth.LoginScreen
@@ -46,8 +49,9 @@ import com.webtech.kamuskorea.ui.screens.dictionary.KamusSyncViewModel
 import com.webtech.kamuskorea.ui.screens.ebook.PdfViewerScreen
 import com.webtech.kamuskorea.ui.screens.onboarding.OnboardingScreen
 import com.webtech.kamuskorea.ui.screens.profile.ProfileScreen
-import com.webtech.kamuskorea.ui.screens.settings.SettingsScreen
+import com.webtech.kamuskorea.ui.screens.settings.ModernSettingsScreen
 import com.webtech.kamuskorea.ui.screens.settings.SettingsViewModel
+import com.webtech.kamuskorea.ui.screens.splash.AnimatedSplashScreen
 import com.webtech.kamuskorea.ui.theme.*
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -63,20 +67,43 @@ class MainActivity : ComponentActivity() {
     lateinit var firebaseAuth: FirebaseAuth
 
     private val kamusSyncViewModel: KamusSyncViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        installSplashScreen()
 
-        // Sinkronisasi database kamus saat aplikasi dimulai
         kamusSyncViewModel.syncDatabase()
 
         setContent {
             val isPremium by userRepository.isPremium.collectAsState(initial = false)
-            MainApp(
-                firebaseAuth = firebaseAuth,
-                isPremium = isPremium
-            )
+            val textScale by settingsViewModel.textScale.collectAsState()
+            val language by settingsViewModel.language.collectAsState()
+
+            // State untuk mengontrol splash screen
+            var showSplash by remember { mutableStateOf(true) }
+
+            val textScaleMultiplier = settingsViewModel.getTextScaleMultiplier(textScale)
+
+            // Apply text scaling
+            CompositionLocalProvider(
+                LocalDensity provides Density(
+                    density = LocalDensity.current.density,
+                    fontScale = LocalDensity.current.fontScale * textScaleMultiplier
+                )
+            ) {
+                LocalizationProvider(languageCode = language) {
+                    if (showSplash) {
+                        AnimatedSplashScreen(
+                            onTimeout = { showSplash = false }
+                        )
+                    } else {
+                        MainApp(
+                            firebaseAuth = firebaseAuth,
+                            isPremium = isPremium
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -109,6 +136,7 @@ fun MainApp(
     firebaseAuth: FirebaseAuth,
     isPremium: Boolean
 ) {
+    val strings = LocalStrings.current
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val currentTheme by settingsViewModel.currentTheme.collectAsState()
     val useDarkTheme = isSystemInDarkTheme()
@@ -120,7 +148,6 @@ fun MainApp(
     }
 
     KamusKoreaTheme(darkTheme = useDarkTheme, dynamicColor = false, colorScheme = colors) {
-
         val navController = rememberNavController()
         val hasSeenOnboarding = remember { mutableStateOf(false) }
         val startDestination = when {
@@ -130,7 +157,7 @@ fun MainApp(
         }
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
-        var currentTitle by remember { mutableStateOf("Kamus Korea") }
+        var currentTitle by remember { mutableStateOf(strings.appName) }
         val application = LocalContext.current.applicationContext as Application
 
         val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -138,24 +165,24 @@ fun MainApp(
 
         LaunchedEffect(currentRoute) {
             currentTitle = when {
-                currentRoute == Screen.Home.route -> "Menu Utama"
-                currentRoute == Screen.Dictionary.route -> "Kamus"
-                currentRoute == Screen.Ebook.route -> "E-Book"
-                currentRoute == Screen.Quiz.route -> "Latihan"
-                currentRoute == Screen.Memorization.route -> "Hafalan"
-                currentRoute == Screen.Profile.route -> "Profil & Langganan"
-                currentRoute == Screen.Settings.route -> "Pengaturan"
+                currentRoute == Screen.Home.route -> strings.home
+                currentRoute == Screen.Dictionary.route -> strings.dictionary
+                currentRoute == Screen.Ebook.route -> strings.ebook
+                currentRoute == Screen.Quiz.route -> strings.quiz
+                currentRoute == Screen.Memorization.route -> strings.memorization
+                currentRoute == Screen.Profile.route -> strings.profile
+                currentRoute == Screen.Settings.route -> strings.settings
                 currentRoute?.startsWith("pdf_viewer/") == true ->
-                    navBackStackEntry?.arguments?.getString("title") ?: "Baca E-Book"
-                else -> "Kamus Korea"
+                    navBackStackEntry?.arguments?.getString("title") ?: strings.ebook
+                else -> strings.appName
             }
         }
 
         val menuItems = listOf(
-            NavItem("Kamus", Icons.AutoMirrored.Outlined.MenuBook, Screen.Dictionary),
-            NavItem("E-Book", Icons.Outlined.AutoStories, Screen.Ebook),
-            NavItem("Hafalan", Icons.Outlined.Bookmark, Screen.Memorization),
-            NavItem("Latihan", Icons.Outlined.Quiz, Screen.Quiz)
+            NavItem(strings.dictionary, Icons.AutoMirrored.Outlined.MenuBook, Screen.Dictionary),
+            NavItem(strings.ebook, Icons.Outlined.AutoStories, Screen.Ebook),
+            NavItem(strings.memorization, Icons.Outlined.Bookmark, Screen.Memorization),
+            NavItem(strings.quiz, Icons.Outlined.Quiz, Screen.Quiz)
         )
 
         val isAuthScreen = currentRoute == Screen.Login.route || currentRoute == Screen.Register.route
@@ -169,7 +196,7 @@ fun MainApp(
                     Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         AsyncImage(
                             model = firebaseAuth.currentUser?.photoUrl,
-                            contentDescription = "Foto Profil",
+                            contentDescription = "Profile Photo",
                             modifier = Modifier.size(80.dp).clip(CircleShape),
                             contentScale = ContentScale.Crop,
                             placeholder = painterResource(id = R.drawable.ic_default_profile),
@@ -178,15 +205,15 @@ fun MainApp(
                         Spacer(modifier = Modifier.height(12.dp))
                         val displayName = firebaseAuth.currentUser?.displayName
                         val email = firebaseAuth.currentUser?.email
-                        Text(text = if (!displayName.isNullOrBlank()) displayName else email ?: "Pengguna", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(text = if (!displayName.isNullOrBlank()) displayName else email ?: "User", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(4.dp))
                         TextButton(onClick = {
                             scope.launch { drawerState.close() }
                             navController.navigate(Screen.Profile.route)
-                        }) { Text("Profil & Langganan") }
+                        }) { Text(strings.profile) }
                     }
                     HorizontalDivider()
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.Home, contentDescription = "Home") }, label = { Text("Menu Utama") }, selected = Screen.Home.route == currentRoute, onClick = { scope.launch { drawerState.close() }; navController.navigate(Screen.Home.route) }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
+                    NavigationDrawerItem(icon = { Icon(Icons.Default.Home, contentDescription = strings.home) }, label = { Text(strings.home) }, selected = Screen.Home.route == currentRoute, onClick = { scope.launch { drawerState.close() }; navController.navigate(Screen.Home.route) }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
                     menuItems.forEach { item ->
                         NavigationDrawerItem(
                             icon = { Icon(item.icon, contentDescription = item.label) },
@@ -204,10 +231,10 @@ fun MainApp(
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     HorizontalDivider()
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.Settings, contentDescription = "Pengaturan") }, label = { Text("Pengaturan") }, selected = currentRoute == Screen.Settings.route, onClick = { scope.launch { drawerState.close() }; navController.navigate(Screen.Settings.route) }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
+                    NavigationDrawerItem(icon = { Icon(Icons.Default.Settings, contentDescription = strings.settings) }, label = { Text(strings.settings) }, selected = currentRoute == Screen.Settings.route, onClick = { scope.launch { drawerState.close() }; navController.navigate(Screen.Settings.route) }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
                     NavigationDrawerItem(
-                        icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout") },
-                        label = { Text("Logout") },
+                        icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = strings.logout) },
+                        label = { Text(strings.logout) },
                         selected = false,
                         onClick = {
                             scope.launch {
@@ -233,7 +260,7 @@ fun MainApp(
                             navigationIcon = {
                                 if (isPdfViewerScreen) {
                                     IconButton(onClick = { navController.popBackStack() }) {
-                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                                     }
                                 } else {
                                     IconButton(onClick = { scope.launch { drawerState.open() } }) {
@@ -252,18 +279,11 @@ fun MainApp(
                 ) {
                     composable(Screen.Login.route) { LoginScreen(onLoginSuccess = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Login.route) { inclusive = true } } }, onNavigateToRegister = { navController.navigate(Screen.Register.route) }) }
                     composable(Screen.Register.route) { RegisterScreen(onNavigateToLogin = { navController.popBackStack() }) }
-                    composable(Screen.Home.route) {
-                        ModernHomeScreen(
-                            navController = navController,
-                            isPremium = isPremium
-                        )
-                    }
-                    composable(Screen.Dictionary.route) {
-                        ModernDictionaryScreen(viewModel = hiltViewModel())
-                    }
+                    composable(Screen.Home.route) { ModernHomeScreen(navController = navController, isPremium = isPremium) }
+                    composable(Screen.Dictionary.route) { ModernDictionaryScreen(viewModel = hiltViewModel()) }
                     composable(Screen.Memorization.route) { MemorizationScreen(isPremium = isPremium, onNavigateToProfile = { navController.navigate(Screen.Profile.route) }) }
                     composable(Screen.Quiz.route) { QuizScreen(isPremium = isPremium, onNavigateToProfile = { navController.navigate(Screen.Profile.route) }) }
-                    composable(Screen.Settings.route) { SettingsScreen(viewModel = hiltViewModel()) }
+                    composable(Screen.Settings.route) { ModernSettingsScreen(viewModel = hiltViewModel()) }
                     composable(Screen.Onboarding.route) {
                         OnboardingScreen(
                             onFinish = {
@@ -286,7 +306,6 @@ fun MainApp(
                             }
                         )
                     }
-
                     composable(Screen.PremiumLock.route) {
                         PremiumLockScreen(
                             onNavigateToProfile = {
@@ -296,13 +315,7 @@ fun MainApp(
                             }
                         )
                     }
-
-                    composable(Screen.Profile.route) {
-                        ProfileScreen(
-                            viewModel = hiltViewModel()
-                        )
-                    }
-
+                    composable(Screen.Profile.route) { ProfileScreen(viewModel = hiltViewModel()) }
                     composable(
                         route = "pdf_viewer/{pdfUrl}/{title}",
                         arguments = listOf(
@@ -321,7 +334,7 @@ fun MainApp(
                             )
                         } else {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("Error: Data E-Book tidak valid.")
+                                Text("Error: Invalid E-Book data.")
                             }
                         }
                     }
