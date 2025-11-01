@@ -195,6 +195,9 @@ fun MainApp(
         val isAuthScreen = currentRoute == Screen.Login.route || currentRoute == Screen.Register.route
         val isPdfViewerScreen = currentRoute?.startsWith("pdf_viewer/") == true
 
+        // ✅ Cek apakah rute saat ini ada di dalam alur assessment
+        val isAssessmentFlow = currentRoute?.startsWith("assessment/") == true || currentRoute == Screen.Quiz.route
+
         ModalNavigationDrawer(
             drawerState = drawerState,
             gesturesEnabled = !isAuthScreen && !isPdfViewerScreen,
@@ -297,7 +300,8 @@ fun MainApp(
                         TopAppBar(
                             title = { Text(currentTitle) },
                             navigationIcon = {
-                                if (isPdfViewerScreen || currentRoute?.startsWith("assessment/") == true) {
+                                // ✅ PERUBAHAN: Tampilkan panah kembali untuk SEMUA alur assessment
+                                if (isPdfViewerScreen || isAssessmentFlow && currentRoute != Screen.Quiz.route) {
                                     IconButton(onClick = { navController.popBackStack() }) {
                                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                                     }
@@ -343,103 +347,146 @@ fun MainApp(
                     }
 
                     // ========== ASSESSMENT/QUIZ ROUTES (DIPERBAIKI) ==========
-                    composable(Screen.Quiz.route) {
-                        AssessmentMainScreen(
-                            onNavigateToQuiz = {
-                                navController.navigate("assessment/quiz/list")
-                            },
-                            onNavigateToExam = {
-                                navController.navigate("assessment/exam/list")
-                            },
-                            onNavigateToHistory = {
-                                navController.navigate("assessment/history")
-                            }
-                        )
-                    }
 
-                    // List Quiz
-                    composable("assessment/quiz/list") {
-                        AssessmentListScreen(
-                            type = "quiz",
-                            isPremium = isPremium,
-                            onNavigateToAssessment = { assessmentId ->
-                                navController.navigate("assessment/take/$assessmentId/Quiz")
-                            },
-                            onNavigateToPremium = {
-                                navController.navigate(Screen.PremiumLock.route)
-                            }
-                        )
-                    }
+                    // ✅ KITA BUAT NESTED NAVIGATION GRAPH AGAR VIEWMODEL BISA DI-SHARE
+                    navigation(
+                        startDestination = Screen.Quiz.route,
+                        route = "assessment_graph" // Ini adalah rute "induk" baru
+                    ) {
 
-                    // List Exam
-                    composable("assessment/exam/list") {
-                        AssessmentListScreen(
-                            type = "exam",
-                            isPremium = isPremium,
-                            onNavigateToAssessment = { assessmentId ->
-                                navController.navigate("assessment/take/$assessmentId/Exam")
-                            },
-                            onNavigateToPremium = {
-                                navController.navigate(Screen.PremiumLock.route)
-                            }
-                        )
-                    }
-
-                    // Take Assessment
-                    composable(
-                        route = "assessment/take/{assessmentId}/{title}",
-                        arguments = listOf(
-                            navArgument("assessmentId") { type = NavType.IntType },
-                            navArgument("title") { type = NavType.StringType }
-                        )
-                    ) { backStackEntry ->
-                        val assessmentId = backStackEntry.arguments?.getInt("assessmentId") ?: 0
-                        val title = backStackEntry.arguments?.getString("title") ?: "Assessment"
-
-                        TakeAssessmentScreen(
-                            assessmentId = assessmentId,
-                            assessmentTitle = title,
-                            onFinish = { score, passed ->
-                                navController.navigate("assessment/result") {
-                                    popUpTo("assessment/take/$assessmentId/$title") { inclusive = true }
-                                }
-                            }
-                        )
-                    }
-
-                    // Assessment Result
-                    composable("assessment/result") {
-                        val viewModel: AssessmentViewModel = hiltViewModel()
-                        val result by viewModel.assessmentResult.collectAsState()
-
-                        result?.let { assessmentResult ->
-                            AssessmentResultScreen(
-                                result = assessmentResult,
-                                onBackToList = {
-                                    navController.navigate(Screen.Quiz.route) {
-                                        popUpTo(Screen.Quiz.route) { inclusive = true }
-                                    }
+                        // Rute ini sekarang adalah "assessment_graph/quiz"
+                        // tapi kita ubah startDestination-nya saja
+                        composable(Screen.Quiz.route) {
+                            AssessmentMainScreen(
+                                onNavigateToQuiz = {
+                                    navController.navigate("assessment/quiz/list")
                                 },
-                                onRetry = {
-                                    navController.popBackStack()
+                                onNavigateToExam = {
+                                    navController.navigate("assessment/exam/list")
+                                },
+                                onNavigateToHistory = {
+                                    navController.navigate("assessment/history")
                                 }
                             )
-                        } ?: Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
                         }
-                    }
 
-                    // Assessment History
-                    composable("assessment/history") {
-                        AssessmentHistoryScreen(
-                            onBack = { navController.popBackStack() }
-                        )
-                    }
+                        // List Quiz
+                        composable("assessment/quiz/list") {
+                            // ✅ Dapatkan VM yang di-scope ke "assessment_graph"
+                            val assessmentBackStackEntry = remember(it) {
+                                navController.getBackStackEntry("assessment_graph")
+                            }
+                            val assessmentViewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
 
-                    // ========== END ASSESSMENT ROUTES ==========
+                            AssessmentListScreen(
+                                type = "quiz",
+                                isPremium = isPremium,
+                                onNavigateToAssessment = { assessmentId ->
+                                    navController.navigate("assessment/take/$assessmentId/Quiz")
+                                },
+                                onNavigateToPremium = {
+                                    navController.navigate(Screen.PremiumLock.route)
+                                },
+                                viewModel = assessmentViewModel // ✅ Kirim VM
+                            )
+                        }
+
+                        // List Exam
+                        composable("assessment/exam/list") {
+                            // ✅ Dapatkan VM yang di-scope ke "assessment_graph"
+                            val assessmentBackStackEntry = remember(it) {
+                                navController.getBackStackEntry("assessment_graph")
+                            }
+                            val assessmentViewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
+
+                            AssessmentListScreen(
+                                type = "exam",
+                                isPremium = isPremium,
+                                onNavigateToAssessment = { assessmentId ->
+                                    navController.navigate("assessment/take/$assessmentId/Exam")
+                                },
+                                onNavigateToPremium = {
+                                    navController.navigate(Screen.PremiumLock.route)
+                                },
+                                viewModel = assessmentViewModel // ✅ Kirim VM
+                            )
+                        }
+
+                        // Take Assessment
+                        composable(
+                            route = "assessment/take/{assessmentId}/{title}",
+                            arguments = listOf(
+                                navArgument("assessmentId") { type = NavType.IntType },
+                                navArgument("title") { type = NavType.StringType }
+                            )
+                        ) { backStackEntry ->
+                            val assessmentId = backStackEntry.arguments?.getInt("assessmentId") ?: 0
+                            val title = backStackEntry.arguments?.getString("title") ?: "Assessment"
+
+                            // ✅ Dapatkan VM yang di-scope ke "assessment_graph"
+                            val assessmentBackStackEntry = remember(backStackEntry) {
+                                navController.getBackStackEntry("assessment_graph")
+                            }
+                            val assessmentViewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
+
+                            TakeAssessmentScreen(
+                                assessmentId = assessmentId,
+                                assessmentTitle = title,
+                                onFinish = { // ✅ PERUBAHAN: onFinish tanpa parameter
+                                    navController.navigate("assessment/result") {
+                                        // Pop up sampai layar 'take'
+                                        popUpTo(backStackEntry.destination.route!!) { inclusive = true }
+                                    }
+                                },
+                                viewModel = assessmentViewModel // ✅ Kirim VM
+                            )
+                        }
+
+                        // Assessment Result
+                        composable("assessment/result") {
+                            // ✅ Dapatkan VM yang di-scope ke "assessment_graph"
+                            val assessmentBackStackEntry = remember(it) {
+                                navController.getBackStackEntry("assessment_graph")
+                            }
+                            val viewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
+                            val result by viewModel.assessmentResult.collectAsState()
+
+                            result?.let { assessmentResult ->
+                                AssessmentResultScreen(
+                                    result = assessmentResult,
+                                    onBackToList = {
+                                        viewModel.resetResult() // ✅ Reset state
+                                        navController.navigate(Screen.Quiz.route) {
+                                            popUpTo("assessment_graph") { inclusive = true } // Kembali ke root graph
+                                        }
+                                    },
+                                    onRetry = {
+                                        viewModel.resetResult() // ✅ Reset state
+                                        navController.popBackStack() // Kembali ke layar list
+                                    }
+                                )
+                            } ?: Box( // Tidak akan stuck di sini lagi
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
+
+                        // Assessment History
+                        composable("assessment/history") {
+                            // ✅ Dapatkan VM yang di-scope ke "assessment_graph"
+                            val assessmentBackStackEntry = remember(it) {
+                                navController.getBackStackEntry("assessment_graph")
+                            }
+                            val assessmentViewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
+
+                            AssessmentHistoryScreen(
+                                onBack = { navController.popBackStack() },
+                                viewModel = assessmentViewModel // ✅ Kirim VM
+                            )
+                        }
+                    } // ========== AKHIR DARI navigation("assessment_graph") ==========
 
                     composable(Screen.Settings.route) {
                         ModernSettingsScreen(viewModel = hiltViewModel())

@@ -52,7 +52,7 @@ interface ApiService {
         @Body request: SubmitAssessmentRequest
     ): Response<AssessmentResult>
 
-    @GET("api.php/assessments/results")
+    @GET("api.php/results") // <-- INI YANG BENAR
     suspend fun getAssessmentResults(@Query("assessment_id") assessmentId: Int? = null): Response<List<AssessmentHistory>>
 
     @POST("api.php/user/sync")

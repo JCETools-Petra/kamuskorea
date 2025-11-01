@@ -44,7 +44,7 @@ import kotlinx.coroutines.launch
 fun TakeAssessmentScreen(
     assessmentId: Int,
     assessmentTitle: String,
-    onFinish: (score: Int, passed: Boolean) -> Unit,
+    onFinish: () -> Unit, // ✅ PERUBAHAN: Hapus parameter
     viewModel: AssessmentViewModel = hiltViewModel()
 ) {
     val questions by viewModel.questions.collectAsState()
@@ -83,7 +83,7 @@ fun TakeAssessmentScreen(
                 timeRemaining--
             }
             // Time's up - auto submit
-            if (timeRemaining == 0) {
+            if (timeRemaining == 0 && result == null) { // ✅ Pastikan belum submit
                 Log.d("TakeAssessment", "⏰ Time's up! Auto-submitting...")
                 viewModel.submitAssessment(assessmentId)
                 isTimerRunning = false
@@ -96,11 +96,11 @@ fun TakeAssessmentScreen(
         result?.let {
             Log.d("TakeAssessment", "✅ Result received: score=${it.score}, passed=${it.passed}")
             isTimerRunning = false
-            onFinish(it.score, it.passed)
+            onFinish() // ✅ PERUBAHAN: Panggil tanpa parameter
         }
     }
 
-    // Debug log untuk questions - PENTING UNTUK DEBUGGING ENCODING
+    // Debug log untuk questions
     LaunchedEffect(questions) {
         if (questions.isNotEmpty()) {
             Log.d("TakeAssessment", "📝 Questions loaded: ${questions.size}")
@@ -116,6 +116,10 @@ fun TakeAssessmentScreen(
     LaunchedEffect(error) {
         error?.let {
             Log.e("TakeAssessment", "❌ Error: $it")
+            // Hentikan timer jika ada error load soal
+            if (questions.isEmpty()) {
+                isTimerRunning = false
+            }
         }
     }
 
@@ -188,14 +192,20 @@ fun TakeAssessmentScreen(
                 .padding(padding)
         ) {
             when {
-                isLoading -> {
+                // ✅ PERUBAHAN: Tampilkan loading HANYA jika result masih null
+                isLoading && result == null -> {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("Memuat soal...")
+                        // Tampilkan teks berbeda saat load soal vs submit
+                        if (questions.isEmpty()) {
+                            Text("Memuat soal...")
+                        } else {
+                            Text("Mengirim jawaban...")
+                        }
                     }
                 }
                 error != null -> {
@@ -286,10 +296,18 @@ fun TakeAssessmentScreen(
                     }
                 }
                 else -> {
-                    Text(
-                        "Tidak ada soal tersedia",
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    // Ini terjadi jika questions KOSONG dan tidak loading/error
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Tidak ada soal tersedia untuk assessment ini.",
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }
@@ -486,14 +504,30 @@ fun AnswerOption(
 fun AudioPlayer(url: String) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
-    val mediaPlayer = remember {
+    val mediaPlayer = remember(url) { // ✅ Tambahkan `url` sebagai key
         MediaPlayer().apply {
-            setDataSource(url)
-            prepareAsync()
+            try {
+                setDataSource(url)
+                prepareAsync()
+                setOnPreparedListener {
+                    Log.d("AudioPlayer", "Audio siap")
+                }
+                setOnCompletionListener {
+                    isPlaying = false
+                    Log.d("AudioPlayer", "Audio selesai")
+                }
+                setOnErrorListener { _, _, _ ->
+                    Log.e("AudioPlayer", "Error memutar audio")
+                    isPlaying = false
+                    true
+                }
+            } catch (e: Exception) {
+                Log.e("AudioPlayer", "Error setDataSource", e)
+            }
         }
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(url) { // ✅ Gunakan `url` sebagai key
         onDispose {
             mediaPlayer.release()
         }
@@ -537,14 +571,14 @@ fun AudioPlayer(url: String) {
 @Composable
 fun VideoPlayer(url: String) {
     val context = LocalContext.current
-    val exoPlayer = remember {
+    val exoPlayer = remember(url) { // ✅ Tambahkan `url` sebagai key
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(Uri.parse(url)))
             prepare()
         }
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(url) { // ✅ Gunakan `url` sebagai key
         onDispose {
             exoPlayer.release()
         }
@@ -578,7 +612,8 @@ fun QuestionGridDialog(
             LazyVerticalGrid(
                 columns = GridCells.Fixed(5),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth() // ✅ Tambahkan modifier
             ) {
                 itemsIndexed(questions) { index, question ->
                     val isAnswered = userAnswers.containsKey(question.id)
