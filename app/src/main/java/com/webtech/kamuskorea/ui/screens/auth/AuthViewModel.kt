@@ -119,11 +119,9 @@ class AuthViewModel @Inject constructor(
                 val user = authResult.user
 
                 if (user != null) {
-                    // ========================================
-                    // ADDED: Sync user to MySQL backend
-                    // ========================================
+                    // ✅ SYNC USER KE BACKEND
                     try {
-                        Log.d("AuthViewModel", "Syncing user to backend...")
+                        Log.d("AuthViewModel", "📡 Syncing user to backend...")
                         val syncRequest = UserSyncRequest(
                             email = user.email,
                             name = user.displayName,
@@ -135,18 +133,13 @@ class AuthViewModel @Inject constructor(
                             val syncResult = response.body()
                             Log.d("AuthViewModel", "✅ User synced: ${syncResult?.message}, isNew=${syncResult?.isNew}")
                         } else {
-                            val errorBody = response.errorBody()?.string() ?: "Unknown error"
-                            Log.w("AuthViewModel", "⚠️ Failed to sync user: ${response.code()} - $errorBody")
+                            Log.w("AuthViewModel", "⚠️ Failed to sync user: ${response.code()}")
                         }
                     } catch (e: Exception) {
-                        Log.e("AuthViewModel", "❌ Error syncing user to backend", e)
-                        // Continue anyway - sync akan auto-create saat user buka profile
+                        Log.e("AuthViewModel", "❌ Error syncing user", e)
                     }
-                    // ========================================
-                    // END SYNC
-                    // ========================================
 
-                    // Simpan ke Firestore jika user baru
+                    // Save to Firestore if new user
                     if (authResult.additionalUserInfo?.isNewUser == true) {
                         val userMap = hashMapOf(
                             "uid" to user.uid,
@@ -164,7 +157,7 @@ class AuthViewModel @Inject constructor(
                 }
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "Google sign in failed", e)
+                Log.e("AuthViewModel", "❌ Google sign in failed", e)
                 _authState.value = AuthState.Error(e.message ?: "Google Sign-In Gagal")
             }
         }

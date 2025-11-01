@@ -25,31 +25,25 @@ class AuthInterceptor(private val firebaseAuth: FirebaseAuth) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val user = firebaseAuth.currentUser
 
-        // Jika tidak ada user yang login, lanjutkan request tanpa token
         if (user == null) {
             return chain.proceed(chain.request())
         }
 
-        // Jika ada user, ambil token-nya.
-        // runBlocking digunakan untuk menjembatani dunia sinkron (Interceptor)
-        // dengan dunia asinkron (getIdToken)
         val token: String? = runBlocking {
             try {
-                // Menggunakan getIdToken(true) akan otomatis me-refresh token jika kedaluwarsa
                 user.getIdToken(true).await()?.token
             } catch (e: Exception) {
-                // Gagal mendapatkan token (mungkin user ter-logout, network error, dll)
                 null
             }
         }
 
-        // Buat request baru dengan header Authorization jika token berhasil didapat
         val newRequest = if (token != null) {
             chain.request().newBuilder()
                 .addHeader("Authorization", "Bearer $token")
+                // ✅ TAMBAHKAN INI: Header X-User-ID dengan Firebase UID
+                .addHeader("X-User-ID", user.uid)
                 .build()
         } else {
-            // Lanjutkan request asli jika gagal dapat token
             chain.request()
         }
 
