@@ -54,7 +54,10 @@ fun ModernSettingsScreen(
     var showClearCacheDialog by remember { mutableStateOf(false) }
 
     // ========== OPTIONS ==========
-    val themeOptions = listOf("Default", "Forest", "Ocean")
+    val themeOptions = listOf(
+        "Default", "Forest", "Ocean", "Sunset", "Lavender",
+        "Cherry", "Midnight", "Mint", "Autumn", "Coral"
+    )
     val textSizeOptions = listOf("Kecil", "Sedang", "Besar")
     val languageOptions = mapOf(
         "id" to "Bahasa Indonesia",

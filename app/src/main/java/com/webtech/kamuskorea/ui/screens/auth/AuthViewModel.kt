@@ -27,12 +27,8 @@ class AuthViewModel @Inject constructor(
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
     val authState = _authState.asStateFlow()
 
-    // PENTING: Ganti dengan Web Client ID Anda dari Firebase Console
-    // Lokasi: Firebase Console > Project Settings > General > Web API Key
-    // ATAU dari file google-services.json: "client" -> "oauth_client" -> "client_id" (type 3)
+    // Web Client ID dari Firebase Console
     private companion object {
-        // TODO: GANTI INI DENGAN WEB CLIENT ID ANDA!
-        // Contoh format: "123456789012-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com"
         const val WEB_CLIENT_ID = "214644364883-f0oh0k0lnd3buj07se4rlpmqd2s1lo33.apps.googleusercontent.com"
     }
 
@@ -104,14 +100,16 @@ class AuthViewModel @Inject constructor(
 
     // Fungsi untuk mendapatkan Google Sign-In Intent
     fun getGoogleSignInIntent(context: Context): Intent {
-        if (WEB_CLIENT_ID == "214644364883-f0oh0k0lnd3buj07se4rlpmqd2s1lo33.apps.googleusercontent.com") {
-            Log.e("AuthViewModel", "WEB_CLIENT_ID belum diset! Ganti dengan Web Client ID yang benar dari Firebase Console.")
-        }
+        Log.d("AuthViewModel", "=== GOOGLE SIGN IN CONFIG ===")
+        Log.d("AuthViewModel", "Web Client ID: $WEB_CLIENT_ID")
+        Log.d("AuthViewModel", "Package Name: ${context.packageName}")
 
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(WEB_CLIENT_ID)
             .requestEmail()
             .build()
+
+        Log.d("AuthViewModel", "GoogleSignInOptions created successfully")
         return GoogleSignIn.getClient(context, gso).signInIntent
     }
 

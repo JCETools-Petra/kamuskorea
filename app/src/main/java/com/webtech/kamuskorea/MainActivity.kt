@@ -144,7 +144,14 @@ fun MainApp(
     val colors = when (currentTheme) {
         "Forest" -> if (useDarkTheme) ForestDarkColorScheme else ForestLightColorScheme
         "Ocean" -> if (useDarkTheme) OceanDarkColorScheme else OceanLightColorScheme
-        else -> if (useDarkTheme) DarkColorScheme else LightColorScheme
+        "Sunset" -> if (useDarkTheme) SunsetDarkColorScheme else SunsetLightColorScheme
+        "Lavender" -> if (useDarkTheme) LavenderDarkColorScheme else LavenderLightColorScheme
+        "Cherry" -> if (useDarkTheme) CherryDarkColorScheme else CherryLightColorScheme
+        "Midnight" -> if (useDarkTheme) MidnightDarkColorScheme else MidnightLightColorScheme
+        "Mint" -> if (useDarkTheme) MintDarkColorScheme else MintLightColorScheme
+        "Autumn" -> if (useDarkTheme) AutumnDarkColorScheme else AutumnLightColorScheme
+        "Coral" -> if (useDarkTheme) CoralDarkColorScheme else CoralLightColorScheme
+        else -> if (useDarkTheme) DarkColorScheme else LightColorScheme // Default
     }
 
     KamusKoreaTheme(darkTheme = useDarkTheme, dynamicColor = false, colorScheme = colors) {

@@ -17,13 +17,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
-import android.widget.Toast
 
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
-    authViewModel: AuthViewModel = hiltViewModel() // Gunakan hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel()
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -33,24 +32,52 @@ fun LoginScreen(
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        // Add this
-        Toast.makeText(context, "Result code: ${result.resultCode}", Toast.LENGTH_LONG).show()
+        Log.d("LoginScreen", "=== GOOGLE SIGN IN RESULT ===")
+        Log.d("LoginScreen", "Result code: ${result.resultCode}")
+        Log.d("LoginScreen", "RESULT_OK: ${Activity.RESULT_OK}")
+        Log.d("LoginScreen", "RESULT_CANCELED: ${Activity.RESULT_CANCELED}")
 
-        if (result.resultCode == Activity.RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            try {
-                val account = task.getResult(ApiException::class.java)!!
-                // Add this
-                Toast.makeText(context, "Got account: ${account.email}", Toast.LENGTH_LONG).show()
-                authViewModel.signInWithGoogle(account.idToken!!)
-            } catch (e: ApiException) {
-                // Add this
-                Toast.makeText(context, "Error: ${e.statusCode} - ${e.message}", Toast.LENGTH_LONG).show()
-                Log.w("LoginScreen", "Google sign in failed", e)
+        when (result.resultCode) {
+            Activity.RESULT_OK -> {
+                Log.d("LoginScreen", "User completed sign-in flow")
+                val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                try {
+                    val account = task.getResult(ApiException::class.java)
+                    Log.d("LoginScreen", "Sign in successful")
+                    Log.d("LoginScreen", "Account email: ${account?.email}")
+                    Log.d("LoginScreen", "Account name: ${account?.displayName}")
+                    Log.d("LoginScreen", "ID Token: ${if (account?.idToken != null) "Present" else "NULL"}")
+
+                    if (account?.idToken != null) {
+                        authViewModel.signInWithGoogle(account.idToken!!)
+                    } else {
+                        Log.e("LoginScreen", "ID Token is NULL!")
+                    }
+                } catch (e: ApiException) {
+                    Log.e("LoginScreen", "Google sign in failed with ApiException")
+                    Log.e("LoginScreen", "Status code: ${e.statusCode}")
+                    Log.e("LoginScreen", "Status message: ${e.message}")
+
+                    // Common error codes
+                    when (e.statusCode) {
+                        10 -> Log.e("LoginScreen", "Developer Error: Check SHA-1 certificate fingerprint in Firebase Console")
+                        12500 -> Log.e("LoginScreen", "Sign in currently unavailable")
+                        12501 -> Log.e("LoginScreen", "User cancelled or closed the sign-in flow")
+                        else -> Log.e("LoginScreen", "Unknown error code: ${e.statusCode}")
+                    }
+                }
             }
-        } else {
-            // Add this
-            Toast.makeText(context, "Sign in cancelled", Toast.LENGTH_SHORT).show()
+            Activity.RESULT_CANCELED -> {
+                Log.w("LoginScreen", "User cancelled sign-in")
+                Log.w("LoginScreen", "This can happen if:")
+                Log.w("LoginScreen", "1. User pressed back button")
+                Log.w("LoginScreen", "2. SHA-1 fingerprint not configured in Firebase")
+                Log.w("LoginScreen", "3. OAuth client ID not properly configured")
+                Log.w("LoginScreen", "4. google-services.json not up to date")
+            }
+            else -> {
+                Log.e("LoginScreen", "Unexpected result code: ${result.resultCode}")
+            }
         }
     }
 
@@ -116,8 +143,14 @@ fun LoginScreen(
 
         OutlinedButton(
             onClick = {
-                val signInIntent = authViewModel.getGoogleSignInIntent(context)
-                googleSignInLauncher.launch(signInIntent)
+                Log.d("LoginScreen", "=== STARTING GOOGLE SIGN IN ===")
+                try {
+                    val signInIntent = authViewModel.getGoogleSignInIntent(context)
+                    Log.d("LoginScreen", "Sign in intent created successfully")
+                    googleSignInLauncher.launch(signInIntent)
+                } catch (e: Exception) {
+                    Log.e("LoginScreen", "Failed to create sign in intent", e)
+                }
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = authState != AuthState.Loading
