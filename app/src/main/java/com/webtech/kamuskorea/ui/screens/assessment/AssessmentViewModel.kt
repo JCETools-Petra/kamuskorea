@@ -52,14 +52,18 @@ class AssessmentViewModel @Inject constructor(
             _isLoading.value = true
             _error.value = null
             try {
+                Log.d("AssessmentVM", "📡 Fetching categories, type=$type")
                 val response = apiService.getAssessmentCategories(type)
                 if (response.isSuccessful) {
                     _categories.value = response.body() ?: emptyList()
+                    Log.d("AssessmentVM", "✅ Categories loaded: ${_categories.value.size}")
                 } else {
-                    _error.value = "Gagal memuat kategori: ${response.code()}"
+                    val errorMsg = "Gagal memuat kategori: ${response.code()}"
+                    Log.e("AssessmentVM", errorMsg)
+                    _error.value = errorMsg
                 }
             } catch (e: Exception) {
-                Log.e("AssessmentViewModel", "Error fetching categories", e)
+                Log.e("AssessmentVM", "❌ Error fetching categories", e)
                 _error.value = "Terjadi kesalahan: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -73,14 +77,18 @@ class AssessmentViewModel @Inject constructor(
             _isLoading.value = true
             _error.value = null
             try {
+                Log.d("AssessmentVM", "📡 Fetching assessments, categoryId=$categoryId, type=$type")
                 val response = apiService.getAssessments(categoryId, type)
                 if (response.isSuccessful) {
                     _assessments.value = response.body() ?: emptyList()
+                    Log.d("AssessmentVM", "✅ Assessments loaded: ${_assessments.value.size}")
                 } else {
-                    _error.value = "Gagal memuat assessment: ${response.code()}"
+                    val errorMsg = "Gagal memuat assessment: ${response.code()}"
+                    Log.e("AssessmentVM", errorMsg)
+                    _error.value = errorMsg
                 }
             } catch (e: Exception) {
-                Log.e("AssessmentViewModel", "Error fetching assessments", e)
+                Log.e("AssessmentVM", "❌ Error fetching assessments", e)
                 _error.value = "Terjadi kesalahan: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -99,14 +107,44 @@ class AssessmentViewModel @Inject constructor(
             _startTime.value = System.currentTimeMillis()
 
             try {
+                Log.d("AssessmentVM", "🚀 Starting assessment ID: $assessmentId")
                 val response = apiService.getAssessmentQuestions(assessmentId)
+
+                Log.d("AssessmentVM", "📨 Response code: ${response.code()}")
+
                 if (response.isSuccessful) {
-                    _questions.value = response.body() ?: emptyList()
+                    val questionsList = response.body() ?: emptyList()
+                    Log.d("AssessmentVM", "✅ Questions received: ${questionsList.size}")
+
+                    // LOG DETAIL SETIAP PERTANYAAN - PENTING UNTUK DEBUG ENCODING
+                    questionsList.forEachIndexed { index, q ->
+                        Log.d("AssessmentVM", "═══ Question ${index + 1} ═══")
+                        Log.d("AssessmentVM", "ID: ${q.id}")
+                        Log.d("AssessmentVM", "Text: ${q.questionText}")
+                        Log.d("AssessmentVM", "Type: ${q.questionType}")
+                        Log.d("AssessmentVM", "Option A: ${q.optionA}")
+                        Log.d("AssessmentVM", "Option B: ${q.optionB}")
+                        Log.d("AssessmentVM", "Option C: ${q.optionC}")
+                        Log.d("AssessmentVM", "Option D: ${q.optionD}")
+
+                        // Check for encoding issues
+                        if (q.questionText.contains("?")) {
+                            Log.w("AssessmentVM", "⚠️ Possible encoding issue in question text!")
+                        }
+                    }
+
+                    _questions.value = questionsList
                 } else {
-                    _error.value = "Gagal memuat soal: ${response.code()}"
+                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                    val errorMsg = "Gagal memuat soal: ${response.code()} - $errorBody"
+                    Log.e("AssessmentVM", errorMsg)
+                    _error.value = errorMsg
                 }
             } catch (e: Exception) {
-                Log.e("AssessmentViewModel", "Error fetching questions", e)
+                Log.e("AssessmentVM", "❌ Exception fetching questions", e)
+                Log.e("AssessmentVM", "Exception type: ${e.javaClass.simpleName}")
+                Log.e("AssessmentVM", "Exception message: ${e.message}")
+                e.printStackTrace()
                 _error.value = "Terjadi kesalahan: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -119,12 +157,14 @@ class AssessmentViewModel @Inject constructor(
         val currentAnswers = _userAnswers.value.toMutableMap()
         currentAnswers[questionId] = answer
         _userAnswers.value = currentAnswers
+        Log.d("AssessmentVM", "💾 Answer saved: Q$questionId = $answer (Total answered: ${currentAnswers.size})")
     }
 
     // Next question
     fun nextQuestion() {
         if (_currentQuestionIndex.value < _questions.value.size - 1) {
             _currentQuestionIndex.value++
+            Log.d("AssessmentVM", "➡️ Next question: ${_currentQuestionIndex.value + 1}")
         }
     }
 
@@ -132,6 +172,7 @@ class AssessmentViewModel @Inject constructor(
     fun previousQuestion() {
         if (_currentQuestionIndex.value > 0) {
             _currentQuestionIndex.value--
+            Log.d("AssessmentVM", "⬅️ Previous question: ${_currentQuestionIndex.value + 1}")
         }
     }
 
@@ -139,6 +180,7 @@ class AssessmentViewModel @Inject constructor(
     fun goToQuestion(index: Int) {
         if (index in _questions.value.indices) {
             _currentQuestionIndex.value = index
+            Log.d("AssessmentVM", "🎯 Jump to question: ${index + 1}")
         }
     }
 
@@ -156,14 +198,37 @@ class AssessmentViewModel @Inject constructor(
             val request = SubmitAssessmentRequest(answers, timeTaken)
 
             try {
+                Log.d("AssessmentVM", "📤 Submitting assessment ID: $assessmentId")
+                Log.d("AssessmentVM", "Total answers: ${answers.size}")
+                Log.d("AssessmentVM", "Time taken: ${timeTaken}s")
+
+                answers.forEach { answer ->
+                    Log.d("AssessmentVM", "  Q${answer.questionId} -> ${answer.answer}")
+                }
+
                 val response = apiService.submitAssessment(assessmentId, request)
+
+                Log.d("AssessmentVM", "📨 Submit response code: ${response.code()}")
+
                 if (response.isSuccessful) {
-                    _assessmentResult.value = response.body()
+                    val result = response.body()
+                    Log.d("AssessmentVM", "✅ Assessment submitted successfully!")
+                    Log.d("AssessmentVM", "Score: ${result?.score}")
+                    Log.d("AssessmentVM", "Passed: ${result?.passed}")
+                    Log.d("AssessmentVM", "Correct: ${result?.correctAnswers}/${result?.totalQuestions}")
+
+                    _assessmentResult.value = result
                 } else {
-                    _error.value = "Gagal submit jawaban: ${response.code()}"
+                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                    val errorMsg = "Gagal submit jawaban: ${response.code()} - $errorBody"
+                    Log.e("AssessmentVM", errorMsg)
+                    _error.value = errorMsg
                 }
             } catch (e: Exception) {
-                Log.e("AssessmentViewModel", "Error submitting assessment", e)
+                Log.e("AssessmentVM", "❌ Exception submitting assessment", e)
+                Log.e("AssessmentVM", "Exception type: ${e.javaClass.simpleName}")
+                Log.e("AssessmentVM", "Exception message: ${e.message}")
+                e.printStackTrace()
                 _error.value = "Terjadi kesalahan: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -177,14 +242,18 @@ class AssessmentViewModel @Inject constructor(
             _isLoading.value = true
             _error.value = null
             try {
+                Log.d("AssessmentVM", "📡 Fetching history, assessmentId=$assessmentId")
                 val response = apiService.getAssessmentResults(assessmentId)
                 if (response.isSuccessful) {
                     _history.value = response.body() ?: emptyList()
+                    Log.d("AssessmentVM", "✅ History loaded: ${_history.value.size} records")
                 } else {
-                    _error.value = "Gagal memuat riwayat: ${response.code()}"
+                    val errorMsg = "Gagal memuat riwayat: ${response.code()}"
+                    Log.e("AssessmentVM", errorMsg)
+                    _error.value = errorMsg
                 }
             } catch (e: Exception) {
-                Log.e("AssessmentViewModel", "Error fetching history", e)
+                Log.e("AssessmentVM", "❌ Error fetching history", e)
                 _error.value = "Terjadi kesalahan: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -195,10 +264,12 @@ class AssessmentViewModel @Inject constructor(
     // Reset result
     fun resetResult() {
         _assessmentResult.value = null
+        Log.d("AssessmentVM", "🔄 Result reset")
     }
 
     // Clear error
     fun clearError() {
         _error.value = null
+        Log.d("AssessmentVM", "🧹 Error cleared")
     }
 }

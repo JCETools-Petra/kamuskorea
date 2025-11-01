@@ -3,6 +3,7 @@ package com.webtech.kamuskorea.ui.screens.assessment
 import android.content.Context
 import android.media.MediaPlayer
 import android.net.Uri
+import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -51,22 +52,86 @@ fun TakeAssessmentScreen(
     val userAnswers by viewModel.userAnswers.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val result by viewModel.assessmentResult.collectAsState()
+    val error by viewModel.error.collectAsState()
 
     var showQuestionGrid by remember { mutableStateOf(false) }
     var showSubmitDialog by remember { mutableStateOf(false) }
+
+    // ===== TIMER STATES =====
+    val durationMinutes = remember { mutableStateOf(10) } // Default 10 minutes, will be updated from assessment
+    var timeRemaining by remember { mutableStateOf(durationMinutes.value * 60) } // in seconds
+    var isTimerRunning by remember { mutableStateOf(false) }
 
     LaunchedEffect(assessmentId) {
         viewModel.startAssessment(assessmentId)
     }
 
+    // Start timer when questions are loaded
+    LaunchedEffect(questions) {
+        if (questions.isNotEmpty() && !isTimerRunning) {
+            isTimerRunning = true
+            // You can get duration from assessment details if available
+            // For now using default 10 minutes
+        }
+    }
+
+    // ===== COUNTDOWN TIMER =====
+    LaunchedEffect(isTimerRunning) {
+        if (isTimerRunning) {
+            while (timeRemaining > 0) {
+                delay(1000L)
+                timeRemaining--
+            }
+            // Time's up - auto submit
+            if (timeRemaining == 0) {
+                Log.d("TakeAssessment", "⏰ Time's up! Auto-submitting...")
+                viewModel.submitAssessment(assessmentId)
+                isTimerRunning = false
+            }
+        }
+    }
+
     // Handle hasil submit
     LaunchedEffect(result) {
         result?.let {
+            Log.d("TakeAssessment", "✅ Result received: score=${it.score}, passed=${it.passed}")
+            isTimerRunning = false
             onFinish(it.score, it.passed)
         }
     }
 
+    // Debug log untuk questions - PENTING UNTUK DEBUGGING ENCODING
+    LaunchedEffect(questions) {
+        if (questions.isNotEmpty()) {
+            Log.d("TakeAssessment", "📝 Questions loaded: ${questions.size}")
+            questions.forEachIndexed { index, q ->
+                Log.d("TakeAssessment", "Q${index + 1}: ${q.questionText}")
+                Log.d("TakeAssessment", "  A: ${q.optionA}")
+                Log.d("TakeAssessment", "  B: ${q.optionB}")
+            }
+        }
+    }
+
+    // Handle error
+    LaunchedEffect(error) {
+        error?.let {
+            Log.e("TakeAssessment", "❌ Error: $it")
+        }
+    }
+
     val currentQuestion = questions.getOrNull(currentIndex)
+
+    // Format time as MM:SS
+    val minutes = timeRemaining / 60
+    val seconds = timeRemaining % 60
+    val timeText = String.format("%02d:%02d", minutes, seconds)
+
+    // Color based on time remaining
+    val timerColor = when {
+        timeRemaining > 120 -> Color(0xFF4CAF50) // Green
+        timeRemaining > 60 -> Color(0xFFFF9800) // Orange
+        else -> Color(0xFFF44336) // Red
+    }
 
     Scaffold(
         topBar = {
@@ -74,10 +139,39 @@ fun TakeAssessmentScreen(
                 title = {
                     Column {
                         Text(assessmentTitle, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "Soal ${currentIndex + 1} dari ${questions.size}",
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                "Soal ${currentIndex + 1} dari ${questions.size}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            // TIMER DISPLAY
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = timerColor.copy(alpha = 0.2f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Timer,
+                                        contentDescription = "Timer",
+                                        tint = timerColor,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        timeText,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = timerColor,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
                     }
                 },
                 actions = {
@@ -93,68 +187,109 @@ fun TakeAssessmentScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (currentQuestion != null) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
-                ) {
-                    // Progress bar
-                    val progress = (currentIndex + 1).toFloat() / questions.size
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Question content with scroll
+            when {
+                isLoading -> {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Memuat soal...")
+                    }
+                }
+                error != null -> {
                     Column(
                         modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState())
+                            .align(Alignment.Center)
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        QuestionContent(
-                            question = currentQuestion,
-                            selectedAnswer = userAnswers[currentQuestion.id],
-                            onAnswerSelected = { answer ->
-                                viewModel.saveAnswer(currentQuestion.id, answer)
-                            }
+                        Icon(
+                            Icons.Default.Error,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(64.dp)
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            error ?: "Terjadi kesalahan",
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { viewModel.startAssessment(assessmentId) }) {
+                            Text("Coba Lagi")
+                        }
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Navigation buttons
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                }
+                currentQuestion != null -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp)
                     ) {
-                        OutlinedButton(
-                            onClick = { viewModel.previousQuestion() },
-                            enabled = currentIndex > 0
+                        // Progress bar
+                        val progress = (currentIndex + 1).toFloat() / questions.size
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Question content with scroll
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
                         ) {
-                            Icon(Icons.Default.ChevronLeft, null)
-                            Text("Sebelumnya")
+                            QuestionContent(
+                                question = currentQuestion,
+                                selectedAnswer = userAnswers[currentQuestion.id],
+                                onAnswerSelected = { answer ->
+                                    viewModel.saveAnswer(currentQuestion.id, answer)
+                                }
+                            )
                         }
 
-                        if (currentIndex == questions.size - 1) {
-                            Button(onClick = { showSubmitDialog = true }) {
-                                Text("Selesai")
-                                Icon(Icons.Default.Check, null)
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Navigation buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            OutlinedButton(
+                                onClick = { viewModel.previousQuestion() },
+                                enabled = currentIndex > 0
+                            ) {
+                                Icon(Icons.Default.ChevronLeft, null)
+                                Text("Sebelumnya")
                             }
-                        } else {
-                            Button(onClick = { viewModel.nextQuestion() }) {
-                                Text("Selanjutnya")
-                                Icon(Icons.Default.ChevronRight, null)
+
+                            if (currentIndex == questions.size - 1) {
+                                Button(onClick = { showSubmitDialog = true }) {
+                                    Text("Selesai")
+                                    Icon(Icons.Default.Check, null)
+                                }
+                            } else {
+                                Button(onClick = { viewModel.nextQuestion() }) {
+                                    Text("Selanjutnya")
+                                    Icon(Icons.Default.ChevronRight, null)
+                                }
                             }
                         }
                     }
+                }
+                else -> {
+                    Text(
+                        "Tidak ada soal tersedia",
+                        modifier = Modifier.align(Alignment.Center)
+                    )
                 }
             }
         }
@@ -195,6 +330,12 @@ fun TakeAssessmentScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
+                        "Waktu tersisa: $timeText",
+                        fontWeight = FontWeight.Bold,
+                        color = timerColor
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
                         if (unansweredCount > 0)
                             "Masih ada soal yang belum dijawab. Yakin ingin menyelesaikan?"
                         else
@@ -206,6 +347,8 @@ fun TakeAssessmentScreen(
             confirmButton = {
                 Button(onClick = {
                     showSubmitDialog = false
+                    isTimerRunning = false
+                    Log.d("TakeAssessment", "📤 Submitting assessment...")
                     viewModel.submitAssessment(assessmentId)
                 }) {
                     Text("Ya, Selesaikan")
