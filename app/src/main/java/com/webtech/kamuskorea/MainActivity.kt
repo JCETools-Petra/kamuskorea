@@ -43,6 +43,7 @@ import com.webtech.kamuskorea.ui.localization.LocalizationProvider
 import com.webtech.kamuskorea.ui.localization.LocalStrings
 import com.webtech.kamuskorea.ui.navigation.Screen
 import com.webtech.kamuskorea.ui.screens.*
+import com.webtech.kamuskorea.ui.screens.assessment.*
 import com.webtech.kamuskorea.ui.screens.auth.LoginScreen
 import com.webtech.kamuskorea.ui.screens.auth.RegisterScreen
 import com.webtech.kamuskorea.ui.screens.dictionary.KamusSyncViewModel
@@ -79,12 +80,10 @@ class MainActivity : ComponentActivity() {
             val textScale by settingsViewModel.textScale.collectAsState()
             val language by settingsViewModel.language.collectAsState()
 
-            // State untuk mengontrol splash screen
             var showSplash by remember { mutableStateOf(true) }
 
             val textScaleMultiplier = settingsViewModel.getTextScaleMultiplier(textScale)
 
-            // Apply text scaling
             CompositionLocalProvider(
                 LocalDensity provides Density(
                     density = LocalDensity.current.density,
@@ -151,7 +150,7 @@ fun MainApp(
         "Mint" -> if (useDarkTheme) MintDarkColorScheme else MintLightColorScheme
         "Autumn" -> if (useDarkTheme) AutumnDarkColorScheme else AutumnLightColorScheme
         "Coral" -> if (useDarkTheme) CoralDarkColorScheme else CoralLightColorScheme
-        else -> if (useDarkTheme) DarkColorScheme else LightColorScheme // Default
+        else -> if (useDarkTheme) DarkColorScheme else LightColorScheme
     }
 
     KamusKoreaTheme(darkTheme = useDarkTheme, dynamicColor = false, colorScheme = colors) {
@@ -181,6 +180,7 @@ fun MainApp(
                 currentRoute == Screen.Settings.route -> strings.settings
                 currentRoute?.startsWith("pdf_viewer/") == true ->
                     navBackStackEntry?.arguments?.getString("title") ?: strings.ebook
+                currentRoute?.startsWith("assessment/") == true -> "Latihan & Ujian"
                 else -> strings.appName
             }
         }
@@ -200,11 +200,18 @@ fun MainApp(
             gesturesEnabled = !isAuthScreen && !isPdfViewerScreen,
             drawerContent = {
                 ModalDrawerSheet {
-                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         AsyncImage(
                             model = firebaseAuth.currentUser?.photoUrl,
                             contentDescription = "Profile Photo",
-                            modifier = Modifier.size(80.dp).clip(CircleShape),
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape),
                             contentScale = ContentScale.Crop,
                             placeholder = painterResource(id = R.drawable.ic_default_profile),
                             error = painterResource(id = R.drawable.ic_default_profile)
@@ -212,7 +219,11 @@ fun MainApp(
                         Spacer(modifier = Modifier.height(12.dp))
                         val displayName = firebaseAuth.currentUser?.displayName
                         val email = firebaseAuth.currentUser?.email
-                        Text(text = if (!displayName.isNullOrBlank()) displayName else email ?: "User", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (!displayName.isNullOrBlank()) displayName else email ?: "User",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                         Spacer(modifier = Modifier.height(4.dp))
                         TextButton(onClick = {
                             scope.launch { drawerState.close() }
@@ -220,7 +231,16 @@ fun MainApp(
                         }) { Text(strings.profile) }
                     }
                     HorizontalDivider()
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.Home, contentDescription = strings.home) }, label = { Text(strings.home) }, selected = Screen.Home.route == currentRoute, onClick = { scope.launch { drawerState.close() }; navController.navigate(Screen.Home.route) }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Home, contentDescription = strings.home) },
+                        label = { Text(strings.home) },
+                        selected = Screen.Home.route == currentRoute,
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate(Screen.Home.route)
+                        },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
                     menuItems.forEach { item ->
                         NavigationDrawerItem(
                             icon = { Icon(item.icon, contentDescription = item.label) },
@@ -238,7 +258,16 @@ fun MainApp(
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     HorizontalDivider()
-                    NavigationDrawerItem(icon = { Icon(Icons.Default.Settings, contentDescription = strings.settings) }, label = { Text(strings.settings) }, selected = currentRoute == Screen.Settings.route, onClick = { scope.launch { drawerState.close() }; navController.navigate(Screen.Settings.route) }, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding))
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Settings, contentDescription = strings.settings) },
+                        label = { Text(strings.settings) },
+                        selected = currentRoute == Screen.Settings.route,
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate(Screen.Settings.route)
+                        },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
                     NavigationDrawerItem(
                         icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = strings.logout) },
                         label = { Text(strings.logout) },
@@ -246,7 +275,10 @@ fun MainApp(
                         onClick = {
                             scope.launch {
                                 drawerState.close()
-                                val googleSignInClient = GoogleSignIn.getClient(application, GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                val googleSignInClient = GoogleSignIn.getClient(
+                                    application,
+                                    GoogleSignInOptions.DEFAULT_SIGN_IN
+                                )
                                 googleSignInClient.signOut().addOnCompleteListener {
                                     firebaseAuth.signOut()
                                     navController.navigate(Screen.Login.route) { popUpTo(0) }
@@ -265,7 +297,7 @@ fun MainApp(
                         TopAppBar(
                             title = { Text(currentTitle) },
                             navigationIcon = {
-                                if (isPdfViewerScreen) {
+                                if (isPdfViewerScreen || currentRoute?.startsWith("assessment/") == true) {
                                     IconButton(onClick = { navController.popBackStack() }) {
                                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                                     }
@@ -284,13 +316,134 @@ fun MainApp(
                     startDestination = startDestination,
                     modifier = Modifier.padding(innerPadding)
                 ) {
-                    composable(Screen.Login.route) { LoginScreen(onLoginSuccess = { navController.navigate(Screen.Home.route) { popUpTo(Screen.Login.route) { inclusive = true } } }, onNavigateToRegister = { navController.navigate(Screen.Register.route) }) }
-                    composable(Screen.Register.route) { RegisterScreen(onNavigateToLogin = { navController.popBackStack() }) }
-                    composable(Screen.Home.route) { ModernHomeScreen(navController = navController, isPremium = isPremium) }
-                    composable(Screen.Dictionary.route) { ModernDictionaryScreen(viewModel = hiltViewModel()) }
-                    composable(Screen.Memorization.route) { MemorizationScreen(isPremium = isPremium, onNavigateToProfile = { navController.navigate(Screen.Profile.route) }) }
-                    composable(Screen.Quiz.route) { QuizScreen(isPremium = isPremium, onNavigateToProfile = { navController.navigate(Screen.Profile.route) }) }
-                    composable(Screen.Settings.route) { ModernSettingsScreen(viewModel = hiltViewModel()) }
+                    composable(Screen.Login.route) {
+                        LoginScreen(
+                            onLoginSuccess = {
+                                navController.navigate(Screen.Home.route) {
+                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                }
+                            },
+                            onNavigateToRegister = { navController.navigate(Screen.Register.route) }
+                        )
+                    }
+                    composable(Screen.Register.route) {
+                        RegisterScreen(onNavigateToLogin = { navController.popBackStack() })
+                    }
+                    composable(Screen.Home.route) {
+                        ModernHomeScreen(navController = navController, isPremium = isPremium)
+                    }
+                    composable(Screen.Dictionary.route) {
+                        ModernDictionaryScreen(viewModel = hiltViewModel())
+                    }
+                    composable(Screen.Memorization.route) {
+                        MemorizationScreen(
+                            isPremium = isPremium,
+                            onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
+                        )
+                    }
+
+                    // ========== ASSESSMENT/QUIZ ROUTES (DIPERBAIKI) ==========
+                    composable(Screen.Quiz.route) {
+                        AssessmentMainScreen(
+                            onNavigateToQuiz = {
+                                navController.navigate("assessment/quiz/list")
+                            },
+                            onNavigateToExam = {
+                                navController.navigate("assessment/exam/list")
+                            },
+                            onNavigateToHistory = {
+                                navController.navigate("assessment/history")
+                            }
+                        )
+                    }
+
+                    // List Quiz
+                    composable("assessment/quiz/list") {
+                        AssessmentListScreen(
+                            type = "quiz",
+                            isPremium = isPremium,
+                            onNavigateToAssessment = { assessmentId ->
+                                navController.navigate("assessment/take/$assessmentId/Quiz")
+                            },
+                            onNavigateToPremium = {
+                                navController.navigate(Screen.PremiumLock.route)
+                            }
+                        )
+                    }
+
+                    // List Exam
+                    composable("assessment/exam/list") {
+                        AssessmentListScreen(
+                            type = "exam",
+                            isPremium = isPremium,
+                            onNavigateToAssessment = { assessmentId ->
+                                navController.navigate("assessment/take/$assessmentId/Exam")
+                            },
+                            onNavigateToPremium = {
+                                navController.navigate(Screen.PremiumLock.route)
+                            }
+                        )
+                    }
+
+                    // Take Assessment
+                    composable(
+                        route = "assessment/take/{assessmentId}/{title}",
+                        arguments = listOf(
+                            navArgument("assessmentId") { type = NavType.IntType },
+                            navArgument("title") { type = NavType.StringType }
+                        )
+                    ) { backStackEntry ->
+                        val assessmentId = backStackEntry.arguments?.getInt("assessmentId") ?: 0
+                        val title = backStackEntry.arguments?.getString("title") ?: "Assessment"
+
+                        TakeAssessmentScreen(
+                            assessmentId = assessmentId,
+                            assessmentTitle = title,
+                            onFinish = { score, passed ->
+                                navController.navigate("assessment/result") {
+                                    popUpTo("assessment/take/$assessmentId/$title") { inclusive = true }
+                                }
+                            }
+                        )
+                    }
+
+                    // Assessment Result
+                    composable("assessment/result") {
+                        val viewModel: AssessmentViewModel = hiltViewModel()
+                        val result by viewModel.assessmentResult.collectAsState()
+
+                        result?.let { assessmentResult ->
+                            AssessmentResultScreen(
+                                result = assessmentResult,
+                                onBackToList = {
+                                    navController.navigate(Screen.Quiz.route) {
+                                        popUpTo(Screen.Quiz.route) { inclusive = true }
+                                    }
+                                },
+                                onRetry = {
+                                    navController.popBackStack()
+                                }
+                            )
+                        } ?: Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+
+                    // Assessment History
+                    composable("assessment/history") {
+                        AssessmentHistoryScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    // ========== END ASSESSMENT ROUTES ==========
+
+                    composable(Screen.Settings.route) {
+                        ModernSettingsScreen(viewModel = hiltViewModel())
+                    }
                     composable(Screen.Onboarding.route) {
                         OnboardingScreen(
                             onFinish = {
@@ -322,7 +475,9 @@ fun MainApp(
                             }
                         )
                     }
-                    composable(Screen.Profile.route) { ProfileScreen(viewModel = hiltViewModel()) }
+                    composable(Screen.Profile.route) {
+                        ProfileScreen(viewModel = hiltViewModel())
+                    }
                     composable(
                         route = "pdf_viewer/{pdfUrl}/{title}",
                         arguments = listOf(
@@ -340,7 +495,10 @@ fun MainApp(
                                 title = title
                             )
                         } else {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Text("Error: Invalid E-Book data.")
                             }
                         }
