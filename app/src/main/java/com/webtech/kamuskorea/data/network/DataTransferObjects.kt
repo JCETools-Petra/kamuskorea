@@ -46,7 +46,6 @@ data class UserProfileResponse(
 
 /**
  * Respons untuk status premium.
- * Properti ini (isPremium, expiryDate) cocok dengan api.php.
  */
 data class PremiumStatusResponse(
     @SerializedName("isPremium")
@@ -58,7 +57,6 @@ data class PremiumStatusResponse(
 
 /**
  * Representasi Ebook dari API.
- * (Cocok dengan api.php handleGetEbooks)
  */
 data class EbookApiResponse(
     val id: Int,
@@ -67,14 +65,36 @@ data class EbookApiResponse(
     val coverImageUrl: String,
     val order: Int,
     val isPremium: Boolean,
-    val pdfUrl: String // Akan kosong jika isPremium=true dan user free
+    val pdfUrl: String
 )
 
 /**
- * *** KELAS BARU YANG HILANG DITAMBAHKAN DI SINI ***
  * Request body untuk mengaktifkan premium.
  */
 data class PremiumActivationRequest(
     val purchase_token: String,
-    val duration_days: Int = 365 // Anda bisa sesuaikan default ini
+    val duration_days: Int = 365
+)
+
+// ============================================
+// NEW: Google Sign-In Sync
+// ============================================
+
+/**
+ * Request body untuk sync user dari Google Sign-In
+ */
+data class UserSyncRequest(
+    val email: String?,
+    val name: String?,
+    val photoUrl: String?
+)
+
+/**
+ * Response setelah sync user
+ */
+data class UserSyncResponse(
+    val success: Boolean,
+    val message: String,
+    @SerializedName("is_new")
+    val isNew: Boolean
 )

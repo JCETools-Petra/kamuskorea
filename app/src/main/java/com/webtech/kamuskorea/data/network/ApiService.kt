@@ -54,4 +54,7 @@ interface ApiService {
 
     @GET("api.php/assessments/results")
     suspend fun getAssessmentResults(@Query("assessment_id") assessmentId: Int? = null): Response<List<AssessmentHistory>>
+
+    @POST("api.php/user/sync")
+    suspend fun syncUser(@Body userData: UserSyncRequest): Response<UserSyncResponse>
 }

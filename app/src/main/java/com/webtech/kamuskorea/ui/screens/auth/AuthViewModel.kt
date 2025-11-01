@@ -11,6 +11,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
+import com.webtech.kamuskorea.data.network.ApiService
+import com.webtech.kamuskorea.data.network.UserSyncRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,18 +23,17 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val apiService: ApiService // <=== ADDED
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
     val authState = _authState.asStateFlow()
 
-    // Web Client ID dari Firebase Console
     private companion object {
         const val WEB_CLIENT_ID = "214644364883-f0oh0k0lnd3buj07se4rlpmqd2s1lo33.apps.googleusercontent.com"
     }
 
-    // Fungsi Sign In dengan Email/Password
     fun signIn(email: String, password: String) {
         viewModelScope.launch {
             try {
@@ -46,7 +47,6 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // Fungsi Sign Up dengan Email/Password
     fun signUp(name: String, email: String, password: String, confirmPassword: String) {
         if (name.isBlank() || email.isBlank() || password.isBlank()) {
             _authState.value = AuthState.Error("Nama, email, dan password tidak boleh kosong.")
@@ -70,13 +70,11 @@ class AuthViewModel @Inject constructor(
                 val authResult = auth.createUserWithEmailAndPassword(email, password).await()
                 val user = authResult.user
 
-                // Update display name di Firebase Auth
                 val profileUpdates = UserProfileChangeRequest.Builder()
                     .setDisplayName(name)
                     .build()
                 user?.updateProfile(profileUpdates)?.await()
 
-                // Simpan data user ke Firestore
                 if (user != null) {
                     val userMap = hashMapOf(
                         "uid" to user.uid,
@@ -98,7 +96,6 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // Fungsi untuk mendapatkan Google Sign-In Intent
     fun getGoogleSignInIntent(context: Context): Intent {
         Log.d("AuthViewModel", "=== GOOGLE SIGN IN CONFIG ===")
         Log.d("AuthViewModel", "Web Client ID: $WEB_CLIENT_ID")
@@ -121,20 +118,49 @@ class AuthViewModel @Inject constructor(
                 val authResult = auth.signInWithCredential(credential).await()
                 val user = authResult.user
 
-                // Simpan data pengguna ke Firestore jika baru pertama kali login
-                if (authResult.additionalUserInfo?.isNewUser == true && user != null) {
-                    val userMap = hashMapOf(
-                        "uid" to user.uid,
-                        "name" to user.displayName,
-                        "email" to user.email,
-                        "profilePictureUrl" to user.photoUrl?.toString(),
-                        "isPremium" to false,
-                        "createdAt" to System.currentTimeMillis()
-                    )
-                    firestore.collection("users")
-                        .document(user.uid)
-                        .set(userMap)
-                        .await()
+                if (user != null) {
+                    // ========================================
+                    // ADDED: Sync user to MySQL backend
+                    // ========================================
+                    try {
+                        Log.d("AuthViewModel", "Syncing user to backend...")
+                        val syncRequest = UserSyncRequest(
+                            email = user.email,
+                            name = user.displayName,
+                            photoUrl = user.photoUrl?.toString()
+                        )
+
+                        val response = apiService.syncUser(syncRequest)
+                        if (response.isSuccessful) {
+                            val syncResult = response.body()
+                            Log.d("AuthViewModel", "✅ User synced: ${syncResult?.message}, isNew=${syncResult?.isNew}")
+                        } else {
+                            val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                            Log.w("AuthViewModel", "⚠️ Failed to sync user: ${response.code()} - $errorBody")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("AuthViewModel", "❌ Error syncing user to backend", e)
+                        // Continue anyway - sync akan auto-create saat user buka profile
+                    }
+                    // ========================================
+                    // END SYNC
+                    // ========================================
+
+                    // Simpan ke Firestore jika user baru
+                    if (authResult.additionalUserInfo?.isNewUser == true) {
+                        val userMap = hashMapOf(
+                            "uid" to user.uid,
+                            "name" to user.displayName,
+                            "email" to user.email,
+                            "profilePictureUrl" to user.photoUrl?.toString(),
+                            "isPremium" to false,
+                            "createdAt" to System.currentTimeMillis()
+                        )
+                        firestore.collection("users")
+                            .document(user.uid)
+                            .set(userMap)
+                            .await()
+                    }
                 }
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
