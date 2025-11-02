@@ -86,7 +86,8 @@ data class PremiumActivationRequest(
 data class UserSyncRequest(
     val email: String?,
     val name: String?,
-    val photoUrl: String?
+    val photoUrl: String?,
+    val auth_type: String? = null // ✅ TAMBAHAN: Explicit auth type
 )
 
 /**
@@ -141,3 +142,4 @@ data class VerifyTokenResponse(
     val valid: Boolean,
     val message: String
 )
+
