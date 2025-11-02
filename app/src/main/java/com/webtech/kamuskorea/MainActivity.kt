@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -44,6 +45,7 @@ import com.webtech.kamuskorea.ui.localization.LocalStrings
 import com.webtech.kamuskorea.ui.navigation.Screen
 import com.webtech.kamuskorea.ui.screens.*
 import com.webtech.kamuskorea.ui.screens.assessment.*
+import com.webtech.kamuskorea.ui.screens.auth.ForgotPasswordScreen
 import com.webtech.kamuskorea.ui.screens.auth.LoginScreen
 import com.webtech.kamuskorea.ui.screens.auth.RegisterScreen
 import com.webtech.kamuskorea.ui.screens.dictionary.KamusSyncViewModel
@@ -57,8 +59,6 @@ import com.webtech.kamuskorea.ui.theme.*
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import androidx.navigation.navArgument
-import com.webtech.kamuskorea.ui.screens.auth.ForgotPasswordScreen
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -75,6 +75,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        requestWindowFeature(Window.FEATURE_NO_TITLE)
+
         kamusSyncViewModel.syncDatabase()
 
         setContent {
@@ -83,6 +85,23 @@ class MainActivity : ComponentActivity() {
             val language by settingsViewModel.language.collectAsState()
 
             var showSplash by remember { mutableStateOf(true) }
+
+            // ✅ BARU: State untuk melacak status login secara reaktif
+            var isLoggedIn by remember { mutableStateOf(firebaseAuth.currentUser != null) }
+
+            // ✅ BARU: Listener yang akan otomatis memperbarui `isLoggedIn`
+            // saat status autentikasi Firebase berubah (login atau logout)
+            DisposableEffect(firebaseAuth) {
+                val authListener = FirebaseAuth.AuthStateListener { auth ->
+                    isLoggedIn = auth.currentUser != null
+                }
+                firebaseAuth.addAuthStateListener(authListener)
+
+                // Hapus listener saat composable tidak lagi digunakan
+                onDispose {
+                    firebaseAuth.removeAuthStateListener(authListener)
+                }
+            }
 
             val textScaleMultiplier = settingsViewModel.getTextScaleMultiplier(textScale)
 
@@ -98,13 +117,49 @@ class MainActivity : ComponentActivity() {
                             onTimeout = { showSplash = false }
                         )
                     } else {
-                        MainApp(
-                            firebaseAuth = firebaseAuth,
-                            isPremium = isPremium
-                        )
+                        // ✅ BARU: Logika "Penjaga"
+                        // Tentukan Composable mana yang akan ditampilkan berdasarkan status login
+
+                        // Dapatkan tema saat ini di sini agar bisa diteruskan ke kedua alur
+                        val currentTheme by settingsViewModel.currentTheme.collectAsState()
+                        val useDarkTheme = isSystemInDarkTheme()
+                        val colors = getColors(currentTheme, useDarkTheme)
+
+                        KamusKoreaTheme(darkTheme = useDarkTheme, dynamicColor = false, colorScheme = colors) {
+                            if (isLoggedIn) {
+                                // --- PENGGUNA SUDAH LOGIN ---
+                                // Tampilkan aplikasi utama (dengan menu, scaffold, dll.)
+                                MainApp(
+                                    firebaseAuth = firebaseAuth,
+                                    isPremium = isPremium,
+                                    settingsViewModel = settingsViewModel
+                                )
+                            } else {
+                                // --- PENGGUNA BELUM LOGIN ---
+                                // Tampilkan alur otentikasi (tanpa menu, tanpa scaffold)
+                                AuthApp()
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+
+    // Fungsi helper untuk mendapatkan skema warna
+    @Composable
+    private fun getColors(currentTheme: String, useDarkTheme: Boolean): ColorScheme {
+        return when (currentTheme) {
+            "Forest" -> if (useDarkTheme) ForestDarkColorScheme else ForestLightColorScheme
+            "Ocean" -> if (useDarkTheme) OceanDarkColorScheme else OceanLightColorScheme
+            "Sunset" -> if (useDarkTheme) SunsetDarkColorScheme else SunsetLightColorScheme
+            "Lavender" -> if (useDarkTheme) LavenderDarkColorScheme else LavenderLightColorScheme
+            "Cherry" -> if (useDarkTheme) CherryDarkColorScheme else CherryLightColorScheme
+            "Midnight" -> if (use_dark_theme) MidnightDarkColorScheme else MidnightLightColorScheme
+            "Mint" -> if (useDarkTheme) MintDarkColorScheme else MintLightColorScheme
+            "Autumn" -> if (useDarkTheme) AutumnDarkColorScheme else AutumnLightColorScheme
+            "Coral" -> if (useDarkTheme) CoralDarkColorScheme else CoralLightColorScheme
+            else -> if (useDarkTheme) DarkColorScheme else LightColorScheme
         }
     }
 
@@ -125,6 +180,55 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// ✅ BARU: Composable ini HANYA menangani alur Onboarding, Login, dan Register
+// Tidak ada Drawer, tidak ada Scaffold.
+@Composable
+fun AuthApp() {
+    val navController = rememberNavController()
+    // TODO: Ganti `mutableStateOf(false)` dengan logika dari DataStore Anda
+    val hasSeenOnboarding = remember { mutableStateOf(false) }
+
+    val startDestination = when {
+        !hasSeenOnboarding.value -> Screen.Onboarding.route
+        else -> Screen.Login.route
+    }
+
+    NavHost(
+        navController = navController,
+        startDestination = startDestination,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        composable(Screen.Login.route) {
+            LoginScreen(
+                // Saat login sukses, listener Firebase akan otomatis
+                // mengganti state di MainActivity, jadi kita tidak perlu navigasi di sini
+                onLoginSuccess = { },
+                onNavigateToRegister = { navController.navigate(Screen.Register.route) },
+                onNavigateToForgotPassword = { navController.navigate(Screen.ForgotPassword.route) }
+            )
+        }
+        composable(Screen.Register.route) {
+            RegisterScreen(onNavigateToLogin = { navController.popBackStack() })
+        }
+        composable(Screen.ForgotPassword.route) {
+            ForgotPasswordScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.Onboarding.route) {
+            OnboardingScreen(
+                onFinish = {
+                    hasSeenOnboarding.value = true // TODO: Simpan ini ke DataStore
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+    }
+}
+
+
 data class NavItem(
     val label: String,
     val icon: ImageVector,
@@ -135,429 +239,369 @@ data class NavItem(
 @Composable
 fun MainApp(
     firebaseAuth: FirebaseAuth,
-    isPremium: Boolean
+    isPremium: Boolean,
+    settingsViewModel: SettingsViewModel = hiltViewModel() // Ambil VM di sini
 ) {
     val strings = LocalStrings.current
-    val settingsViewModel: SettingsViewModel = hiltViewModel()
-    val currentTheme by settingsViewModel.currentTheme.collectAsState()
-    val useDarkTheme = isSystemInDarkTheme()
 
-    val colors = when (currentTheme) {
-        "Forest" -> if (useDarkTheme) ForestDarkColorScheme else ForestLightColorScheme
-        "Ocean" -> if (useDarkTheme) OceanDarkColorScheme else OceanLightColorScheme
-        "Sunset" -> if (useDarkTheme) SunsetDarkColorScheme else SunsetLightColorScheme
-        "Lavender" -> if (useDarkTheme) LavenderDarkColorScheme else LavenderLightColorScheme
-        "Cherry" -> if (useDarkTheme) CherryDarkColorScheme else CherryLightColorScheme
-        "Midnight" -> if (useDarkTheme) MidnightDarkColorScheme else MidnightLightColorScheme
-        "Mint" -> if (useDarkTheme) MintDarkColorScheme else MintLightColorScheme
-        "Autumn" -> if (useDarkTheme) AutumnDarkColorScheme else AutumnLightColorScheme
-        "Coral" -> if (useDarkTheme) CoralDarkColorScheme else CoralLightColorScheme
-        else -> if (useDarkTheme) DarkColorScheme else LightColorScheme
+    // --- Tema sudah diatur di `setContent`, kita tidak perlu mengaturnya lagi di sini ---
+    // KamusKoreaTheme(...) { ... } // <-- Ini dihapus
+
+    val navController = rememberNavController()
+
+    // ✅ DIPERBARUI: startDestination sekarang selalu Home,
+    // karena MainApp hanya dipanggil jika pengguna sudah login.
+    val startDestination = Screen.Home.route
+
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    var currentTitle by remember { mutableStateOf("") } // Default kosong
+    val application = LocalContext.current.applicationContext as Application
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    LaunchedEffect(currentRoute) {
+        currentTitle = when {
+            currentRoute == Screen.Home.route -> strings.home
+            currentRoute == Screen.Dictionary.route -> strings.dictionary
+            currentRoute == Screen.Ebook.route -> strings.ebook
+            currentRoute == Screen.Quiz.route -> strings.quiz
+            currentRoute == Screen.Memorization.route -> strings.memorization
+            currentRoute == Screen.Profile.route -> strings.profile
+            currentRoute == Screen.Settings.route -> strings.settings
+            currentRoute?.startsWith("pdf_viewer/") == true ->
+                navBackStackEntry?.arguments?.getString("title") ?: strings.ebook
+            currentRoute?.startsWith("assessment/") == true -> "Latihan & Ujian"
+            else -> strings.appName // Fallback
+        }
     }
 
-    KamusKoreaTheme(darkTheme = useDarkTheme, dynamicColor = false, colorScheme = colors) {
-        val navController = rememberNavController()
-        val hasSeenOnboarding = remember { mutableStateOf(false) }
-        val startDestination = when {
-            !hasSeenOnboarding.value -> Screen.Onboarding.route
-            firebaseAuth.currentUser != null -> Screen.Home.route
-            else -> Screen.Login.route
-        }
-        val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-        val scope = rememberCoroutineScope()
-        var currentTitle by remember { mutableStateOf(strings.appName) }
-        val application = LocalContext.current.applicationContext as Application
+    val menuItems = listOf(
+        NavItem(strings.dictionary, Icons.AutoMirrored.Outlined.MenuBook, Screen.Dictionary),
+        NavItem(strings.ebook, Icons.Outlined.AutoStories, Screen.Ebook),
+        NavItem(strings.memorization, Icons.Outlined.Bookmark, Screen.Memorization),
+        NavItem(strings.quiz, Icons.Outlined.Quiz, Screen.Quiz)
+    )
 
-        val navBackStackEntry by navController.currentBackStackEntryAsState()
-        val currentRoute = navBackStackEntry?.destination?.route
+    // ✅ DIPERBARUI: Logika ini disederhanakan
+    val isPdfViewerScreen = currentRoute?.startsWith("pdf_viewer/") == true
+    val isHomeScreen = currentRoute == Screen.Home.route
+    val isAssessmentFlow = currentRoute?.startsWith("assessment/") == true || currentRoute == Screen.Quiz.route
 
-        LaunchedEffect(currentRoute) {
-            currentTitle = when {
-                currentRoute == Screen.Home.route -> strings.home
-                currentRoute == Screen.Dictionary.route -> strings.dictionary
-                currentRoute == Screen.Ebook.route -> strings.ebook
-                currentRoute == Screen.Quiz.route -> strings.quiz
-                currentRoute == Screen.Memorization.route -> strings.memorization
-                currentRoute == Screen.Profile.route -> strings.profile
-                currentRoute == Screen.Settings.route -> strings.settings
-                currentRoute?.startsWith("pdf_viewer/") == true ->
-                    navBackStackEntry?.arguments?.getString("title") ?: strings.ebook
-                currentRoute?.startsWith("assessment/") == true -> "Latihan & Ujian"
-                else -> strings.appName
-            }
-        }
+    // `isAuthScreen` tidak ada lagi di sini
 
-        val menuItems = listOf(
-            NavItem(strings.dictionary, Icons.AutoMirrored.Outlined.MenuBook, Screen.Dictionary),
-            NavItem(strings.ebook, Icons.Outlined.AutoStories, Screen.Ebook),
-            NavItem(strings.memorization, Icons.Outlined.Bookmark, Screen.Memorization),
-            NavItem(strings.quiz, Icons.Outlined.Quiz, Screen.Quiz)
-        )
-
-        val isAuthScreen = currentRoute == Screen.Login.route || currentRoute == Screen.Register.route
-        val isPdfViewerScreen = currentRoute?.startsWith("pdf_viewer/") == true
-        val isHomeScreen = currentRoute == Screen.Home.route
-
-        // ✅ Cek apakah rute saat ini ada di dalam alur assessment
-        val isAssessmentFlow = currentRoute?.startsWith("assessment/") == true || currentRoute == Screen.Quiz.route
-
-        ModalNavigationDrawer(
-            drawerState = drawerState,
-            gesturesEnabled = !isAuthScreen && !isPdfViewerScreen,
-            drawerContent = {
-                ModalDrawerSheet {
-                    // ✅ SOLUSI: Gunakan Column dengan background untuk override header default
-                    Column(
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        // ✅ DIPERBARUI: `isAuthScreen` dihilangkan dari gesturesEnabled
+        gesturesEnabled = !isPdfViewerScreen,
+        drawerContent = {
+            ModalDrawerSheet {
+                // ... (Konten drawer Anda tidak berubah)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    AsyncImage(
+                        model = firebaseAuth.currentUser?.photoUrl,
+                        contentDescription = "Profile Photo",
                         modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surface)
-                    ) {
-                        // ✅ Spacer menggantikan area header yang biasanya berisi "Kamus Korea"
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Menu items langsung tanpa teks "Kamus Korea"
-                        NavigationDrawerItem(
-                            icon = { Icon(Icons.Default.Home, contentDescription = strings.home) },
-                            label = { Text(strings.home) },
-                            selected = Screen.Home.route == currentRoute,
-                            onClick = {
-                                scope.launch { drawerState.close() }
-                                navController.navigate(Screen.Home.route)
-                            },
-                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                        )
-                        menuItems.forEach { item ->
-                            NavigationDrawerItem(
-                                icon = { Icon(item.icon, contentDescription = item.label) },
-                                label = { Text(item.label) },
-                                selected = item.screen.route == currentRoute,
-                                onClick = {
-                                    scope.launch { drawerState.close() }
-                                    navController.navigate(item.screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id)
-                                        launchSingleTop = true
-                                    }
-                                },
-                                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                            )
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        HorizontalDivider()
-
-                        // Profile menu item di bawah
-                        NavigationDrawerItem(
-                            icon = { Icon(Icons.Default.Person, contentDescription = strings.profile) },
-                            label = { Text(strings.profile) },
-                            selected = currentRoute == Screen.Profile.route,
-                            onClick = {
-                                scope.launch { drawerState.close() }
-                                navController.navigate(Screen.Profile.route)
-                            },
-                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                        )
-
-                        NavigationDrawerItem(
-                            icon = { Icon(Icons.Default.Settings, contentDescription = strings.settings) },
-                            label = { Text(strings.settings) },
-                            selected = currentRoute == Screen.Settings.route,
-                            onClick = {
-                                scope.launch { drawerState.close() }
-                                navController.navigate(Screen.Settings.route)
-                            },
-                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                        )
-                        NavigationDrawerItem(
-                            icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = strings.logout) },
-                            label = { Text(strings.logout) },
-                            selected = false,
-                            onClick = {
-                                scope.launch {
-                                    drawerState.close()
-                                    val googleSignInClient = GoogleSignIn.getClient(
-                                        application,
-                                        GoogleSignInOptions.DEFAULT_SIGN_IN
-                                    )
-                                    googleSignInClient.signOut().addOnCompleteListener {
-                                        firebaseAuth.signOut()
-                                        navController.navigate(Screen.Login.route) { popUpTo(0) }
-                                    }
-                                }
-                            },
-                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
+                            .size(80.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = R.drawable.ic_default_profile),
+                        error = painterResource(id = R.drawable.ic_default_profile)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    val displayName = firebaseAuth.currentUser?.displayName
+                    val email = firebaseAuth.currentUser?.email
+                    Text(
+                        text = if (!displayName.isNullOrBlank()) displayName else email ?: "User",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    TextButton(onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Screen.Profile.route)
+                    }) { Text(strings.profile) }
                 }
-            }
-        ) {
-            Scaffold(
-                topBar = {
-                    // ✅ PERUBAHAN: TopAppBar hanya muncul jika bukan layar auth DAN bukan layar home
-                    if (!isAuthScreen && !isHomeScreen) {
-                        TopAppBar(
-                            title = { Text(currentTitle) },
-                            navigationIcon = {
-                                // Tampilkan panah kembali untuk PDF viewer dan assessment flow
-                                if (isPdfViewerScreen || isAssessmentFlow && currentRoute != Screen.Quiz.route) {
-                                    IconButton(onClick = { navController.popBackStack() }) {
-                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                                    }
-                                } else {
-                                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                        Icon(Icons.Default.Menu, contentDescription = "Menu")
-                                    }
-                                }
+                HorizontalDivider()
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Home, contentDescription = strings.home) },
+                    label = { Text(strings.home) },
+                    selected = Screen.Home.route == currentRoute,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Screen.Home.route)
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                menuItems.forEach { item ->
+                    NavigationDrawerItem(
+                        icon = { Icon(item.icon, contentDescription = item.label) },
+                        label = { Text(item.label) },
+                        selected = item.screen.route == currentRoute,
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate(item.screen.route) {
+                                popUpTo(navController.graph.findStartDestination().id)
+                                launchSingleTop = true
                             }
-                        )
-                    }
-                    // ✅ TAMBAHAN: TopAppBar khusus untuk Home screen - HANYA icon menu, tanpa title
-                    if (isHomeScreen) {
-                        TopAppBar(
-                            title = { }, // Kosongkan title
-                            navigationIcon = {
+                        },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                HorizontalDivider()
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Settings, contentDescription = strings.settings) },
+                    label = { Text(strings.settings) },
+                    selected = currentRoute == Screen.Settings.route,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Screen.Settings.route)
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = strings.logout) },
+                    label = { Text(strings.logout) },
+                    selected = false,
+                    onClick = {
+                        scope.launch {
+                            drawerState.close()
+                            val googleSignInClient = GoogleSignIn.getClient(
+                                application,
+                                GoogleSignInOptions.DEFAULT_SIGN_IN
+                            )
+                            googleSignInClient.signOut().addOnCompleteListener {
+                                firebaseAuth.signOut()
+                                // ✅ DIPERBARUI: Hapus navigasi
+                                // Listener Firebase di MainActivity akan
+                                // otomatis menangani perpindahan ke AuthApp
+                                // navController.navigate(Screen.Login.route) { popUpTo(0) } // <-- DIHAPUS
+                            }
+                        }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                // ✅ DIPERBARUI: `isAuthScreen` dihilangkan
+                if (!isHomeScreen) {
+                    TopAppBar(
+                        title = { Text(currentTitle) },
+                        navigationIcon = {
+                            if (isPdfViewerScreen || isAssessmentFlow && currentRoute != Screen.Quiz.route) {
+                                IconButton(onClick = { navController.popBackStack() }) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                                }
+                            } else {
                                 IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                     Icon(Icons.Default.Menu, contentDescription = "Menu")
                                 }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.background
-                            )
-                        )
-                    }
+                            }
+                        }
+                    )
                 }
-            ) { innerPadding ->
-                NavHost(
-                    navController = navController,
-                    startDestination = startDestination,
-                    modifier = Modifier.padding(innerPadding)
+            }
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = startDestination,
+                modifier = Modifier.padding(innerPadding)
+            ) {
+                // ✅ DIHAPUS: Rute-rute Auth (Login, Register, ForgotPassword, Onboarding)
+                // dipindahkan ke AuthApp
+
+                composable(Screen.Home.route) {
+                    ModernHomeScreen(navController = navController, isPremium = isPremium)
+                }
+                composable(Screen.Dictionary.route) {
+                    ModernDictionaryScreen(viewModel = hiltViewModel())
+                }
+                composable(Screen.Memorization.route) {
+                    MemorizationScreen(
+                        isPremium = isPremium,
+                        onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
+                    )
+                }
+
+                // ... (Rute Assessment Anda tidak berubah)
+                navigation(
+                    startDestination = Screen.Quiz.route,
+                    route = "assessment_graph"
                 ) {
-                    composable(Screen.Login.route) {
-                        LoginScreen(
-                            onLoginSuccess = {
-                                navController.navigate(Screen.Home.route) {
-                                    popUpTo(Screen.Login.route) { inclusive = true }
-                                }
+                    composable(Screen.Quiz.route) {
+                        AssessmentMainScreen(
+                            onNavigateToQuiz = {
+                                navController.navigate("assessment/quiz/list")
                             },
-                            onNavigateToRegister = { navController.navigate(Screen.Register.route) },
-                            onNavigateToForgotPassword = { navController.navigate(Screen.ForgotPassword.route) }
+                            onNavigateToExam = {
+                                navController.navigate("assessment/exam/list")
+                            },
+                            onNavigateToHistory = {
+                                navController.navigate("assessment/history")
+                            }
                         )
                     }
-                    composable(Screen.Register.route) {
-                        RegisterScreen(onNavigateToLogin = { navController.popBackStack() })
-                    }
-                    composable(Screen.ForgotPassword.route) {
-                        ForgotPasswordScreen(
-                            onNavigateBack = { navController.popBackStack() }
-                        )
-                    }
-
-
-
-                    composable(Screen.Home.route) {
-                        ModernHomeScreen(navController = navController, isPremium = isPremium)
-                    }
-                    composable(Screen.Dictionary.route) {
-                        ModernDictionaryScreen(viewModel = hiltViewModel())
-                    }
-                    composable(Screen.Memorization.route) {
-                        MemorizationScreen(
+                    composable("assessment/quiz/list") {
+                        val assessmentBackStackEntry = remember(it) {
+                            navController.getBackStackEntry("assessment_graph")
+                        }
+                        val assessmentViewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
+                        AssessmentListScreen(
+                            type = "quiz",
                             isPremium = isPremium,
-                            onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
-                        )
-                    }
-
-                    // ========== ASSESSMENT/QUIZ ROUTES ==========
-
-                    navigation(
-                        startDestination = Screen.Quiz.route,
-                        route = "assessment_graph"
-                    ) {
-
-                        composable(Screen.Quiz.route) {
-                            AssessmentMainScreen(
-                                onNavigateToQuiz = {
-                                    navController.navigate("assessment/quiz/list")
-                                },
-                                onNavigateToExam = {
-                                    navController.navigate("assessment/exam/list")
-                                },
-                                onNavigateToHistory = {
-                                    navController.navigate("assessment/history")
-                                }
-                            )
-                        }
-
-                        composable("assessment/quiz/list") {
-                            val assessmentBackStackEntry = remember(it) {
-                                navController.getBackStackEntry("assessment_graph")
-                            }
-                            val assessmentViewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
-
-                            AssessmentListScreen(
-                                type = "quiz",
-                                isPremium = isPremium,
-                                onNavigateToAssessment = { assessmentId ->
-                                    navController.navigate("assessment/take/$assessmentId/Quiz")
-                                },
-                                onNavigateToPremium = {
-                                    navController.navigate(Screen.PremiumLock.route)
-                                },
-                                viewModel = assessmentViewModel
-                            )
-                        }
-
-                        composable("assessment/exam/list") {
-                            val assessmentBackStackEntry = remember(it) {
-                                navController.getBackStackEntry("assessment_graph")
-                            }
-                            val assessmentViewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
-
-                            AssessmentListScreen(
-                                type = "exam",
-                                isPremium = isPremium,
-                                onNavigateToAssessment = { assessmentId ->
-                                    navController.navigate("assessment/take/$assessmentId/Exam")
-                                },
-                                onNavigateToPremium = {
-                                    navController.navigate(Screen.PremiumLock.route)
-                                },
-                                viewModel = assessmentViewModel
-                            )
-                        }
-
-                        composable(
-                            route = "assessment/take/{assessmentId}/{title}",
-                            arguments = listOf(
-                                navArgument("assessmentId") { type = NavType.IntType },
-                                navArgument("title") { type = NavType.StringType }
-                            )
-                        ) { backStackEntry ->
-                            val assessmentId = backStackEntry.arguments?.getInt("assessmentId") ?: 0
-                            val title = backStackEntry.arguments?.getString("title") ?: "Assessment"
-
-                            val assessmentBackStackEntry = remember(backStackEntry) {
-                                navController.getBackStackEntry("assessment_graph")
-                            }
-                            val assessmentViewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
-
-                            TakeAssessmentScreen(
-                                assessmentId = assessmentId,
-                                assessmentTitle = title,
-                                onFinish = {
-                                    navController.navigate("assessment/result") {
-                                        popUpTo(backStackEntry.destination.route!!) { inclusive = true }
-                                    }
-                                },
-                                viewModel = assessmentViewModel
-                            )
-                        }
-
-                        composable("assessment/result") {
-                            val assessmentBackStackEntry = remember(it) {
-                                navController.getBackStackEntry("assessment_graph")
-                            }
-                            val viewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
-                            val result by viewModel.assessmentResult.collectAsState()
-
-                            result?.let { assessmentResult ->
-                                AssessmentResultScreen(
-                                    result = assessmentResult,
-                                    onBackToList = {
-                                        viewModel.resetResult()
-                                        navController.navigate(Screen.Quiz.route) {
-                                            popUpTo("assessment_graph") { inclusive = true }
-                                        }
-                                    },
-                                    onRetry = {
-                                        viewModel.resetResult()
-                                        navController.popBackStack()
-                                    }
-                                )
-                            } ?: Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
-                            }
-                        }
-
-                        composable("assessment/history") {
-                            val assessmentBackStackEntry = remember(it) {
-                                navController.getBackStackEntry("assessment_graph")
-                            }
-                            val assessmentViewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
-
-                            AssessmentHistoryScreen(
-                                onBack = { navController.popBackStack() },
-                                viewModel = assessmentViewModel
-                            )
-                        }
-                    }
-
-                    composable(Screen.Settings.route) {
-                        ModernSettingsScreen(viewModel = hiltViewModel())
-                    }
-                    composable(Screen.Onboarding.route) {
-                        OnboardingScreen(
-                            onFinish = {
-                                hasSeenOnboarding.value = true
-                                navController.navigate(Screen.Login.route) {
-                                    popUpTo(Screen.Onboarding.route) { inclusive = true }
-                                }
-                            }
-                        )
-                    }
-                    composable(Screen.Ebook.route) {
-                        EbookScreen(
-                            viewModel = hiltViewModel(),
-                            onNavigateToPdf = { pdfUrl, title ->
-                                val encodedUrl = Uri.encode(pdfUrl)
-                                navController.navigate("pdf_viewer/$encodedUrl/$title")
+                            onNavigateToAssessment = { assessmentId ->
+                                navController.navigate("assessment/take/$assessmentId/Quiz")
                             },
-                            onNavigateToPremiumLock = {
+                            onNavigateToPremium = {
                                 navController.navigate(Screen.PremiumLock.route)
-                            }
+                            },
+                            viewModel = assessmentViewModel
                         )
                     }
-                    composable(Screen.PremiumLock.route) {
-                        PremiumLockScreen(
-                            onNavigateToProfile = {
-                                navController.navigate(Screen.Profile.route) {
-                                    popUpTo(Screen.Home.route)
-                                }
-                            }
+                    composable("assessment/exam/list") {
+                        val assessmentBackStackEntry = remember(it) {
+                            navController.getBackStackEntry("assessment_graph")
+                        }
+                        val assessmentViewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
+                        AssessmentListScreen(
+                            type = "exam",
+                            isPremium = isPremium,
+                            onNavigateToAssessment = { assessmentId ->
+                                navController.navigate("assessment/take/$assessmentId/Exam")
+                            },
+                            onNavigateToPremium = {
+                                navController.navigate(Screen.PremiumLock.route)
+                            },
+                            viewModel = assessmentViewModel
                         )
-                    }
-                    composable(Screen.Profile.route) {
-                        ProfileScreen(viewModel = hiltViewModel())
                     }
                     composable(
-                        route = "pdf_viewer/{pdfUrl}/{title}",
+                        route = "assessment/take/{assessmentId}/{title}",
                         arguments = listOf(
-                            navArgument("pdfUrl") { type = NavType.StringType },
+                            navArgument("assessmentId") { type = NavType.IntType },
                             navArgument("title") { type = NavType.StringType }
                         )
                     ) { backStackEntry ->
-                        val pdfUrl = backStackEntry.arguments?.getString("pdfUrl")?.let { Uri.decode(it) }
-                        val title = backStackEntry.arguments?.getString("title")
-
-                        if (pdfUrl != null && title != null) {
-                            PdfViewerScreen(
-                                navController = navController,
-                                pdfUrl = pdfUrl,
-                                title = title
+                        val assessmentId = backStackEntry.arguments?.getInt("assessmentId") ?: 0
+                        val title = backStackEntry.arguments?.getString("title") ?: "Assessment"
+                        val assessmentBackStackEntry = remember(backStackEntry) {
+                            navController.getBackStackEntry("assessment_graph")
+                        }
+                        val assessmentViewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
+                        TakeAssessmentScreen(
+                            assessmentId = assessmentId,
+                            assessmentTitle = title,
+                            onFinish = {
+                                navController.navigate("assessment/result") {
+                                    popUpTo(backStackEntry.destination.route!!) { inclusive = true }
+                                }
+                            },
+                            viewModel = assessmentViewModel
+                        )
+                    }
+                    composable("assessment/result") {
+                        val assessmentBackStackEntry = remember(it) {
+                            navController.getBackStackEntry("assessment_graph")
+                        }
+                        val viewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
+                        val result by viewModel.assessmentResult.collectAsState()
+                        result?.let { assessmentResult ->
+                            AssessmentResultScreen(
+                                result = assessmentResult,
+                                onBackToList = {
+                                    viewModel.resetResult()
+                                    navController.navigate(Screen.Quiz.route) {
+                                        popUpTo("assessment_graph") { inclusive = true }
+                                    }
+                                },
+                                onRetry = {
+                                    viewModel.resetResult()
+                                    navController.popBackStack()
+                                }
                             )
-                        } else {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("Error: Invalid E-Book data.")
+                        } ?: Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    composable("assessment/history") {
+                        val assessmentBackStackEntry = remember(it) {
+                            navController.getBackStackEntry("assessment_graph")
+                        }
+                        val assessmentViewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
+                        AssessmentHistoryScreen(
+                            onBack = { navController.popBackStack() },
+                            viewModel = assessmentViewModel
+                        )
+                    }
+                } // --- Akhir Rute Assessment ---
+
+                composable(Screen.Settings.route) {
+                    ModernSettingsScreen(viewModel = hiltViewModel())
+                }
+                composable(Screen.Ebook.route) {
+                    EbookScreen(
+                        viewModel = hiltViewModel(),
+                        onNavigateToPdf = { pdfUrl, title ->
+                            val encodedUrl = Uri.encode(pdfUrl)
+                            navController.navigate("pdf_viewer/$encodedUrl/$title")
+                        },
+                        onNavigateToPremiumLock = {
+                            navController.navigate(Screen.PremiumLock.route)
+                        }
+                    )
+                }
+                composable(Screen.PremiumLock.route) {
+                    PremiumLockScreen(
+                        onNavigateToProfile = {
+                            navController.navigate(Screen.Profile.route) {
+                                popUpTo(Screen.Home.route)
                             }
+                        }
+                    )
+                }
+                composable(Screen.Profile.route) {
+                    ProfileScreen(viewModel = hiltViewModel())
+                }
+                composable(
+                    route = "pdf_viewer/{pdfUrl}/{title}",
+                    arguments = listOf(
+                        navArgument("pdfUrl") { type = NavType.StringType },
+                        navArgument("title") { type = NavType.StringType }
+                    )
+                ) { backStackEntry ->
+                    val pdfUrl = backStackEntry.arguments?.getString("pdfUrl")?.let { Uri.decode(it) }
+                    val title = backStackEntry.arguments?.getString("title")
+                    if (pdfUrl != null && title != null) {
+                        PdfViewerScreen(
+                            navController = navController,
+                            pdfUrl = pdfUrl,
+                            title = title
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Error: Invalid E-Book data.")
                         }
                     }
                 }
-            }
-        }
-    }
+            } // --- Akhir NavHost MainApp ---
+        } // --- Akhir Scaffold ---
+    } // --- Akhir ModalNavigationDrawer ---
+    // } // --- Akhir KamusKoreaTheme (dihapus) ---
 }
