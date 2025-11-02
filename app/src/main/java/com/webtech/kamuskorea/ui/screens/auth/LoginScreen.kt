@@ -22,6 +22,7 @@ import com.google.android.gms.common.api.ApiException
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit, // ✅ NEW
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
     var email by remember { mutableStateOf("") }
@@ -58,7 +59,6 @@ fun LoginScreen(
                     Log.e("LoginScreen", "Status code: ${e.statusCode}")
                     Log.e("LoginScreen", "Status message: ${e.message}")
 
-                    // Common error codes
                     when (e.statusCode) {
                         10 -> Log.e("LoginScreen", "Developer Error: Check SHA-1 certificate fingerprint in Firebase Console")
                         12500 -> Log.e("LoginScreen", "Sign in currently unavailable")
@@ -69,11 +69,6 @@ fun LoginScreen(
             }
             Activity.RESULT_CANCELED -> {
                 Log.w("LoginScreen", "User cancelled sign-in")
-                Log.w("LoginScreen", "This can happen if:")
-                Log.w("LoginScreen", "1. User pressed back button")
-                Log.w("LoginScreen", "2. SHA-1 fingerprint not configured in Firebase")
-                Log.w("LoginScreen", "3. OAuth client ID not properly configured")
-                Log.w("LoginScreen", "4. google-services.json not up to date")
             }
             else -> {
                 Log.e("LoginScreen", "Unexpected result code: ${result.resultCode}")
@@ -126,6 +121,16 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
+
+        // ✅ NEW: Lupa Password Button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(onClick = onNavigateToForgotPassword) {
+                Text("Lupa Password?")
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 

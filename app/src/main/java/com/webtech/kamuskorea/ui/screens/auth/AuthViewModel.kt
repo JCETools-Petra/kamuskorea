@@ -12,23 +12,32 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.webtech.kamuskorea.data.network.ApiService
+import com.webtech.kamuskorea.data.network.ForgotPasswordRequest
+import com.webtech.kamuskorea.data.network.ResetPasswordRequest
 import com.webtech.kamuskorea.data.network.UserSyncRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import org.json.JSONObject
 import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val apiService: ApiService // <=== ADDED
+    private val apiService: ApiService
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
     val authState = _authState.asStateFlow()
+
+    private val _forgotPasswordState = MutableStateFlow<ForgotPasswordState>(ForgotPasswordState.Initial)
+    val forgotPasswordState = _forgotPasswordState.asStateFlow()
+
+    private val _resetPasswordState = MutableStateFlow<ResetPasswordState>(ResetPasswordState.Initial)
+    val resetPasswordState = _resetPasswordState.asStateFlow()
 
     private companion object {
         const val WEB_CLIENT_ID = "214644364883-f0oh0k0lnd3buj07se4rlpmqd2s1lo33.apps.googleusercontent.com"
@@ -76,10 +85,12 @@ class AuthViewModel @Inject constructor(
                 user?.updateProfile(profileUpdates)?.await()
 
                 if (user != null) {
+                    // ✅ Set auth_type = "password" for email/password users
                     val userMap = hashMapOf(
                         "uid" to user.uid,
                         "name" to name,
                         "email" to email,
+                        "auth_type" to "password", // ← NEW!
                         "isPremium" to false,
                         "createdAt" to System.currentTimeMillis()
                     )
@@ -98,15 +109,10 @@ class AuthViewModel @Inject constructor(
 
     fun getGoogleSignInIntent(context: Context): Intent {
         Log.d("AuthViewModel", "=== GOOGLE SIGN IN CONFIG ===")
-        Log.d("AuthViewModel", "Web Client ID: $WEB_CLIENT_ID")
-        Log.d("AuthViewModel", "Package Name: ${context.packageName}")
-
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(WEB_CLIENT_ID)
             .requestEmail()
             .build()
-
-        Log.d("AuthViewModel", "GoogleSignInOptions created successfully")
         return GoogleSignIn.getClient(context, gso).signInIntent
     }
 
@@ -119,33 +125,25 @@ class AuthViewModel @Inject constructor(
                 val user = authResult.user
 
                 if (user != null) {
-                    // ✅ SYNC USER KE BACKEND
                     try {
-                        Log.d("AuthViewModel", "📡 Syncing user to backend...")
                         val syncRequest = UserSyncRequest(
                             email = user.email,
                             name = user.displayName,
                             photoUrl = user.photoUrl?.toString()
                         )
-
-                        val response = apiService.syncUser(syncRequest)
-                        if (response.isSuccessful) {
-                            val syncResult = response.body()
-                            Log.d("AuthViewModel", "✅ User synced: ${syncResult?.message}, isNew=${syncResult?.isNew}")
-                        } else {
-                            Log.w("AuthViewModel", "⚠️ Failed to sync user: ${response.code()}")
-                        }
+                        apiService.syncUser(syncRequest)
                     } catch (e: Exception) {
-                        Log.e("AuthViewModel", "❌ Error syncing user", e)
+                        Log.e("AuthViewModel", "Error syncing user", e)
                     }
 
-                    // Save to Firestore if new user
+                    // ✅ Set auth_type = "google" for Google users
                     if (authResult.additionalUserInfo?.isNewUser == true) {
                         val userMap = hashMapOf(
                             "uid" to user.uid,
                             "name" to user.displayName,
                             "email" to user.email,
                             "profilePictureUrl" to user.photoUrl?.toString(),
+                            "auth_type" to "google", // ← NEW!
                             "isPremium" to false,
                             "createdAt" to System.currentTimeMillis()
                         )
@@ -157,8 +155,134 @@ class AuthViewModel @Inject constructor(
                 }
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "❌ Google sign in failed", e)
+                Log.e("AuthViewModel", "Google sign in failed", e)
                 _authState.value = AuthState.Error(e.message ?: "Google Sign-In Gagal")
+            }
+        }
+    }
+
+    // ✅ UPDATED: Request forgot password dengan handling Google users
+    fun requestForgotPassword(email: String) {
+        if (email.isBlank()) {
+            _forgotPasswordState.value = ForgotPasswordState.Error("Email tidak boleh kosong")
+            return
+        }
+
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            _forgotPasswordState.value = ForgotPasswordState.Error("Format email tidak valid")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                _forgotPasswordState.value = ForgotPasswordState.Loading
+                Log.d("AuthViewModel", "📧 Requesting password reset for: $email")
+
+                val request = ForgotPasswordRequest(email = email)
+                val response = apiService.requestPasswordReset(request)
+
+                if (response.isSuccessful) {
+                    val result = response.body()
+                    if (result?.success == true) {
+                        Log.d("AuthViewModel", "✅ Password reset email sent")
+                        _forgotPasswordState.value = ForgotPasswordState.Success(
+                            result.message ?: "Link reset password telah dikirim ke email Anda"
+                        )
+                    } else {
+                        Log.e("AuthViewModel", "❌ Failed: ${result?.message}")
+                        _forgotPasswordState.value = ForgotPasswordState.Error(
+                            result?.message ?: "Gagal mengirim email reset"
+                        )
+                    }
+                } else {
+                    // ✅ Handle error response dengan auth_type info
+                    val errorBody = response.errorBody()?.string()
+                    Log.e("AuthViewModel", "❌ API Error: ${response.code()} - $errorBody")
+
+                    try {
+                        val errorJson = JSONObject(errorBody ?: "{}")
+                        val errorMessage = errorJson.optString("message", "Gagal mengirim email reset")
+                        val authType = errorJson.optString("auth_type", "")
+
+                        if (authType == "google") {
+                            _forgotPasswordState.value = ForgotPasswordState.ErrorGoogleAccount(
+                                errorMessage
+                            )
+                        } else {
+                            _forgotPasswordState.value = ForgotPasswordState.Error(errorMessage)
+                        }
+                    } catch (e: Exception) {
+                        _forgotPasswordState.value = ForgotPasswordState.Error(
+                            "Gagal mengirim email reset. Silakan coba lagi."
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "❌ Exception in forgot password", e)
+                _forgotPasswordState.value = ForgotPasswordState.Error(
+                    "Terjadi kesalahan: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun resetPassword(token: String, newPassword: String, confirmPassword: String) {
+        if (token.isBlank()) {
+            _resetPasswordState.value = ResetPasswordState.Error("Token tidak valid")
+            return
+        }
+
+        if (newPassword.isBlank()) {
+            _resetPasswordState.value = ResetPasswordState.Error("Password tidak boleh kosong")
+            return
+        }
+
+        if (newPassword.length < 6) {
+            _resetPasswordState.value = ResetPasswordState.Error("Password minimal 6 karakter")
+            return
+        }
+
+        if (newPassword != confirmPassword) {
+            _resetPasswordState.value = ResetPasswordState.Error("Password tidak cocok")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                _resetPasswordState.value = ResetPasswordState.Loading
+                Log.d("AuthViewModel", "🔐 Resetting password with token")
+
+                val request = ResetPasswordRequest(
+                    token = token,
+                    newPassword = newPassword
+                )
+                val response = apiService.resetPassword(request)
+
+                if (response.isSuccessful) {
+                    val result = response.body()
+                    if (result?.success == true) {
+                        Log.d("AuthViewModel", "✅ Password reset successful")
+                        _resetPasswordState.value = ResetPasswordState.Success(
+                            result.message ?: "Password berhasil direset"
+                        )
+                    } else {
+                        Log.e("AuthViewModel", "❌ Failed: ${result?.message}")
+                        _resetPasswordState.value = ResetPasswordState.Error(
+                            result?.message ?: "Gagal reset password"
+                        )
+                    }
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Unknown error"
+                    Log.e("AuthViewModel", "❌ API Error: ${response.code()} - $errorMsg")
+                    _resetPasswordState.value = ResetPasswordState.Error(
+                        "Gagal reset password. Token mungkin sudah kadaluarsa."
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "❌ Exception in reset password", e)
+                _resetPasswordState.value = ResetPasswordState.Error(
+                    "Terjadi kesalahan: ${e.message}"
+                )
             }
         }
     }
@@ -166,4 +290,28 @@ class AuthViewModel @Inject constructor(
     fun resetAuthState() {
         _authState.value = AuthState.Initial
     }
+
+    fun resetForgotPasswordState() {
+        _forgotPasswordState.value = ForgotPasswordState.Initial
+    }
+
+    fun resetResetPasswordState() {
+        _resetPasswordState.value = ResetPasswordState.Initial
+    }
+}
+
+// State classes
+sealed class ForgotPasswordState {
+    object Initial : ForgotPasswordState()
+    object Loading : ForgotPasswordState()
+    data class Success(val message: String) : ForgotPasswordState()
+    data class Error(val message: String) : ForgotPasswordState()
+    data class ErrorGoogleAccount(val message: String) : ForgotPasswordState() // ✅ NEW!
+}
+
+sealed class ResetPasswordState {
+    object Initial : ResetPasswordState()
+    object Loading : ResetPasswordState()
+    data class Success(val message: String) : ResetPasswordState()
+    data class Error(val message: String) : ResetPasswordState()
 }

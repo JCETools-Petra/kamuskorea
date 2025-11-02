@@ -24,13 +24,12 @@ object DatabaseModule {
         return Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
-            "kamus_database" // Konsisten dengan AppDatabase.kt
+            "kamus_database"
         )
-            // CATATAN: Jika Anda memiliki file database pre-populated di assets,
-            // uncomment baris berikut dan pastikan file ada di app/src/main/assets/database/kamus_korea.db
-            // .createFromAsset("database/kamus_korea.db")
-
-            // Fallback strategy jika database corrupt atau tidak tersedia
+            // ✅ MEMBACA DARI ASSETS
+            // Pastikan file ada di: app/src/main/assets/database/kamus_korea.db
+            .createFromAsset("database/kamus_korea.db")
+            // Fallback strategy jika database corrupt
             .fallbackToDestructiveMigration()
             .build()
     }

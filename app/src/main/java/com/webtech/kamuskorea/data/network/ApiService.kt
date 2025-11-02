@@ -52,9 +52,29 @@ interface ApiService {
         @Body request: SubmitAssessmentRequest
     ): Response<AssessmentResult>
 
-    @GET("api.php/results") // <-- INI YANG BENAR
+    @GET("api.php/results")
     suspend fun getAssessmentResults(@Query("assessment_id") assessmentId: Int? = null): Response<List<AssessmentHistory>>
 
     @POST("api.php/user/sync")
     suspend fun syncUser(@Body userData: UserSyncRequest): Response<UserSyncResponse>
+
+    // ========== PASSWORD RESET ENDPOINTS (NEW) ==========
+
+    /**
+     * Request password reset - mengirim email dengan link reset
+     */
+    @POST("api.php/auth/forgot-password")
+    suspend fun requestPasswordReset(@Body request: ForgotPasswordRequest): Response<ForgotPasswordResponse>
+
+    /**
+     * Reset password dengan token
+     */
+    @POST("api.php/auth/reset-password")
+    suspend fun resetPassword(@Body request: ResetPasswordRequest): Response<ResetPasswordResponse>
+
+    /**
+     * Verify reset token (optional - untuk cek apakah token masih valid)
+     */
+    @GET("api.php/auth/verify-reset-token")
+    suspend fun verifyResetToken(@Query("token") token: String): Response<VerifyTokenResponse>
 }

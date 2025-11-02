@@ -57,6 +57,9 @@ import com.webtech.kamuskorea.ui.theme.*
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.navigation.navArgument
+import com.webtech.kamuskorea.ui.screens.auth.ForgotPasswordScreen
+import com.webtech.kamuskorea.ui.screens.auth.ResetPasswordScreen
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -327,12 +330,36 @@ fun MainApp(
                                     popUpTo(Screen.Login.route) { inclusive = true }
                                 }
                             },
-                            onNavigateToRegister = { navController.navigate(Screen.Register.route) }
+                            onNavigateToRegister = { navController.navigate(Screen.Register.route) },
+                            onNavigateToForgotPassword = { navController.navigate(Screen.ForgotPassword.route) }
                         )
                     }
                     composable(Screen.Register.route) {
                         RegisterScreen(onNavigateToLogin = { navController.popBackStack() })
                     }
+                    composable(Screen.ForgotPassword.route) {
+                        ForgotPasswordScreen(
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(
+                        route = Screen.ResetPassword.route,
+                        arguments = listOf(
+                            navArgument("token") { type = NavType.StringType }
+                        )
+                    ) { backStackEntry ->
+                        val token = backStackEntry.arguments?.getString("token") ?: ""
+                        ResetPasswordScreen(
+                            token = token,
+                            onNavigateToLogin = {
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                }
+                            }
+                        )
+                    }
+
                     composable(Screen.Home.route) {
                         ModernHomeScreen(navController = navController, isPremium = isPremium)
                     }

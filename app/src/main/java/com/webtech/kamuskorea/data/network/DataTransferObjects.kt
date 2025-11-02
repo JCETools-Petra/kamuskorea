@@ -77,7 +77,7 @@ data class PremiumActivationRequest(
 )
 
 // ============================================
-// NEW: Google Sign-In Sync
+// Google Sign-In Sync
 // ============================================
 
 /**
@@ -97,4 +97,47 @@ data class UserSyncResponse(
     val message: String,
     @SerializedName("is_new")
     val isNew: Boolean
+)
+
+// ============================================
+// PASSWORD RESET (NEW)
+// ============================================
+
+/**
+ * Request untuk forgot password
+ */
+data class ForgotPasswordRequest(
+    val email: String
+)
+
+/**
+ * Response setelah request forgot password
+ */
+data class ForgotPasswordResponse(
+    val success: Boolean,
+    val message: String
+)
+
+/**
+ * Request untuk reset password dengan token
+ */
+data class ResetPasswordRequest(
+    val token: String,
+    val newPassword: String
+)
+
+/**
+ * Response setelah reset password
+ */
+data class ResetPasswordResponse(
+    val success: Boolean,
+    val message: String
+)
+
+/**
+ * Response untuk verify token
+ */
+data class VerifyTokenResponse(
+    val valid: Boolean,
+    val message: String
 )
