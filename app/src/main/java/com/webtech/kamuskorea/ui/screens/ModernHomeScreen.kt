@@ -93,6 +93,7 @@ fun ModernHomeScreen(
         )
     )
 
+    // ✅ PERUBAHAN: Hilangkan Scaffold dan TopAppBar, langsung gunakan Column
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -174,7 +175,6 @@ fun ModernHomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             menuCards.forEachIndexed { index, card ->
-                // Remove the delay that causes suspend function error
                 AnimatedVisibility(
                     visible = showContent,
                     enter = fadeIn(

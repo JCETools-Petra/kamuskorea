@@ -196,6 +196,7 @@ fun MainApp(
 
         val isAuthScreen = currentRoute == Screen.Login.route || currentRoute == Screen.Register.route
         val isPdfViewerScreen = currentRoute?.startsWith("pdf_viewer/") == true
+        val isHomeScreen = currentRoute == Screen.Home.route
 
         // ✅ Cek apakah rute saat ini ada di dalam alur assessment
         val isAssessmentFlow = currentRoute?.startsWith("assessment/") == true || currentRoute == Screen.Quiz.route
@@ -205,104 +206,98 @@ fun MainApp(
             gesturesEnabled = !isAuthScreen && !isPdfViewerScreen,
             drawerContent = {
                 ModalDrawerSheet {
+                    // ✅ SOLUSI: Gunakan Column dengan background untuk override header default
                     Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surface)
                     ) {
-                        AsyncImage(
-                            model = firebaseAuth.currentUser?.photoUrl,
-                            contentDescription = "Profile Photo",
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop,
-                            placeholder = painterResource(id = R.drawable.ic_default_profile),
-                            error = painterResource(id = R.drawable.ic_default_profile)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        val displayName = firebaseAuth.currentUser?.displayName
-                        val email = firebaseAuth.currentUser?.email
-                        Text(
-                            text = if (!displayName.isNullOrBlank()) displayName else email ?: "User",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        TextButton(onClick = {
-                            scope.launch { drawerState.close() }
-                            navController.navigate(Screen.Profile.route)
-                        }) { Text(strings.profile) }
-                    }
-                    HorizontalDivider()
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.Home, contentDescription = strings.home) },
-                        label = { Text(strings.home) },
-                        selected = Screen.Home.route == currentRoute,
-                        onClick = {
-                            scope.launch { drawerState.close() }
-                            navController.navigate(Screen.Home.route)
-                        },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                    menuItems.forEach { item ->
+                        // ✅ Spacer menggantikan area header yang biasanya berisi "Kamus Korea"
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Menu items langsung tanpa teks "Kamus Korea"
                         NavigationDrawerItem(
-                            icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label) },
-                            selected = item.screen.route == currentRoute,
+                            icon = { Icon(Icons.Default.Home, contentDescription = strings.home) },
+                            label = { Text(strings.home) },
+                            selected = Screen.Home.route == currentRoute,
                             onClick = {
                                 scope.launch { drawerState.close() }
-                                navController.navigate(item.screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id)
-                                    launchSingleTop = true
+                                navController.navigate(Screen.Home.route)
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                        menuItems.forEach { item ->
+                            NavigationDrawerItem(
+                                icon = { Icon(item.icon, contentDescription = item.label) },
+                                label = { Text(item.label) },
+                                selected = item.screen.route == currentRoute,
+                                onClick = {
+                                    scope.launch { drawerState.close() }
+                                    navController.navigate(item.screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id)
+                                        launchSingleTop = true
+                                    }
+                                },
+                                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        HorizontalDivider()
+
+                        // Profile menu item di bawah
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Default.Person, contentDescription = strings.profile) },
+                            label = { Text(strings.profile) },
+                            selected = currentRoute == Screen.Profile.route,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                navController.navigate(Screen.Profile.route)
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Default.Settings, contentDescription = strings.settings) },
+                            label = { Text(strings.settings) },
+                            selected = currentRoute == Screen.Settings.route,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                navController.navigate(Screen.Settings.route)
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = strings.logout) },
+                            label = { Text(strings.logout) },
+                            selected = false,
+                            onClick = {
+                                scope.launch {
+                                    drawerState.close()
+                                    val googleSignInClient = GoogleSignIn.getClient(
+                                        application,
+                                        GoogleSignInOptions.DEFAULT_SIGN_IN
+                                    )
+                                    googleSignInClient.signOut().addOnCompleteListener {
+                                        firebaseAuth.signOut()
+                                        navController.navigate(Screen.Login.route) { popUpTo(0) }
+                                    }
                                 }
                             },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
+                        Spacer(modifier = Modifier.height(12.dp))
                     }
-                    Spacer(modifier = Modifier.weight(1f))
-                    HorizontalDivider()
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.Settings, contentDescription = strings.settings) },
-                        label = { Text(strings.settings) },
-                        selected = currentRoute == Screen.Settings.route,
-                        onClick = {
-                            scope.launch { drawerState.close() }
-                            navController.navigate(Screen.Settings.route)
-                        },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = strings.logout) },
-                        label = { Text(strings.logout) },
-                        selected = false,
-                        onClick = {
-                            scope.launch {
-                                drawerState.close()
-                                val googleSignInClient = GoogleSignIn.getClient(
-                                    application,
-                                    GoogleSignInOptions.DEFAULT_SIGN_IN
-                                )
-                                googleSignInClient.signOut().addOnCompleteListener {
-                                    firebaseAuth.signOut()
-                                    navController.navigate(Screen.Login.route) { popUpTo(0) }
-                                }
-                            }
-                        },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         ) {
             Scaffold(
                 topBar = {
-                    if (!isAuthScreen) {
+                    // ✅ PERUBAHAN: TopAppBar hanya muncul jika bukan layar auth DAN bukan layar home
+                    if (!isAuthScreen && !isHomeScreen) {
                         TopAppBar(
                             title = { Text(currentTitle) },
                             navigationIcon = {
-                                // ✅ PERUBAHAN: Tampilkan panah kembali untuk SEMUA alur assessment
+                                // Tampilkan panah kembali untuk PDF viewer dan assessment flow
                                 if (isPdfViewerScreen || isAssessmentFlow && currentRoute != Screen.Quiz.route) {
                                     IconButton(onClick = { navController.popBackStack() }) {
                                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -313,6 +308,20 @@ fun MainApp(
                                     }
                                 }
                             }
+                        )
+                    }
+                    // ✅ TAMBAHAN: TopAppBar khusus untuk Home screen - HANYA icon menu, tanpa title
+                    if (isHomeScreen) {
+                        TopAppBar(
+                            title = { }, // Kosongkan title
+                            navigationIcon = {
+                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                    Icon(Icons.Default.Menu, contentDescription = "Menu")
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.background
+                            )
                         )
                     }
                 }
@@ -357,16 +366,13 @@ fun MainApp(
                         )
                     }
 
-                    // ========== ASSESSMENT/QUIZ ROUTES (DIPERBAIKI) ==========
+                    // ========== ASSESSMENT/QUIZ ROUTES ==========
 
-                    // ✅ KITA BUAT NESTED NAVIGATION GRAPH AGAR VIEWMODEL BISA DI-SHARE
                     navigation(
                         startDestination = Screen.Quiz.route,
-                        route = "assessment_graph" // Ini adalah rute "induk" baru
+                        route = "assessment_graph"
                     ) {
 
-                        // Rute ini sekarang adalah "assessment_graph/quiz"
-                        // tapi kita ubah startDestination-nya saja
                         composable(Screen.Quiz.route) {
                             AssessmentMainScreen(
                                 onNavigateToQuiz = {
@@ -381,9 +387,7 @@ fun MainApp(
                             )
                         }
 
-                        // List Quiz
                         composable("assessment/quiz/list") {
-                            // ✅ Dapatkan VM yang di-scope ke "assessment_graph"
                             val assessmentBackStackEntry = remember(it) {
                                 navController.getBackStackEntry("assessment_graph")
                             }
@@ -398,13 +402,11 @@ fun MainApp(
                                 onNavigateToPremium = {
                                     navController.navigate(Screen.PremiumLock.route)
                                 },
-                                viewModel = assessmentViewModel // ✅ Kirim VM
+                                viewModel = assessmentViewModel
                             )
                         }
 
-                        // List Exam
                         composable("assessment/exam/list") {
-                            // ✅ Dapatkan VM yang di-scope ke "assessment_graph"
                             val assessmentBackStackEntry = remember(it) {
                                 navController.getBackStackEntry("assessment_graph")
                             }
@@ -419,11 +421,10 @@ fun MainApp(
                                 onNavigateToPremium = {
                                     navController.navigate(Screen.PremiumLock.route)
                                 },
-                                viewModel = assessmentViewModel // ✅ Kirim VM
+                                viewModel = assessmentViewModel
                             )
                         }
 
-                        // Take Assessment
                         composable(
                             route = "assessment/take/{assessmentId}/{title}",
                             arguments = listOf(
@@ -434,7 +435,6 @@ fun MainApp(
                             val assessmentId = backStackEntry.arguments?.getInt("assessmentId") ?: 0
                             val title = backStackEntry.arguments?.getString("title") ?: "Assessment"
 
-                            // ✅ Dapatkan VM yang di-scope ke "assessment_graph"
                             val assessmentBackStackEntry = remember(backStackEntry) {
                                 navController.getBackStackEntry("assessment_graph")
                             }
@@ -443,19 +443,16 @@ fun MainApp(
                             TakeAssessmentScreen(
                                 assessmentId = assessmentId,
                                 assessmentTitle = title,
-                                onFinish = { // ✅ PERUBAHAN: onFinish tanpa parameter
+                                onFinish = {
                                     navController.navigate("assessment/result") {
-                                        // Pop up sampai layar 'take'
                                         popUpTo(backStackEntry.destination.route!!) { inclusive = true }
                                     }
                                 },
-                                viewModel = assessmentViewModel // ✅ Kirim VM
+                                viewModel = assessmentViewModel
                             )
                         }
 
-                        // Assessment Result
                         composable("assessment/result") {
-                            // ✅ Dapatkan VM yang di-scope ke "assessment_graph"
                             val assessmentBackStackEntry = remember(it) {
                                 navController.getBackStackEntry("assessment_graph")
                             }
@@ -466,17 +463,17 @@ fun MainApp(
                                 AssessmentResultScreen(
                                     result = assessmentResult,
                                     onBackToList = {
-                                        viewModel.resetResult() // ✅ Reset state
+                                        viewModel.resetResult()
                                         navController.navigate(Screen.Quiz.route) {
-                                            popUpTo("assessment_graph") { inclusive = true } // Kembali ke root graph
+                                            popUpTo("assessment_graph") { inclusive = true }
                                         }
                                     },
                                     onRetry = {
-                                        viewModel.resetResult() // ✅ Reset state
-                                        navController.popBackStack() // Kembali ke layar list
+                                        viewModel.resetResult()
+                                        navController.popBackStack()
                                     }
                                 )
-                            } ?: Box( // Tidak akan stuck di sini lagi
+                            } ?: Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -484,9 +481,7 @@ fun MainApp(
                             }
                         }
 
-                        // Assessment History
                         composable("assessment/history") {
-                            // ✅ Dapatkan VM yang di-scope ke "assessment_graph"
                             val assessmentBackStackEntry = remember(it) {
                                 navController.getBackStackEntry("assessment_graph")
                             }
@@ -494,10 +489,10 @@ fun MainApp(
 
                             AssessmentHistoryScreen(
                                 onBack = { navController.popBackStack() },
-                                viewModel = assessmentViewModel // ✅ Kirim VM
+                                viewModel = assessmentViewModel
                             )
                         }
-                    } // ========== AKHIR DARI navigation("assessment_graph") ==========
+                    }
 
                     composable(Screen.Settings.route) {
                         ModernSettingsScreen(viewModel = hiltViewModel())

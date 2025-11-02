@@ -68,70 +68,70 @@ fun OnboardingScreen(
         }
     }
 
-    Box(
+    // ✅ PERUBAHAN: Hilangkan Box dengan background gradient di bagian paling atas
+    // Langsung ke Column utama tanpa wrapper Box
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.background),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Skip button
-            if (pagerState.currentPage < pages.size - 1) {
-                TextButton(
-                    onClick = onFinish,
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .padding(16.dp)
-                ) {
-                    Text("Lewati", color = MaterialTheme.colorScheme.primary)
-                }
-            } else {
-                Spacer(modifier = Modifier.height(56.dp))
-            }
-
-            // Pager content
-            HorizontalPager(
-                count = pages.size,
-                state = pagerState,
+        // ✅ PERUBAHAN: Skip button dipindah ke pojok kanan atas tanpa header text
+        if (pagerState.currentPage < pages.size - 1) {
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
-            ) { page ->
-                OnboardingPageContent(pages[page])
-            }
-
-            // Page indicator
-            HorizontalPagerIndicator(
-                pagerState = pagerState,
-                modifier = Modifier.padding(16.dp),
-                activeColor = MaterialTheme.colorScheme.primary,
-                inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                indicatorWidth = 8.dp,
-                indicatorHeight = 8.dp,
-                spacing = 8.dp
-            )
-
-            // Bottom button
-            AnimatedVisibility(visible = pagerState.currentPage == pages.size - 1) {
-                Button(
-                    onClick = onFinish,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 32.dp, vertical = 24.dp)
-                        .height(56.dp),
-                    shape = MaterialTheme.shapes.large
-                ) {
-                    Text("Mulai Belajar", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(Icons.Default.ArrowForward, contentDescription = null)
+                    .padding(16.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                TextButton(onClick = onFinish) {
+                    Text("Lewati", color = MaterialTheme.colorScheme.primary)
                 }
             }
+        } else {
+            Spacer(modifier = Modifier.height(56.dp))
+        }
 
-            if (pagerState.currentPage < pages.size - 1) {
-                Spacer(modifier = Modifier.height(100.dp))
+        // Pager content
+        HorizontalPager(
+            count = pages.size,
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) { page ->
+            OnboardingPageContent(pages[page])
+        }
+
+        // Page indicator
+        HorizontalPagerIndicator(
+            pagerState = pagerState,
+            modifier = Modifier.padding(16.dp),
+            activeColor = MaterialTheme.colorScheme.primary,
+            inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+            indicatorWidth = 8.dp,
+            indicatorHeight = 8.dp,
+            spacing = 8.dp
+        )
+
+        // Bottom button
+        AnimatedVisibility(visible = pagerState.currentPage == pages.size - 1) {
+            Button(
+                onClick = onFinish,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp, vertical = 24.dp)
+                    .height(56.dp),
+                shape = MaterialTheme.shapes.large
+            ) {
+                Text("Mulai Belajar", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(Icons.Default.ArrowForward, contentDescription = null)
             }
+        }
+
+        if (pagerState.currentPage < pages.size - 1) {
+            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }
