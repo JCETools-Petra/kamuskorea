@@ -56,7 +56,10 @@ interface ApiService {
     suspend fun getAssessmentResults(@Query("assessment_id") assessmentId: Int? = null): Response<List<AssessmentHistory>>
 
     @POST("api.php/user/sync")
-    suspend fun syncUser(@Body userData: UserSyncRequest): Response<UserSyncResponse>
+    suspend fun syncUser(
+        @Header("Authorization") token: String, // <-- TAMBAHKAN INI
+        @Body request: UserSyncRequest
+    ): Response<UserSyncResponse>
 
     // ========== PASSWORD RESET ENDPOINTS (NEW) ==========
 
