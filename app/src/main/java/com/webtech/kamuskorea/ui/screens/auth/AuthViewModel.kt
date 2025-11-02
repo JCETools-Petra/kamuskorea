@@ -198,84 +198,26 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _forgotPasswordState.value = ForgotPasswordState.Loading
-                Log.d("AuthViewModel", "📧 Requesting password reset for: $email")
+                Log.d("AuthViewModel", "📧 Sending Firebase password reset email to: $email")
 
-                val request = ForgotPasswordRequest(email = email)
-                val response = apiService.requestPasswordReset(request)
+                // ✅ GUNAKAN FIREBASE AUTH LANGSUNG
+                auth.sendPasswordResetEmail(email).await()
 
-                Log.d("AuthViewModel", "📨 Response code: ${response.code()}")
-                Log.d("AuthViewModel", "📨 Response body: ${response.body()}")
-                Log.d("AuthViewModel", "📨 Response error: ${response.errorBody()?.string()}")
+                Log.d("AuthViewModel", "✅ Password reset email sent via Firebase")
+                _forgotPasswordState.value = ForgotPasswordState.Success(
+                    "Email reset password telah dikirim. Periksa inbox Anda."
+                )
 
-                if (response.isSuccessful) {
-                    val result = response.body()
-
-                    // ✅ PERBAIKAN: Handle null body
-                    if (result == null) {
-                        Log.e("AuthViewModel", "❌ Response body is NULL")
-                        _forgotPasswordState.value = ForgotPasswordState.Error(
-                            "Server tidak mengembalikan response yang valid"
-                        )
-                        return@launch
-                    }
-
-                    if (result.success == true) {
-                        Log.d("AuthViewModel", "✅ Password reset email sent")
-                        _forgotPasswordState.value = ForgotPasswordState.Success(
-                            result.message ?: "Link reset password telah dikirim ke email Anda"
-                        )
-                    } else {
-                        Log.e("AuthViewModel", "❌ Failed: ${result.message}")
-                        _forgotPasswordState.value = ForgotPasswordState.Error(
-                            result.message ?: "Gagal mengirim email reset"
-                        )
-                    }
-                } else {
-                    // ✅ PERBAIKAN: Handle error response
-                    val errorBody = response.errorBody()?.string()
-                    Log.e("AuthViewModel", "❌ API Error: ${response.code()}")
-                    Log.e("AuthViewModel", "❌ Error body: $errorBody")
-
-                    // Try to parse error JSON
-                    try {
-                        if (!errorBody.isNullOrBlank()) {
-                            val errorJson = org.json.JSONObject(errorBody)
-                            val errorMessage = errorJson.optString("message", "Gagal mengirim email reset")
-                            val authType = errorJson.optString("auth_type", "")
-
-                            if (authType == "google") {
-                                _forgotPasswordState.value = ForgotPasswordState.ErrorGoogleAccount(
-                                    errorMessage
-                                )
-                            } else {
-                                _forgotPasswordState.value = ForgotPasswordState.Error(errorMessage)
-                            }
-                        } else {
-                            _forgotPasswordState.value = ForgotPasswordState.Error(
-                                "Server error: ${response.code()}"
-                            )
-                        }
-                    } catch (e: Exception) {
-                        Log.e("AuthViewModel", "❌ Failed to parse error", e)
-                        _forgotPasswordState.value = ForgotPasswordState.Error(
-                            "Gagal mengirim email reset. Silakan coba lagi."
-                        )
-                    }
-                }
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "❌ Exception in forgot password", e)
-                Log.e("AuthViewModel", "❌ Exception type: ${e.javaClass.simpleName}")
-                Log.e("AuthViewModel", "❌ Exception message: ${e.message}")
-                e.printStackTrace()
+                Log.e("AuthViewModel", "❌ Firebase password reset failed", e)
 
-                // ✅ PERBAIKAN: More specific error message
                 val errorMessage = when {
-                    e is com.google.gson.JsonSyntaxException ->
-                        "Server mengembalikan response yang tidak valid. Endpoint mungkin belum tersedia."
-                    e.message?.contains("End of input") == true ->
-                        "Server tidak mengembalikan data. Periksa konfigurasi API."
+                    e.message?.contains("no user record", ignoreCase = true) == true ->
+                        "Email tidak terdaftar"
+                    e.message?.contains("network", ignoreCase = true) == true ->
+                        "Tidak ada koneksi internet"
                     else ->
-                        "Terjadi kesalahan: ${e.message}"
+                        "Gagal mengirim email: ${e.message}"
                 }
 
                 _forgotPasswordState.value = ForgotPasswordState.Error(errorMessage)
