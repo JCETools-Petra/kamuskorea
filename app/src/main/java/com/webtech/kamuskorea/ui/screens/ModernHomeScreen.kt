@@ -89,7 +89,7 @@ fun ModernHomeScreen(
             icon = Icons.Outlined.Quiz,
             route = Screen.Quiz.route,
             gradient = Color(0xFF43E97B) to Color(0xFF38F9D7),
-            isPremium = true
+            isPremium = false
         )
     )
 

@@ -143,6 +143,14 @@ dependencies {
     implementation("com.google.android.exoplayer:exoplayer:2.19.1")
     implementation("com.google.android.exoplayer:exoplayer-core:2.19.1")
     implementation("com.google.android.exoplayer:exoplayer-ui:2.19.1")
+
+    implementation("com.google.firebase:firebase-appcheck-ktx")
+
+    // Provider untuk versi RILIS (yang di Play Store)
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
+
+    // Provider untuk versi DEBUG (saat run dari Android Studio)
+    implementation("com.google.firebase:firebase-appcheck-debug")
 }
 
 hilt {
