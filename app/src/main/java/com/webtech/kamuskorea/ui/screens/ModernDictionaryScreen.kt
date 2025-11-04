@@ -1,5 +1,6 @@
 package com.webtech.kamuskorea.ui.screens
 
+import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,17 +27,32 @@ import com.webtech.kamuskorea.ui.screens.dictionary.DictionaryViewModel
 fun ModernDictionaryScreen(
     viewModel: DictionaryViewModel = hiltViewModel()
 ) {
+    val TAG = "ModernDictionaryScreen"
+
     val searchQuery by viewModel.searchQuery.collectAsState()
     val words by viewModel.words.collectAsState()
     var selectedWord by remember { mutableStateOf<Word?>(null) }
     var showFilterMenu by remember { mutableStateOf(false) }
+
+    // ✅ TAMBAHKAN: Log untuk debug UI
+    LaunchedEffect(words) {
+        Log.d(TAG, "========== UI UPDATE ==========")
+        Log.d(TAG, "Words state updated: ${words.size} items")
+        words.take(3).forEach { word ->
+            Log.d(TAG, "  - ${word.koreanWord}")
+        }
+        Log.d(TAG, "================================")
+    }
 
     Scaffold(
         topBar = {
             Column {
                 SearchBar(
                     query = searchQuery,
-                    onQueryChange = { viewModel.onSearchQueryChange(it) },
+                    onQueryChange = {
+                        Log.d(TAG, "SearchBar onQueryChange: '$it'")
+                        viewModel.onSearchQueryChange(it)
+                    },
                     onSearch = { /* Do nothing or handle search */ },
                     active = searchQuery.isNotEmpty(),
                     onActiveChange = {},
@@ -47,7 +63,10 @@ fun ModernDictionaryScreen(
                     trailingIcon = {
                         Row {
                             if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                IconButton(onClick = {
+                                    Log.d(TAG, "Clear button clicked")
+                                    viewModel.onSearchQueryChange("")
+                                }) {
                                     Icon(Icons.Default.Clear, contentDescription = "Clear")
                                 }
                             }
@@ -96,76 +115,93 @@ fun ModernDictionaryScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (words.isEmpty() && searchQuery.isNotEmpty()) {
-                // Empty state
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        Icons.Default.SearchOff,
-                        contentDescription = null,
-                        modifier = Modifier.size(80.dp),
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "Tidak ada hasil untuk \"$searchQuery\"",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Coba kata kunci lain atau periksa ejaan Anda",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    )
-                }
-            } else if (words.isEmpty()) {
-                // Initial state
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        Icons.Default.MenuBook,
-                        contentDescription = null,
-                        modifier = Modifier.size(80.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "Cari Kata",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Ketik kata dalam Korea, Romanisasi, atau Bahasa Indonesia",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(items = words, key = { it.id }) { word ->
-                        ModernWordCard(
-                            word = word,
-                            isSelected = selectedWord == word,
-                            onClick = {
-                                selectedWord = if (selectedWord == word) null else word
-                            }
+            when {
+                // ✅ PERBAIKAN: Cek kondisi dengan lebih teliti
+                words.isEmpty() && searchQuery.isNotEmpty() -> {
+                    Log.d(TAG, "Showing empty state")
+                    // Empty state
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Default.SearchOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(80.dp),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Tidak ada hasil untuk \"$searchQuery\"",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Coba kata kunci lain atau periksa ejaan Anda",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                        )
+                    }
+                }
+                words.isEmpty() && searchQuery.isEmpty() -> {
+                    Log.d(TAG, "Showing initial state")
+                    // Initial state
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Default.MenuBook,
+                            contentDescription = null,
+                            modifier = Modifier.size(80.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Cari Kata",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Ketik kata dalam Korea, Romanisasi, atau Bahasa Indonesia",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                else -> {
+                    // ✅ PERBAIKAN: Tampilkan hasil dengan logging
+                    Log.d(TAG, "Showing results list with ${words.size} items")
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background), // ✅ Tambahkan background
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // ✅ PERBAIKAN: Gunakan items dengan key
+                        items(
+                            items = words,
+                            key = { word -> word.id }
+                        ) { word ->
+                            ModernWordCard(
+                                word = word,
+                                isSelected = selectedWord == word,
+                                onClick = {
+                                    Log.d(TAG, "Word clicked: ${word.koreanWord}")
+                                    selectedWord = if (selectedWord == word) null else word
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -207,7 +243,6 @@ fun ModernWordCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        // --- DIPERBAIKI: Menggunakan nama properti baru ---
                         text = word.koreanWord,
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
@@ -283,7 +318,6 @@ fun ModernWordCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        // --- DIPERBAIKI: Menggunakan nama properti baru ---
                         text = word.indonesianTranslation,
                         style = MaterialTheme.typography.bodyLarge,
                         color = if (isSelected)
@@ -308,7 +342,6 @@ fun ModernWordCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        // --- DIPERBAIKI: Menggunakan nama properti baru ---
                         "• ${word.koreanWord}을/를 사용한 예문이 여기에 표시됩니다",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
