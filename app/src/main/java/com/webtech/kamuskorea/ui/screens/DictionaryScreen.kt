@@ -51,14 +51,15 @@ fun WordItem(word: Word) {
             .padding(vertical = 12.dp)
     ) {
         Text(
-            // --- INI BAGIAN YANG DIPERBAIKI ---
-            text = "${word.korean} [${word.romanization}]",
+            // --- DIPERBAIKI: Menggunakan nama properti baru ---
+            text = "${word.koreanWord} [${word.romanization}]",
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = word.indonesian,
+            // --- DIPERBAIKI: Menggunakan nama properti baru ---
+            text = word.indonesianTranslation,
             style = MaterialTheme.typography.bodyMedium
         )
     }

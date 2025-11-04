@@ -207,7 +207,8 @@ fun ModernWordCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = word.korean,
+                        // --- DIPERBAIKI: Menggunakan nama properti baru ---
+                        text = word.koreanWord,
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = if (isSelected)
@@ -282,7 +283,8 @@ fun ModernWordCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = word.indonesian,
+                        // --- DIPERBAIKI: Menggunakan nama properti baru ---
+                        text = word.indonesianTranslation,
                         style = MaterialTheme.typography.bodyLarge,
                         color = if (isSelected)
                             MaterialTheme.colorScheme.onPrimaryContainer
@@ -306,7 +308,8 @@ fun ModernWordCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "• ${word.korean}을/를 사용한 예문이 여기에 표시됩니다",
+                        // --- DIPERBAIKI: Menggunakan nama properti baru ---
+                        "• ${word.koreanWord}을/를 사용한 예문이 여기에 표시됩니다",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                     )

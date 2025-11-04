@@ -52,12 +52,14 @@ class KamusSyncRepository @Inject constructor(
                         if (wordsToUpdate.isNotEmpty()) {
                             // 4. Konversi data API ke data Room
                             val wordEntities = wordsToUpdate.map { wordApi ->
+                                // --- DIPERBAIKI: Kembali ke konstruktor V1 ---
                                 Word(
-                                    id = 0, // Biarkan Room generate
-                                    korean = wordApi.korean,
+                                    id = 0,
+                                    koreanWord = wordApi.korean,
                                     romanization = wordApi.romanization,
-                                    indonesian = wordApi.indonesian
+                                    indonesianTranslation = wordApi.indonesian
                                 )
+                                // -------------------------------------------
                             }
 
                             // 5. Masukkan/Update ke database Room

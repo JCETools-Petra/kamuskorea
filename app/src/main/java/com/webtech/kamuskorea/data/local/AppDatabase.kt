@@ -4,7 +4,10 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+// HAPUS IMPORT MIGRATION
+import kotlinx.coroutines.CoroutineScope
 
+// --- KEMBALIKAN VERSION KE 1 ---
 @Database(entities = [Word::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
@@ -14,20 +17,27 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
-        fun getDatabase(context: Context): AppDatabase {
+        // --- HAPUS MIGRATION_1_2 ---
+
+        fun getDatabase(
+            context: Context,
+            coroutineScope: CoroutineScope // (coroutineScope tidak dipakai lagi, tapi biarkan saja)
+        ): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "kamus_database"
+                    "kamus_korea.db"
                 )
-                    // ✅ Membaca dari file database yang ada di assets
-                    .createFromAsset("database/kamus_korea.db")
-                    .fallbackToDestructiveMigration()
+                    .createFromAsset("database/kamus_korea.db") // Salin file v1 dari asset
+                    // --- HAPUS .addMigrations() ---
+                    // --- HAPUS .addCallback() ---
                     .build()
                 INSTANCE = instance
                 instance
             }
         }
+
+        // --- HAPUS SEMUA KODE DatabaseCallback ---
     }
 }

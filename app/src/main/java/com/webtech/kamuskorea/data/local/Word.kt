@@ -10,11 +10,13 @@ data class Word(
     val id: Int = 0,
 
     @ColumnInfo(name = "korean_word")
-    val korean: String,
+    val koreanWord: String, // Kita tetap pakai nama ini (bukan 'korean')
 
     @ColumnInfo(name = "romanization")
     val romanization: String,
 
     @ColumnInfo(name = "indonesian_translation")
-    val indonesian: String
+    val indonesianTranslation: String // Kita tetap pakai nama ini (bukan 'indonesian')
+
+    // TIGA KOLOM ..._lowercase SUDAH DIHAPUS
 )

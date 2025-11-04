@@ -1,7 +1,6 @@
-// Lokasi file: app/src/main/java/com/webtech/kamuskorea/ui/screens/dictionary/DictionaryViewModel.kt
-
 package com.webtech.kamuskorea.ui.screens.dictionary
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.webtech.kamuskorea.data.local.Word
@@ -12,37 +11,39 @@ import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
-@HiltViewModel // Anotasi ini memberitahu Hilt cara membuat ViewModel ini
-class DictionaryViewModel @Inject constructor( // @Inject memberitahu Hilt dependensi apa yang dibutuhkan
+@HiltViewModel
+class DictionaryViewModel @Inject constructor(
     private val wordDao: WordDao
 ) : ViewModel() {
+
+    private val TAG = "SearchDebug"
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    // Logika untuk mendapatkan kata-kata berdasarkan query pencarian dari flow
     val words: StateFlow<List<Word>> = searchQuery
+        .debounce(300L)
         .flatMapLatest { query ->
             if (query.isBlank()) {
-                // Jika query kosong, tampilkan semua kata
                 wordDao.getAllWords()
             } else {
-                // Jika ada query, cari kata yang cocok
-                wordDao.searchWords(query)
+                // DIPERBARUI:
+                // Kita tidak perlu .lowercase() lagi karena DAO pakai COLLATE NOCASE.
+                // Kita tambahkan wildcard '%' di sini.
+                val searchQueryWithWildcards = "%${query}%"
+
+                Log.d(TAG, "Mencari di DAO (v1, NOCASE) dengan query: '$searchQueryWithWildcards'")
+
+                wordDao.searchWords(searchQueryWithWildcards)
             }
         }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000), // Optimasi agar flow aktif saat UI terlihat
-            initialValue = emptyList() // Nilai awal adalah daftar kosong
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
         )
 
-    /**
-     * Fungsi yang dipanggil dari UI untuk memperbarui query pencarian.
-     */
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
     }
-
-    // companion object dengan provideFactory() DIHAPUS karena tidak diperlukan saat menggunakan Hilt.
 }

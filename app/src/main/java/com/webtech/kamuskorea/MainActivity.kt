@@ -155,7 +155,7 @@ class MainActivity : ComponentActivity() {
             "Sunset" -> if (useDarkTheme) SunsetDarkColorScheme else SunsetLightColorScheme
             "Lavender" -> if (useDarkTheme) LavenderDarkColorScheme else LavenderLightColorScheme
             "Cherry" -> if (useDarkTheme) CherryDarkColorScheme else CherryLightColorScheme
-            "Midnight" -> if (use_dark_theme) MidnightDarkColorScheme else MidnightLightColorScheme
+            "Midnight" -> if (useDarkTheme) MidnightDarkColorScheme else MidnightLightColorScheme
             "Mint" -> if (useDarkTheme) MintDarkColorScheme else MintLightColorScheme
             "Autumn" -> if (useDarkTheme) AutumnDarkColorScheme else AutumnLightColorScheme
             "Coral" -> if (useDarkTheme) CoralDarkColorScheme else CoralLightColorScheme
