@@ -31,17 +31,13 @@ object DatabaseModule {
             AppDatabase::class.java,
             "kamus_database"
         )
-            // ✅ MEMBACA DARI ASSETS
             .createFromAsset("database/kamus_korea.db")
-            // Fallback strategy jika database corrupt
             .fallbackToDestructiveMigration()
-            // ✅ TAMBAHKAN CALLBACK UNTUK CEK DATABASE
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
                     Log.d("DatabaseModule", "========== DATABASE CREATED ==========")
 
-                    // Cek jumlah data LANGSUNG pakai SQLite (tanpa coroutine)
                     try {
                         val cursor = db.query("SELECT COUNT(*) FROM words")
                         if (cursor.moveToFirst()) {
@@ -51,7 +47,6 @@ object DatabaseModule {
                             if (count == 0) {
                                 Log.e("DatabaseModule", "❌ WARNING: Database is empty!")
                             } else {
-                                // Sample beberapa kata
                                 val sampleCursor = db.query("SELECT korean_word, romanization, indonesian_translation FROM words LIMIT 5")
                                 var index = 1
                                 Log.d("DatabaseModule", "Sample words:")
@@ -64,8 +59,6 @@ object DatabaseModule {
                                 }
                                 sampleCursor.close()
                             }
-                        } else {
-                            Log.e("DatabaseModule", "❌ Cannot count words!")
                         }
                         cursor.close()
                     } catch (e: Exception) {
@@ -78,7 +71,6 @@ object DatabaseModule {
                     super.onOpen(db)
                     Log.d("DatabaseModule", "========== DATABASE OPENED ==========")
 
-                    // Cek jumlah data setiap kali database dibuka
                     try {
                         val cursor = db.query("SELECT COUNT(*) FROM words")
                         if (cursor.moveToFirst()) {

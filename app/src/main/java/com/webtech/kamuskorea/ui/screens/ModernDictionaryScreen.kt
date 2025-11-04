@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,9 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.webtech.kamuskorea.data.local.Word
@@ -34,7 +31,12 @@ fun ModernDictionaryScreen(
     var selectedWord by remember { mutableStateOf<Word?>(null) }
     var showFilterMenu by remember { mutableStateOf(false) }
 
-    // ✅ TAMBAHKAN: Log untuk debug UI
+    // ✅ TAMBAHKAN LOGGING INI
+    Log.d(TAG, "========== RECOMPOSITION ==========")
+    Log.d(TAG, "Search query: '$searchQuery'")
+    Log.d(TAG, "Words count: ${words.size}")
+    Log.d(TAG, "==================================")
+
     LaunchedEffect(words) {
         Log.d(TAG, "========== UI UPDATE ==========")
         Log.d(TAG, "Words state updated: ${words.size} items")
@@ -116,10 +118,9 @@ fun ModernDictionaryScreen(
                 .padding(paddingValues)
         ) {
             when {
-                // ✅ PERBAIKAN: Cek kondisi dengan lebih teliti
+                // Empty state dengan query
                 words.isEmpty() && searchQuery.isNotEmpty() -> {
                     Log.d(TAG, "Showing empty state")
-                    // Empty state
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -147,9 +148,9 @@ fun ModernDictionaryScreen(
                         )
                     }
                 }
+                // Initial state tanpa query
                 words.isEmpty() && searchQuery.isEmpty() -> {
                     Log.d(TAG, "Showing initial state")
-                    // Initial state
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -177,22 +178,23 @@ fun ModernDictionaryScreen(
                         )
                     }
                 }
+                // ✅ HASIL PENCARIAN
                 else -> {
-                    // ✅ PERBAIKAN: Tampilkan hasil dengan logging
                     Log.d(TAG, "Showing results list with ${words.size} items")
 
+                    // ✅ CRITICAL FIX: LazyColumn dengan explicit sizing
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.background), // ✅ Tambahkan background
+                            .background(MaterialTheme.colorScheme.background),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // ✅ PERBAIKAN: Gunakan items dengan key
                         items(
-                            items = words,
-                            key = { word -> word.id }
-                        ) { word ->
+                            count = words.size,
+                            key = { index -> words[index].id }
+                        ) { index ->
+                            val word = words[index]
                             ModernWordCard(
                                 word = word,
                                 isSelected = selectedWord == word,

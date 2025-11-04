@@ -11,16 +11,12 @@ interface WordDao {
     @Upsert
     suspend fun upsertAll(words: List<Word>)
 
-    /**
-     * DIPERBARUI:
-     * Menggunakan 'COLLATE NOCASE' (cara standar SQLite) untuk pencarian
-     * case-insensitive. Ini jauh lebih baik daripada LOWER().
-     *
-     * Kita juga akan mengirim :query DENGAN wildcard '%' dari ViewModel.
-     */
-    @Query("SELECT * FROM words WHERE korean_word LIKE :query COLLATE NOCASE OR romanization LIKE :query COLLATE NOCASE OR indonesian_translation LIKE :query COLLATE NOCASE")
+    @Query("SELECT * FROM words WHERE korean_word LIKE :query COLLATE NOCASE OR romanization LIKE :query COLLATE NOCASE OR indonesian_translation LIKE :query COLLATE NOCASE ORDER BY id ASC")
     fun searchWords(query: String): Flow<List<Word>>
 
-    @Query("SELECT * FROM words")
+    @Query("SELECT * FROM words ORDER BY id ASC")
     fun getAllWords(): Flow<List<Word>>
+
+    @Query("SELECT COUNT(*) FROM words")
+    suspend fun getWordCount(): Int
 }

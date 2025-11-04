@@ -59,6 +59,7 @@ import com.webtech.kamuskorea.ui.theme.*
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.webtech.kamuskorea.ui.screens.dictionary.SimpleDictionaryScreen
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -425,7 +426,7 @@ fun MainApp(
                     ModernHomeScreen(navController = navController, isPremium = isPremium)
                 }
                 composable(Screen.Dictionary.route) {
-                    ModernDictionaryScreen(viewModel = hiltViewModel())
+                    SimpleDictionaryScreen(viewModel = hiltViewModel())
                 }
                 composable(Screen.Memorization.route) {
                     MemorizationScreen(
