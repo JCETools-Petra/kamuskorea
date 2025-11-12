@@ -24,7 +24,7 @@ class KamusSyncRepository @Inject constructor(
     suspend fun checkAndSyncDatabase() {
         // Jalankan operasi IO di background thread
         withContext(Dispatchers.IO) {
-            try {
+            /*try {
                 // 1. Dapatkan versi lokal dari DataStore
                 val localVersion = dataStore.data.map { preferences ->
                     preferences[SettingsDataStore.KAMUS_DB_VERSION_KEY] ?: 0
@@ -87,7 +87,7 @@ class KamusSyncRepository @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e("KamusSyncRepository", "Exception saat sinkronisasi kamus", e)
-            }
+            }*/
         } // akhir withContext(Dispatchers.IO)
     }
 }

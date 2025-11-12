@@ -16,57 +16,78 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import android.util.Log
 
 /**
  * Interceptor kustom untuk menambahkan Token Autentikasi Firebase
  * ke setiap request API secara otomatis.
+ *
+ * FIXED:
+ * - Force refresh token dengan getIdToken(true)
+ * - Improved error handling
+ * - Better logging
  */
 class AuthInterceptor(private val firebaseAuth: FirebaseAuth) : Interceptor {
+
+    companion object {
+        private const val TAG = "AuthInterceptor"
+    }
+
     override fun intercept(chain: Interceptor.Chain): Response {
+        val originalRequest = chain.request()
         val user = firebaseAuth.currentUser
 
+        // Jika tidak ada user yang login, lanjutkan tanpa token
         if (user == null) {
-            return chain.proceed(chain.request())
+            Log.w(TAG, "No authenticated user, proceeding without token")
+            return chain.proceed(originalRequest)
         }
 
+        // Dapatkan token dengan force refresh (true) untuk memastikan token fresh
         val token: String? = runBlocking {
             try {
-                user.getIdToken(true).await()?.token
+                // ✅ PENTING: getIdToken(true) untuk force refresh
+                val result = user.getIdToken(true).await()
+                val freshToken = result?.token
+
+                if (freshToken != null) {
+                    Log.d(TAG, "✅ Token obtained successfully for UID: ${user.uid}")
+                    Log.d(TAG, "Token preview: ${freshToken.take(20)}...")
+                } else {
+                    Log.e(TAG, "❌ Token is null after getIdToken")
+                }
+
+                freshToken
             } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to get Firebase token: ${e.message}", e)
                 null
             }
         }
 
-        val newRequest = if (token != null) {
-            chain.request().newBuilder()
+        // Buat request baru dengan Authorization header
+        val newRequest = if (!token.isNullOrEmpty()) {
+            originalRequest.newBuilder()
                 .addHeader("Authorization", "Bearer $token")
-                // ✅ TAMBAHKAN INI: Header X-User-ID dengan Firebase UID
-                .addHeader("X-User-ID", user.uid)
+                .addHeader("X-User-ID", user.uid) // Backup untuk development
                 .build()
         } else {
-            chain.request()
+            Log.e(TAG, "⚠️ Proceeding without token - authentication may fail")
+            originalRequest
         }
 
         return chain.proceed(newRequest)
     }
 }
 
-
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // BASE_URL Anda sudah benar menggunakan HTTPS
     private const val BASE_URL = "https://webtechsolution.my.id/kamuskorea/"
 
-    //
-    // FUNGSI 'provideFirebaseAuth' TELAH DIHAPUS DARI SINI
-    // Hilt akan mengambilnya dari 'FirebaseModule.kt'
-    //
-
     /**
-     * Sediakan (Provide) AuthInterceptor.
-     * Hilt akan otomatis meng-inject FirebaseAuth dari FirebaseModule.kt ke sini.
+     * Provide AuthInterceptor
+     * Hilt akan otomatis inject FirebaseAuth dari FirebaseModule.kt
      */
     @Provides
     @Singleton
@@ -75,23 +96,21 @@ object NetworkModule {
     }
 
     /**
-     * Sediakan (Provide) OkHttpClient.
-     * Fungsi ini sekarang menerima AuthInterceptor dan menambahkannya ke builder.
+     * Provide OkHttpClient dengan AuthInterceptor
      */
     @Provides
     @Singleton
     fun provideOkHttpClient(
-        authInterceptor: AuthInterceptor // Hilt akan menyediakan ini dari fungsi di atas
+        authInterceptor: AuthInterceptor
     ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
-            // Untuk production, ubah ke NONE atau BASIC
-            // Untuk development, gunakan BODY untuk melihat detail request/response
+            // BODY untuk development, ubah ke BASIC atau NONE untuk production
             level = HttpLoggingInterceptor.Level.BODY
         }
 
         return OkHttpClient.Builder()
-            .addInterceptor(logging)
-            .addInterceptor(authInterceptor) // <-- INI PENAMBAHAN KUNCINYA
+            .addInterceptor(authInterceptor) // ✅ Auth interceptor PERTAMA
+            .addInterceptor(logging)         // Logging kedua
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -100,23 +119,20 @@ object NetworkModule {
     }
 
     /**
-     * Sediakan (Provide) Retrofit.
-     * Fungsi ini tidak perlu diubah, Hilt akan otomatis
-     * menggunakan OkHttpClient baru yang sudah ada interceptor-nya.
+     * Provide Retrofit instance
      */
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .client(okHttpClient) // OkHttpClient ini sekarang sudah punya AuthInterceptor
+            .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
 
     /**
-     * Sediakan (Provide) ApiService.
-     * Fungsi ini juga tidak perlu diubah.
+     * Provide ApiService
      */
     @Provides
     @Singleton

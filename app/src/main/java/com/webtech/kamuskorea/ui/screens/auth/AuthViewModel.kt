@@ -17,7 +17,6 @@ import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.webtech.kamuskorea.data.network.ApiService
 import com.webtech.kamuskorea.data.network.ForgotPasswordRequest
-import com.webtech.kamuskorea.data.network.ResetPasswordRequest
 import com.webtech.kamuskorea.data.network.UserSyncRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,7 +43,7 @@ class AuthViewModel @Inject constructor(
     val resetPasswordState = _resetPasswordState.asStateFlow()
 
     private companion object {
-        // ID Klien Web Anda
+        const val TAG = "AuthViewModel"
         const val WEB_CLIENT_ID = "214644364883-f0oh0k0lnd3buj07se4rlpmqd2s1lo33.apps.googleusercontent.com"
     }
 
@@ -58,11 +57,11 @@ class AuthViewModel @Inject constructor(
                 val authResult = auth.signInWithEmailAndPassword(email, password).await()
                 authResult.user?.let {
                     // Sinkronkan data pengguna ke MySQL saat login
-                    syncUserToMySQL(it, "password", forceRefresh = false)
+                    syncUserToMySQL(it, "password")
                 }
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "Sign in failed", e)
+                Log.e(TAG, "Sign in failed", e)
                 val errorMessage = when (e) {
                     is FirebaseAuthInvalidCredentialsException -> "Login failed. Please check your email and password."
                     is IOException -> "Login failed. Please check your internet connection."
@@ -109,8 +108,8 @@ class AuthViewModel @Inject constructor(
                 user?.updateProfile(profileUpdates)?.await()
 
                 if (user != null) {
-                    // Sinkronkan ke MySQL (dengan paksa refresh token)
-                    syncUserToMySQL(user, "password", name, forceRefresh = true)
+                    // Sinkronkan ke MySQL
+                    syncUserToMySQL(user, "password", name)
 
                     // Sinkronkan ke Firestore
                     val userMap = hashMapOf(
@@ -128,7 +127,7 @@ class AuthViewModel @Inject constructor(
                 }
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "Sign up failed", e)
+                Log.e(TAG, "Sign up failed", e)
                 val errorMessage = when (e) {
                     is FirebaseAuthUserCollisionException -> "Registration failed. This email is already in use."
                     is FirebaseAuthWeakPasswordException -> "Password is too weak. Please use at least 6 characters."
@@ -164,8 +163,9 @@ class AuthViewModel @Inject constructor(
 
                 if (user != null) {
                     val isNewUser = authResult.additionalUserInfo?.isNewUser == true
-                    // Sinkronkan ke MySQL (paksa refresh token jika pengguna baru)
-                    syncUserToMySQL(user, "google", forceRefresh = isNewUser)
+
+                    // Sinkronkan ke MySQL
+                    syncUserToMySQL(user, "google")
 
                     // Sinkronkan ke Firestore HANYA jika pengguna baru
                     if (isNewUser) {
@@ -186,54 +186,52 @@ class AuthViewModel @Inject constructor(
                 }
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "Google sign in failed", e)
+                Log.e(TAG, "Google sign in failed", e)
                 _authState.value = AuthState.Error(e.message ?: "Google Sign-In Failed. Please try again.")
             }
         }
     }
 
     /**
-     * Fungsi helper untuk sinkronisasi pengguna ke backend MySQL Anda.
+     * Fungsi helper untuk sinkronisasi pengguna ke backend MySQL.
+     *
+     * ✅ FIXED: Tidak perlu manual token handling
+     * Token akan otomatis ditambahkan oleh AuthInterceptor
      */
     private suspend fun syncUserToMySQL(
         user: FirebaseUser,
         authType: String,
-        nameOverride: String? = null,
-        forceRefresh: Boolean = false // Wajib 'true' untuk pengguna baru
+        nameOverride: String? = null
     ) {
         try {
-            // 1. Dapatkan Token (Paksa refresh jika true)
-            val idToken = user.getIdToken(forceRefresh).await().token
-            if (idToken == null) {
-                Log.e("AuthViewModel", "❌ Failed to get ID Token for sync")
-                return
-            }
+            Log.d(TAG, "🔄 Syncing user to MySQL...")
+            Log.d(TAG, "User UID: ${user.uid}")
+            Log.d(TAG, "Auth Type: $authType")
 
-            val bearerToken = "Bearer $idToken"
-
-            // 2. Siapkan Request Body
+            // Siapkan Request Body
             val syncRequest = UserSyncRequest(
                 email = user.email,
-                name = nameOverride ?: user.displayName, // Gunakan nama dari register, atau dari profil Google
+                name = nameOverride ?: user.displayName,
                 photoUrl = user.photoUrl?.toString(),
                 auth_type = authType
             )
 
-            // 3. Panggil API dengan Token
-            val syncResponse = apiService.syncUser(bearerToken, syncRequest)
+            // ✅ PERBAIKAN: Tidak perlu kirim token manual
+            // AuthInterceptor akan otomatis menambahkan Bearer token
+            val syncResponse = apiService.syncUser(request = syncRequest)
 
             if (syncResponse.isSuccessful) {
-                Log.d("AuthViewModel", "✅ User synced to MySQL")
+                Log.d(TAG, "✅ User synced to MySQL successfully")
+                val responseBody = syncResponse.body()
+                Log.d(TAG, "Response: ${responseBody?.message}")
             } else {
-                Log.e("AuthViewModel", "⚠️ MySQL sync failed: ${syncResponse.code()} - ${syncResponse.errorBody()?.string()}")
+                val errorBody = syncResponse.errorBody()?.string()
+                Log.e(TAG, "⚠️ MySQL sync failed: ${syncResponse.code()} - $errorBody")
             }
         } catch (e: Exception) {
-            // Ini adalah error "credential malformed" yang Anda lihat sebelumnya.
-            // Dengan forceRefresh=true, ini seharusnya tidak terjadi lagi.
-            Log.e("AuthViewModel", "⚠️ Error syncing to MySQL", e)
+            Log.e(TAG, "⚠️ Error syncing to MySQL", e)
         }
     }
-
 
     // ========================================
     // PASSWORD RESET
@@ -256,31 +254,29 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _forgotPasswordState.value = ForgotPasswordState.Loading
-                Log.d("AuthViewModel", "📧 Requesting password reset for: $email")
+                Log.d(TAG, "📧 Requesting password reset for: $email")
 
                 val request = ForgotPasswordRequest(email = email)
-                // Memanggil api.php, yang kemudian memanggil Firebase Admin SDK
                 val response = apiService.requestPasswordReset(request)
 
-                Log.d("AuthViewModel", "📨 Response code: ${response.code()}")
+                Log.d(TAG, "📨 Response code: ${response.code()}")
 
                 if (response.isSuccessful) {
                     val result = response.body()
                     if (result?.success == true) {
-                        Log.d("AuthViewModel", "✅ Password reset email sent")
+                        Log.d(TAG, "✅ Password reset email sent")
                         _forgotPasswordState.value = ForgotPasswordState.Success(
                             result.message ?: "Password reset link has been sent. Please check your inbox or spam folder."
                         )
                     } else {
-                        Log.e("AuthViewModel", "❌ Failed: ${result?.message}")
+                        Log.e(TAG, "❌ Failed: ${result?.message}")
                         _forgotPasswordState.value = ForgotPasswordState.Error(
                             result?.message ?: "Failed to send reset email."
                         )
                     }
                 } else {
-                    // Menangani error dari server (misalnya 500, 404)
                     val errorBody = response.errorBody()?.string()
-                    Log.e("AuthViewModel", "❌ API Error: ${response.code()} - $errorBody")
+                    Log.e(TAG, "❌ API Error: ${response.code()} - $errorBody")
 
                     var userMessage = "Failed to send reset email. Please try again."
 
@@ -291,7 +287,7 @@ class AuthViewModel @Inject constructor(
                             val authType = errorJson.optString("auth_type", "")
 
                             userMessage = if (serverMessage.isNotBlank()) {
-                                serverMessage // Gunakan pesan error yang sudah ramah dari server
+                                serverMessage
                             } else {
                                 "An unknown error occurred. Please try again."
                             }
@@ -302,13 +298,12 @@ class AuthViewModel @Inject constructor(
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e("AuthViewModel", "❌ Failed to parse error body", e)
+                        Log.e(TAG, "❌ Failed to parse error body", e)
                     }
                     _forgotPasswordState.value = ForgotPasswordState.Error(userMessage)
                 }
             } catch (e: Exception) {
-                // Menangani error level koneksi (tidak ada internet, timeout)
-                Log.e("AuthViewModel", "❌ Exception in forgot password", e)
+                Log.e(TAG, "❌ Exception in forgot password", e)
                 val errorMessage = when (e) {
                     is IOException -> "Could not connect to server. Please check your internet connection."
                     else -> "An unexpected error occurred. Please try again."
@@ -319,8 +314,7 @@ class AuthViewModel @Inject constructor(
     }
 
     /**
-     * ✅ FUNGSI DIPERBAIKI
-     * Menyelesaikan reset password menggunakan Firebase SDK (bukan API kustom).
+     * Menyelesaikan reset password menggunakan Firebase SDK.
      */
     fun resetPassword(token: String, newPassword: String, confirmPassword: String) {
         if (token.isBlank()) {
@@ -343,19 +337,18 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _resetPasswordState.value = ResetPasswordState.Loading
-                Log.d("AuthViewModel", "🔐 Confirming password reset with Firebase...")
+                Log.d(TAG, "🔐 Confirming password reset with Firebase...")
 
-                // ✅ PERBAIKAN: Gunakan Firebase Auth SDK untuk mengonfirmasi reset
+                // Gunakan Firebase Auth SDK untuk mengonfirmasi reset
                 auth.confirmPasswordReset(token, newPassword).await()
 
-                Log.d("AuthViewModel", "✅ Password reset successful")
+                Log.d(TAG, "✅ Password reset successful")
                 _resetPasswordState.value = ResetPasswordState.Success(
                     "Password reset successful! You can now log in with your new password."
                 )
 
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "❌ Exception in reset password", e)
-                // Terjemahkan error Firebase menjadi pesan ramah pengguna
+                Log.e(TAG, "❌ Exception in reset password", e)
                 val errorMessage = when (e) {
                     is FirebaseAuthInvalidCredentialsException -> "The reset link is invalid or has expired. Please request a new one."
                     is FirebaseAuthWeakPasswordException -> "Password is too weak. Please use at least 6 characters."
@@ -378,20 +371,4 @@ class AuthViewModel @Inject constructor(
     fun resetResetPasswordState() {
         _resetPasswordState.value = ResetPasswordState.Initial
     }
-}
-
-// State classes (Tetap sama)
-sealed class ForgotPasswordState {
-    object Initial : ForgotPasswordState()
-    object Loading : ForgotPasswordState()
-    data class Success(val message: String) : ForgotPasswordState()
-    data class Error(val message: String) : ForgotPasswordState()
-    data class ErrorGoogleAccount(val message: String) : ForgotPasswordState()
-}
-
-sealed class ResetPasswordState {
-    object Initial : ResetPasswordState()
-    object Loading : ResetPasswordState()
-    data class Success(val message: String) : ResetPasswordState()
-    data class Error(val message: String) : ResetPasswordState()
 }

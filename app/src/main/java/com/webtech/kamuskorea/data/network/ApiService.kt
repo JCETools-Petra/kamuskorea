@@ -7,17 +7,24 @@ import retrofit2.http.*
 
 /**
  * Interface Retrofit untuk semua panggilan jaringan.
+ *
+ * CATATAN: Authorization header akan ditambahkan otomatis oleh AuthInterceptor,
+ * jadi tidak perlu @Header("Authorization") di setiap endpoint.
  */
 interface ApiService {
 
     @GET("api.php/kamus/updates")
     suspend fun getKamusUpdates(@Query("version") localVersion: Int): Response<KamusUpdateResponse>
 
+    // ✅ HAPUS @Header("Authorization") - sudah ditangani oleh AuthInterceptor
     @GET("api.php/user/premium/status")
     suspend fun checkUserStatus(): Response<PremiumStatusResponse>
 
+    // ✅ HAPUS @Header("Authorization") - sudah ditangani oleh AuthInterceptor
     @POST("api.php/user/premium/activate")
-    suspend fun activatePremium(@Body request: PremiumActivationRequest): Response<PremiumStatusResponse>
+    suspend fun activatePremium(
+        @Body request: PremiumActivationRequest
+    ): Response<PremiumStatusResponse>
 
     @GET("api.php/user/profile")
     suspend fun getUserProfile(): Response<UserProfileResponse>
@@ -55,30 +62,20 @@ interface ApiService {
     @GET("api.php/results")
     suspend fun getAssessmentResults(@Query("assessment_id") assessmentId: Int? = null): Response<List<AssessmentHistory>>
 
+    // ✅ HAPUS @Header("Authorization") - sudah ditangani oleh AuthInterceptor
     @POST("api.php/user/sync")
     suspend fun syncUser(
-        @Header("Authorization") token: String, // <-- TAMBAHKAN INI
         @Body request: UserSyncRequest
     ): Response<UserSyncResponse>
 
-    // ========== PASSWORD RESET ENDPOINTS (NEW) ==========
+    // ========== PASSWORD RESET ENDPOINTS ==========
 
-    /**
-     * Request password reset - mengirim email dengan link reset
-     */
     @POST("api.php/auth/forgot-password")
     suspend fun requestPasswordReset(@Body request: ForgotPasswordRequest): Response<ForgotPasswordResponse>
 
-    /**
-     * Reset password dengan token
-     */
     @POST("api.php/auth/reset-password")
     suspend fun resetPassword(@Body request: ResetPasswordRequest): Response<ResetPasswordResponse>
 
-    /**
-     * Verify reset token (optional - untuk cek apakah token masih valid)
-     */
     @GET("api.php/auth/verify-reset-token")
     suspend fun verifyResetToken(@Query("token") token: String): Response<VerifyTokenResponse>
-
 }
