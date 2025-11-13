@@ -872,7 +872,7 @@ fun ExitConfirmationDialog(
                             .weight(1f)
                             .height(48.dp),
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                        border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
                     ) {
                         Text(
                             "Lanjutkan",
