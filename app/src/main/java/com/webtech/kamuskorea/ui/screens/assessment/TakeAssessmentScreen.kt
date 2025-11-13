@@ -156,16 +156,16 @@ fun TakeAssessmentScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // LEFT SIDE: Question Content (40% width)
+                        // LEFT SIDE: Question Content (35% width)
                         Card(
                             modifier = Modifier
-                                .weight(0.4f)
+                                .weight(0.35f)
                                 .fillMaxHeight(),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                            shape = RoundedCornerShape(16.dp)
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             QuestionContentLandscape(
                                 question = currentQuestion,
@@ -174,10 +174,10 @@ fun TakeAssessmentScreen(
                             )
                         }
 
-                        // RIGHT SIDE: Answer Options + Navigation (60% width)
+                        // RIGHT SIDE: Answer Options + Navigation (65% width)
                         Column(
                             modifier = Modifier
-                                .weight(0.6f)
+                                .weight(0.65f)
                                 .fillMaxHeight()
                         ) {
                             // Answer Options
@@ -185,15 +185,14 @@ fun TakeAssessmentScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .weight(1f),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                                shape = RoundedCornerShape(16.dp)
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(20.dp)
-                                        .verticalScroll(rememberScrollState()),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     currentQuestion.getOptions().forEach { (letter, text) ->
                                         LandscapeAnswerOption(
@@ -208,7 +207,7 @@ fun TakeAssessmentScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             // Navigation Buttons
                             NavigationButtons(
@@ -266,72 +265,69 @@ fun LandscapeTopBar(
     timerColor: Color,
     onShowGrid: () -> Unit
 ) {
-    TopAppBar(
-        title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+    // Compact TopBar - hide title to save space
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Progress Indicator
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Text(
-                    text = assessmentTitle,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
+                    text = "${currentIndex + 1}/${totalQuestions}",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                 )
+            }
 
-                // Progress Indicator
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
+            // Timer
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = timerColor.copy(alpha = 0.2f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    Icon(
+                        Icons.Default.Timer,
+                        contentDescription = "Timer",
+                        tint = timerColor,
+                        modifier = Modifier.size(16.dp)
+                    )
                     Text(
-                        text = "${currentIndex + 1}/${totalQuestions}",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        timeText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = timerColor,
+                        fontWeight = FontWeight.Bold
                     )
                 }
-
-                // Timer
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = timerColor.copy(alpha = 0.2f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Timer,
-                            contentDescription = "Timer",
-                            tint = timerColor,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            timeText,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = timerColor,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
             }
-        },
-        actions = {
+
             // View All Questions Button
             OutlinedButton(
                 onClick = onShowGrid,
-                modifier = Modifier.padding(end = 8.dp)
+                modifier = Modifier.height(32.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Icon(Icons.Default.GridView, "Lihat Semua", modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.GridView, "Lihat Semua", modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("전체")
+                Text("전체", fontSize = 12.sp)
             }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    )
+        }
+    }
 }
 
 @Composable
@@ -343,34 +339,33 @@ fun QuestionContentLandscape(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp)
+            .padding(12.dp)
     ) {
         // Question Number Badge
         Surface(
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(6.dp),
             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
         ) {
             Text(
                 text = "Set ${currentIndex + 1}",
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Question Text
         Text(
             text = question.questionText,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            lineHeight = 32.sp
+            lineHeight = 24.sp
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Media Content
         when (question.questionType) {
@@ -379,14 +374,14 @@ fun QuestionContentLandscape(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(8.dp)
                     ) {
                         AsyncImage(
                             model = url,
                             contentDescription = "Question Image",
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 300.dp),
+                                .heightIn(max = 200.dp),
                             contentScale = ContentScale.Fit
                         )
                     }
@@ -417,7 +412,7 @@ fun LandscapeAnswerOption(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected)
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
@@ -425,14 +420,14 @@ fun LandscapeAnswerOption(
                 MaterialTheme.colorScheme.surface
         ),
         border = if (isSelected)
-            androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.primary)
+            androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
         else
             androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Number Circle
@@ -442,12 +437,12 @@ fun LandscapeAnswerOption(
                     MaterialTheme.colorScheme.primary
                 else
                     MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(36.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text = letter,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = if (isSelected)
                             MaterialTheme.colorScheme.onPrimary
@@ -457,12 +452,12 @@ fun LandscapeAnswerOption(
                 }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             // Answer Text
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 modifier = Modifier.weight(1f)
             )
@@ -473,7 +468,7 @@ fun LandscapeAnswerOption(
                     Icons.Default.CheckCircle,
                     contentDescription = "Selected",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -496,34 +491,40 @@ fun NavigationButtons(
         OutlinedButton(
             onClick = onPrevious,
             enabled = currentIndex > 0,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .weight(1f)
+                .height(44.dp)
         ) {
-            Icon(Icons.Default.ChevronLeft, null, modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.ChevronLeft, null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text("이전", fontSize = 16.sp)
+            Text("이전", fontSize = 14.sp)
         }
 
         // Next or Finish Button
         if (currentIndex == totalQuestions - 1) {
             Button(
                 onClick = onFinish,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF4CAF50)
                 )
             ) {
-                Text("마감", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("마감", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(4.dp))
-                Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp))
             }
         } else {
             Button(
                 onClick = onNext,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
             ) {
-                Text("다음", fontSize = 16.sp)
+                Text("다음", fontSize = 14.sp)
                 Spacer(modifier = Modifier.width(4.dp))
-                Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -554,12 +555,12 @@ fun AudioPlayerCompact(url: String) {
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(8.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -569,7 +570,7 @@ fun AudioPlayerCompact(url: String) {
                     else mediaPlayer.start()
                     isPlaying = !isPlaying
                 },
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(48.dp)
             ) {
                 Surface(
                     shape = CircleShape,
@@ -583,16 +584,16 @@ fun AudioPlayerCompact(url: String) {
                             if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
             }
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
                     "오디오 문제",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
@@ -621,7 +622,7 @@ fun VideoPlayerCompact(url: String) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(8.dp)
     ) {
         AndroidView(
             factory = { ctx ->
@@ -629,7 +630,7 @@ fun VideoPlayerCompact(url: String) {
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp)
+                .height(150.dp)
         )
     }
 }
