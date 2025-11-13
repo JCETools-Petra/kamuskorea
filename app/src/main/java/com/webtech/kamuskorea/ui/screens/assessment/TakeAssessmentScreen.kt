@@ -1,9 +1,11 @@
 package com.webtech.kamuskorea.ui.screens.assessment
 
 import android.content.Context
+import android.content.pm.ActivityInfo
 import android.media.MediaPlayer
 import android.net.Uri
 import android.util.Log
+import androidx.activity.ComponentActivity
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
@@ -44,9 +47,20 @@ import kotlinx.coroutines.launch
 fun TakeAssessmentScreen(
     assessmentId: Int,
     assessmentTitle: String,
-    onFinish: () -> Unit, // ✅ PERUBAHAN: Hapus parameter
+    onFinish: () -> Unit,
     viewModel: AssessmentViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val activity = context as? ComponentActivity
+
+    // Force landscape orientation
+    DisposableEffect(Unit) {
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        onDispose {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
     val questions by viewModel.questions.collectAsState()
     val currentIndex by viewModel.currentQuestionIndex.collectAsState()
     val userAnswers by viewModel.userAnswers.collectAsState()
@@ -57,33 +71,28 @@ fun TakeAssessmentScreen(
     var showQuestionGrid by remember { mutableStateOf(false) }
     var showSubmitDialog by remember { mutableStateOf(false) }
 
-    // ===== TIMER STATES =====
-    val durationMinutes = remember { mutableStateOf(10) } // Default 10 minutes, will be updated from assessment
-    var timeRemaining by remember { mutableStateOf(durationMinutes.value * 60) } // in seconds
+    // Timer states
+    val durationMinutes = remember { mutableStateOf(10) }
+    var timeRemaining by remember { mutableStateOf(durationMinutes.value * 60) }
     var isTimerRunning by remember { mutableStateOf(false) }
 
     LaunchedEffect(assessmentId) {
         viewModel.startAssessment(assessmentId)
     }
 
-    // Start timer when questions are loaded
     LaunchedEffect(questions) {
         if (questions.isNotEmpty() && !isTimerRunning) {
             isTimerRunning = true
-            // You can get duration from assessment details if available
-            // For now using default 10 minutes
         }
     }
 
-    // ===== COUNTDOWN TIMER =====
     LaunchedEffect(isTimerRunning) {
         if (isTimerRunning) {
             while (timeRemaining > 0) {
                 delay(1000L)
                 timeRemaining--
             }
-            // Time's up - auto submit
-            if (timeRemaining == 0 && result == null) { // ✅ Pastikan belum submit
+            if (timeRemaining == 0 && result == null) {
                 Log.d("TakeAssessment", "⏰ Time's up! Auto-submitting...")
                 viewModel.submitAssessment(assessmentId)
                 isTimerRunning = false
@@ -91,98 +100,33 @@ fun TakeAssessmentScreen(
         }
     }
 
-    // Handle hasil submit
     LaunchedEffect(result) {
         result?.let {
-            Log.d("TakeAssessment", "✅ Result received: score=${it.score}, passed=${it.passed}")
+            Log.d("TakeAssessment", "✅ Result received")
             isTimerRunning = false
-            onFinish() // ✅ PERUBAHAN: Panggil tanpa parameter
-        }
-    }
-
-    // Debug log untuk questions
-    LaunchedEffect(questions) {
-        if (questions.isNotEmpty()) {
-            Log.d("TakeAssessment", "📝 Questions loaded: ${questions.size}")
-            questions.forEachIndexed { index, q ->
-                Log.d("TakeAssessment", "Q${index + 1}: ${q.questionText}")
-                Log.d("TakeAssessment", "  A: ${q.optionA}")
-                Log.d("TakeAssessment", "  B: ${q.optionB}")
-            }
-        }
-    }
-
-    // Handle error
-    LaunchedEffect(error) {
-        error?.let {
-            Log.e("TakeAssessment", "❌ Error: $it")
-            // Hentikan timer jika ada error load soal
-            if (questions.isEmpty()) {
-                isTimerRunning = false
-            }
+            onFinish()
         }
     }
 
     val currentQuestion = questions.getOrNull(currentIndex)
-
-    // Format time as MM:SS
     val minutes = timeRemaining / 60
     val seconds = timeRemaining % 60
     val timeText = String.format("%02d:%02d", minutes, seconds)
-
-    // Color based on time remaining
     val timerColor = when {
-        timeRemaining > 120 -> Color(0xFF4CAF50) // Green
-        timeRemaining > 60 -> Color(0xFFFF9800) // Orange
-        else -> Color(0xFFF44336) // Red
+        timeRemaining > 120 -> Color(0xFF4CAF50)
+        timeRemaining > 60 -> Color(0xFFFF9800)
+        else -> Color(0xFFF44336)
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(assessmentTitle, style = MaterialTheme.typography.titleMedium)
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                "Soal ${currentIndex + 1} dari ${questions.size}",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            // TIMER DISPLAY
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = timerColor.copy(alpha = 0.2f)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Timer,
-                                        contentDescription = "Timer",
-                                        tint = timerColor,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        timeText,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = timerColor,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showQuestionGrid = true }) {
-                        Icon(Icons.Default.GridView, "Lihat Semua Soal")
-                    }
-                }
+            LandscapeTopBar(
+                assessmentTitle = assessmentTitle,
+                currentIndex = currentIndex,
+                totalQuestions = questions.size,
+                timeText = timeText,
+                timerColor = timerColor,
+                onShowGrid = { showQuestionGrid = true }
             )
         }
     ) { padding ->
@@ -192,128 +136,90 @@ fun TakeAssessmentScreen(
                 .padding(padding)
         ) {
             when {
-                // ✅ PERUBAHAN: Tampilkan loading HANYA jika result masih null
                 isLoading && result == null -> {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(16.dp))
-                        // Tampilkan teks berbeda saat load soal vs submit
-                        if (questions.isEmpty()) {
-                            Text("Memuat soal...")
-                        } else {
-                            Text("Mengirim jawaban...")
-                        }
-                    }
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 error != null -> {
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            Icons.Default.Error,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            error ?: "Terjadi kesalahan",
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { viewModel.startAssessment(assessmentId) }) {
-                            Text("Coba Lagi")
-                        }
-                    }
+                    ErrorContent(
+                        error = error,
+                        onRetry = { viewModel.startAssessment(assessmentId) }
+                    )
                 }
                 currentQuestion != null -> {
-                    Column(
+                    // LANDSCAPE LAYOUT: Soal di KIRI, Jawaban di KANAN
+                    Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp)
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Progress bar
-                        val progress = (currentIndex + 1).toFloat() / questions.size
-                        LinearProgressIndicator(
-                            progress = { progress },
+                        // LEFT SIDE: Question Content (40% width)
+                        Card(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(RoundedCornerShape(4.dp)),
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Question content with scroll
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .verticalScroll(rememberScrollState())
+                                .weight(0.4f)
+                                .fillMaxHeight(),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                            shape = RoundedCornerShape(16.dp)
                         ) {
-                            QuestionContent(
+                            QuestionContentLandscape(
                                 question = currentQuestion,
-                                selectedAnswer = userAnswers[currentQuestion.id],
-                                onAnswerSelected = { answer ->
-                                    viewModel.saveAnswer(currentQuestion.id, answer)
-                                }
+                                currentIndex = currentIndex,
+                                totalQuestions = questions.size
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Navigation buttons
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        // RIGHT SIDE: Answer Options + Navigation (60% width)
+                        Column(
+                            modifier = Modifier
+                                .weight(0.6f)
+                                .fillMaxHeight()
                         ) {
-                            OutlinedButton(
-                                onClick = { viewModel.previousQuestion() },
-                                enabled = currentIndex > 0
+                            // Answer Options
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                                shape = RoundedCornerShape(16.dp)
                             ) {
-                                Icon(Icons.Default.ChevronLeft, null)
-                                Text("Sebelumnya")
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(20.dp)
+                                        .verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    currentQuestion.getOptions().forEach { (letter, text) ->
+                                        LandscapeAnswerOption(
+                                            letter = letter,
+                                            text = text,
+                                            isSelected = userAnswers[currentQuestion.id] == letter,
+                                            onClick = {
+                                                viewModel.saveAnswer(currentQuestion.id, letter)
+                                            }
+                                        )
+                                    }
+                                }
                             }
 
-                            if (currentIndex == questions.size - 1) {
-                                Button(onClick = { showSubmitDialog = true }) {
-                                    Text("Selesai")
-                                    Icon(Icons.Default.Check, null)
-                                }
-                            } else {
-                                Button(onClick = { viewModel.nextQuestion() }) {
-                                    Text("Selanjutnya")
-                                    Icon(Icons.Default.ChevronRight, null)
-                                }
-                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Navigation Buttons
+                            NavigationButtons(
+                                currentIndex = currentIndex,
+                                totalQuestions = questions.size,
+                                onPrevious = { viewModel.previousQuestion() },
+                                onNext = { viewModel.nextQuestion() },
+                                onFinish = { showSubmitDialog = true }
+                            )
                         }
-                    }
-                }
-                else -> {
-                    // Ini terjadi jika questions KOSONG dan tidak loading/error
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            "Tidak ada soal tersedia untuk assessment ini.",
-                            textAlign = TextAlign.Center
-                        )
                     }
                 }
             }
         }
     }
 
-    // Dialog grid navigasi soal
+    // Question Grid Dialog
     if (showQuestionGrid) {
         QuestionGridDialog(
             questions = questions,
@@ -327,128 +233,175 @@ fun TakeAssessmentScreen(
         )
     }
 
-    // Dialog konfirmasi submit
+    // Submit Dialog
     if (showSubmitDialog) {
-        val answeredCount = userAnswers.size
-        val totalQuestions = questions.size
-        val unansweredCount = totalQuestions - answeredCount
-
-        AlertDialog(
-            onDismissRequest = { showSubmitDialog = false },
-            title = { Text("Selesaikan Ujian?") },
-            text = {
-                Column {
-                    Text("Total Soal: $totalQuestions")
-                    Text("Terjawab: $answeredCount")
-                    if (unansweredCount > 0) {
-                        Text(
-                            "Belum Dijawab: $unansweredCount",
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Waktu tersisa: $timeText",
-                        fontWeight = FontWeight.Bold,
-                        color = timerColor
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        if (unansweredCount > 0)
-                            "Masih ada soal yang belum dijawab. Yakin ingin menyelesaikan?"
-                        else
-                            "Yakin ingin menyelesaikan ujian?",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
+        SubmitConfirmationDialog(
+            answeredCount = userAnswers.size,
+            totalQuestions = questions.size,
+            timeText = timeText,
+            timerColor = timerColor,
+            onConfirm = {
+                showSubmitDialog = false
+                isTimerRunning = false
+                viewModel.submitAssessment(assessmentId)
             },
-            confirmButton = {
-                Button(onClick = {
-                    showSubmitDialog = false
-                    isTimerRunning = false
-                    Log.d("TakeAssessment", "📤 Submitting assessment...")
-                    viewModel.submitAssessment(assessmentId)
-                }) {
-                    Text("Ya, Selesaikan")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSubmitDialog = false }) {
-                    Text("Batal")
-                }
-            }
+            onDismiss = { showSubmitDialog = false }
         )
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QuestionContent(
-    question: Question,
-    selectedAnswer: String?,
-    onAnswerSelected: (String) -> Unit
+fun LandscapeTopBar(
+    assessmentTitle: String,
+    currentIndex: Int,
+    totalQuestions: Int,
+    timeText: String,
+    timerColor: Color,
+    onShowGrid: () -> Unit
 ) {
-    Column {
-        // Media content
+    TopAppBar(
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = assessmentTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Progress Indicator
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Text(
+                        text = "${currentIndex + 1}/${totalQuestions}",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+
+                // Timer
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = timerColor.copy(alpha = 0.2f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Timer,
+                            contentDescription = "Timer",
+                            tint = timerColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            timeText,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = timerColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        },
+        actions = {
+            // View All Questions Button
+            OutlinedButton(
+                onClick = onShowGrid,
+                modifier = Modifier.padding(end = 8.dp)
+            ) {
+                Icon(Icons.Default.GridView, "Lihat Semua", modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("전체")
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    )
+}
+
+@Composable
+fun QuestionContentLandscape(
+    question: Question,
+    currentIndex: Int,
+    totalQuestions: Int
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp)
+    ) {
+        // Question Number Badge
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+        ) {
+            Text(
+                text = "Set ${currentIndex + 1}",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Question Text
+        Text(
+            text = question.questionText,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            lineHeight = 32.sp
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Media Content
         when (question.questionType) {
             "image" -> {
                 question.mediaUrl?.let { url ->
-                    AsyncImage(
-                        model = url,
-                        contentDescription = "Question Image",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 300.dp)
-                            .clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Fit
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        AsyncImage(
+                            model = url,
+                            contentDescription = "Question Image",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 300.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
                 }
             }
             "audio" -> {
                 question.mediaUrl?.let { url ->
-                    AudioPlayer(url)
-                    Spacer(modifier = Modifier.height(16.dp))
+                    AudioPlayerCompact(url)
                 }
             }
             "video" -> {
                 question.mediaUrl?.let { url ->
-                    VideoPlayer(url)
-                    Spacer(modifier = Modifier.height(16.dp))
+                    VideoPlayerCompact(url)
                 }
             }
-        }
-
-        // Question text
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        ) {
-            Text(
-                text = question.questionText,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(16.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Options
-        question.getOptions().forEach { (letter, text) ->
-            AnswerOption(
-                letter = letter,
-                text = text,
-                isSelected = selectedAnswer == letter,
-                onClick = { onAnswerSelected(letter) }
-            )
-            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
 
 @Composable
-fun AnswerOption(
+fun LandscapeAnswerOption(
     letter: String,
     text: String,
     isSelected: Boolean,
@@ -461,83 +414,141 @@ fun AnswerOption(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected)
-                MaterialTheme.colorScheme.primaryContainer
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
             else
                 MaterialTheme.colorScheme.surface
         ),
         border = if (isSelected)
-            androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-        else null
+            androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.primary)
+        else
+            androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Number Circle
             Surface(
                 shape = CircleShape,
                 color = if (isSelected)
                     MaterialTheme.colorScheme.primary
                 else
                     MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(44.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text = letter,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isSelected)
+                            MaterialTheme.colorScheme.onPrimary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(12.dp))
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Answer Text
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 modifier = Modifier.weight(1f)
             )
+
+            // Check Icon
+            if (isSelected) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
         }
     }
 }
 
 @Composable
-fun AudioPlayer(url: String) {
+fun NavigationButtons(
+    currentIndex: Int,
+    totalQuestions: Int,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onFinish: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Previous Button
+        OutlinedButton(
+            onClick = onPrevious,
+            enabled = currentIndex > 0,
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(Icons.Default.ChevronLeft, null, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text("이전", fontSize = 16.sp)
+        }
+
+        // Next or Finish Button
+        if (currentIndex == totalQuestions - 1) {
+            Button(
+                onClick = onFinish,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4CAF50)
+                )
+            ) {
+                Text("마감", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
+            }
+        } else {
+            Button(
+                onClick = onNext,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("다음", fontSize = 16.sp)
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun AudioPlayerCompact(url: String) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
-    val mediaPlayer = remember(url) { // ✅ Tambahkan `url` sebagai key
+    val mediaPlayer = remember(url) {
         MediaPlayer().apply {
             try {
                 setDataSource(url)
                 prepareAsync()
-                setOnPreparedListener {
-                    Log.d("AudioPlayer", "Audio siap")
-                }
-                setOnCompletionListener {
-                    isPlaying = false
-                    Log.d("AudioPlayer", "Audio selesai")
-                }
-                setOnErrorListener { _, _, _ ->
-                    Log.e("AudioPlayer", "Error memutar audio")
-                    isPlaying = false
-                    true
-                }
+                setOnCompletionListener { isPlaying = false }
             } catch (e: Exception) {
-                Log.e("AudioPlayer", "Error setDataSource", e)
+                Log.e("AudioPlayer", "Error", e)
             }
         }
     }
 
-    DisposableEffect(url) { // ✅ Gunakan `url` sebagai key
-        onDispose {
-            mediaPlayer.release()
-        }
+    DisposableEffect(url) {
+        onDispose { mediaPlayer.release() }
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
+        ),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
             modifier = Modifier
@@ -548,52 +559,143 @@ fun AudioPlayer(url: String) {
         ) {
             IconButton(
                 onClick = {
-                    if (isPlaying) {
-                        mediaPlayer.pause()
-                    } else {
-                        mediaPlayer.start()
-                    }
+                    if (isPlaying) mediaPlayer.pause()
+                    else mediaPlayer.start()
                     isPlaying = !isPlaying
-                }
+                },
+                modifier = Modifier.size(64.dp)
             ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    modifier = Modifier.size(48.dp)
-                )
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
             }
             Spacer(modifier = Modifier.width(16.dp))
-            Text("Audio Soal", style = MaterialTheme.typography.titleMedium)
+            Column {
+                Text(
+                    "오디오 문제",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "재생하려면 누르세요",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                )
+            }
         }
     }
 }
 
 @Composable
-fun VideoPlayer(url: String) {
+fun VideoPlayerCompact(url: String) {
     val context = LocalContext.current
-    val exoPlayer = remember(url) { // ✅ Tambahkan `url` sebagai key
+    val exoPlayer = remember(url) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(Uri.parse(url)))
             prepare()
         }
     }
 
-    DisposableEffect(url) { // ✅ Gunakan `url` sebagai key
-        onDispose {
-            exoPlayer.release()
-        }
+    DisposableEffect(url) {
+        onDispose { exoPlayer.release() }
     }
 
-    AndroidView(
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                player = exoPlayer
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply { player = exoPlayer }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+        )
+    }
+}
+
+@Composable
+fun ErrorContent(error: String?, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            Icons.Default.Error,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(64.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            error ?: "Terjadi kesalahan",
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text("다시 시도")
+        }
+    }
+}
+
+@Composable
+fun SubmitConfirmationDialog(
+    answeredCount: Int,
+    totalQuestions: Int,
+    timeText: String,
+    timerColor: Color,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val unansweredCount = totalQuestions - answeredCount
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("시험을 제출하시겠습니까?") },
+        text = {
+            Column {
+                Text("총 문제: $totalQuestions")
+                Text("답변함: $answeredCount")
+                if (unansweredCount > 0) {
+                    Text(
+                        "미답변: $unansweredCount",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "남은 시간: $timeText",
+                    fontWeight = FontWeight.Bold,
+                    color = timerColor
+                )
             }
         },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp)
-            .clip(RoundedCornerShape(12.dp))
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("네, 제출")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
     )
 }
 
@@ -607,13 +709,15 @@ fun QuestionGridDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Navigasi Soal") },
+        title = { Text("문제 탐색") },
         text = {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(5),
+                columns = GridCells.Fixed(6),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth() // ✅ Tambahkan modifier
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp)
             ) {
                 itemsIndexed(questions) { index, question ->
                     val isAnswered = userAnswers.containsKey(question.id)
@@ -643,7 +747,7 @@ fun QuestionGridDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Tutup")
+                Text("닫기")
             }
         }
     )
