@@ -70,6 +70,7 @@ fun TakeAssessmentScreen(
 
     var showQuestionGrid by remember { mutableStateOf(false) }
     var showSubmitDialog by remember { mutableStateOf(false) }
+    var showExitDialog by remember { mutableStateOf(false) }
 
     // Timer states
     val durationMinutes = remember { mutableStateOf(10) }
@@ -132,7 +133,8 @@ fun TakeAssessmentScreen(
                 totalQuestions = questions.size,
                 timeText = timeText,
                 timerColor = timerColor,
-                onShowGrid = { showQuestionGrid = true }
+                onShowGrid = { showQuestionGrid = true },
+                onExit = { showExitDialog = true }
             )
         }
     ) { padding ->
@@ -253,6 +255,20 @@ fun TakeAssessmentScreen(
             onDismiss = { showSubmitDialog = false }
         )
     }
+
+    // Exit Dialog
+    if (showExitDialog) {
+        ExitConfirmationDialog(
+            answeredCount = userAnswers.size,
+            totalQuestions = questions.size,
+            onConfirm = {
+                showExitDialog = false
+                isTimerRunning = false
+                onFinish()
+            },
+            onDismiss = { showExitDialog = false }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -263,7 +279,8 @@ fun LandscapeTopBar(
     totalQuestions: Int,
     timeText: String,
     timerColor: Color,
-    onShowGrid: () -> Unit
+    onShowGrid: () -> Unit,
+    onExit: () -> Unit
 ) {
     // Compact TopBar - hide title to save space
     Surface(
@@ -274,10 +291,23 @@ fun LandscapeTopBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Exit Button
+            IconButton(
+                onClick = onExit,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Keluar",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
             // Progress Indicator
             Surface(
                 shape = RoundedCornerShape(6.dp),
@@ -290,6 +320,8 @@ fun LandscapeTopBar(
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                 )
             }
+
+            Spacer(modifier = Modifier.weight(1f))
 
             // Timer
             Surface(
@@ -705,6 +737,76 @@ fun SubmitConfirmationDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("취소")
+            }
+        }
+    )
+}
+
+@Composable
+fun ExitConfirmationDialog(
+    answeredCount: Int,
+    totalQuestions: Int,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(48.dp)
+            )
+        },
+        title = {
+            Text(
+                "Keluar dari Ujian?",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    "⚠️ Peringatan:",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("• Semua jawaban yang sudah Anda pilih akan HILANG")
+                Text("• Ujian ini akan DIBATALKAN")
+                Text("• Anda harus mengulang dari awal jika ingin mengerjakan lagi")
+
+                if (answeredCount > 0) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "Anda sudah menjawab $answeredCount dari $totalQuestions soal",
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "Apakah Anda yakin ingin keluar?",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Ya, Keluar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Tidak, Lanjutkan Ujian")
             }
         }
     )
