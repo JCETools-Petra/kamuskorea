@@ -156,8 +156,8 @@ fun TakeAssessmentScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         // LEFT SIDE: Question Content (35% width)
                         Card(
@@ -165,7 +165,7 @@ fun TakeAssessmentScreen(
                                 .weight(0.35f)
                                 .fillMaxHeight(),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(8.dp)
                         ) {
                             QuestionContentLandscape(
                                 question = currentQuestion,
@@ -186,13 +186,13 @@ fun TakeAssessmentScreen(
                                     .fillMaxWidth()
                                     .weight(1f),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(8.dp)
                             ) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        .padding(8.dp),
+                                    verticalArrangement = Arrangement.SpaceEvenly
                                 ) {
                                     currentQuestion.getOptions().forEach { (letter, text) ->
                                         LandscapeAnswerOption(
@@ -207,7 +207,7 @@ fun TakeAssessmentScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
                             // Navigation Buttons
                             NavigationButtons(
@@ -339,7 +339,7 @@ fun QuestionContentLandscape(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(12.dp)
+            .padding(10.dp)
     ) {
         // Question Number Badge
         Surface(
@@ -348,24 +348,24 @@ fun QuestionContentLandscape(
         ) {
             Text(
                 text = "Set ${currentIndex + 1}",
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         // Question Text
         Text(
             text = question.questionText,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            lineHeight = 24.sp
+            lineHeight = 22.sp
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Media Content
         when (question.questionType) {
@@ -374,14 +374,14 @@ fun QuestionContentLandscape(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(6.dp)
                     ) {
                         AsyncImage(
                             model = url,
                             contentDescription = "Question Image",
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 200.dp),
+                                .heightIn(max = 180.dp),
                             contentScale = ContentScale.Fit
                         )
                     }
@@ -412,7 +412,7 @@ fun LandscapeAnswerOption(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected)
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
@@ -427,7 +427,7 @@ fun LandscapeAnswerOption(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
+                .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Number Circle
@@ -437,12 +437,12 @@ fun LandscapeAnswerOption(
                     MaterialTheme.colorScheme.primary
                 else
                     MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(32.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text = letter,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         color = if (isSelected)
                             MaterialTheme.colorScheme.onPrimary
@@ -452,14 +452,15 @@ fun LandscapeAnswerOption(
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
             // Answer Text
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                maxLines = 2
             )
 
             // Check Icon
@@ -468,7 +469,7 @@ fun LandscapeAnswerOption(
                     Icons.Default.CheckCircle,
                     contentDescription = "Selected",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -493,11 +494,12 @@ fun NavigationButtons(
             enabled = currentIndex > 0,
             modifier = Modifier
                 .weight(1f)
-                .height(44.dp)
+                .height(38.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
         ) {
-            Icon(Icons.Default.ChevronLeft, null, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.ChevronLeft, null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text("이전", fontSize = 14.sp)
+            Text("이전", fontSize = 13.sp)
         }
 
         // Next or Finish Button
@@ -506,25 +508,27 @@ fun NavigationButtons(
                 onClick = onFinish,
                 modifier = Modifier
                     .weight(1f)
-                    .height(44.dp),
+                    .height(38.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF4CAF50)
-                )
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Text("마감", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text("마감", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(4.dp))
-                Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
             }
         } else {
             Button(
                 onClick = onNext,
                 modifier = Modifier
                     .weight(1f)
-                    .height(44.dp)
+                    .height(38.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Text("다음", fontSize = 14.sp)
+                Text("다음", fontSize = 13.sp)
                 Spacer(modifier = Modifier.width(4.dp))
-                Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(16.dp))
             }
         }
     }
