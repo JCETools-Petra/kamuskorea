@@ -56,7 +56,7 @@ fun AssessmentMainScreen(
 
         // Exam Card
         AssessmentTypeCard(
-            title = "Ujian",
+            title = "UBT",
             description = "Ujian lengkap dengan berbagai jenis soal",
             icon = Icons.Default.Assignment,
             gradient = listOf(Color(0xFFF093FB), Color(0xFFF5576C)),
