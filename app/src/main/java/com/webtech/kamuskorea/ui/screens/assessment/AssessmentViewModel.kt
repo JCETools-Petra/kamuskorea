@@ -273,4 +273,15 @@ class AssessmentViewModel @Inject constructor(
         _error.value = null
         Log.d("AssessmentVM", "🧹 Error cleared")
     }
+
+    // Reset assessment state (untuk cancel/keluar dari ujian)
+    fun resetAssessment() {
+        _questions.value = emptyList()
+        _currentQuestionIndex.value = 0
+        _userAnswers.value = emptyMap()
+        _assessmentResult.value = null
+        _error.value = null
+        _startTime.value = 0L
+        Log.d("AssessmentVM", "🔄 Assessment state reset")
+    }
 }

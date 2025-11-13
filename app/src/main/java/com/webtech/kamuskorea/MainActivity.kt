@@ -510,8 +510,12 @@ fun MainApp(
                                 }
                             },
                             onExit = {
+                                // Reset semua state assessment yang sedang berjalan
+                                assessmentViewModel.resetAssessment()
+                                // Clear back stack dan kembali ke halaman pilihan assessment
                                 navController.navigate(Screen.Quiz.route) {
-                                    popUpTo("assessment_graph") { inclusive = false }
+                                    popUpTo(Screen.Quiz.route) { inclusive = true }
+                                    launchSingleTop = true
                                 }
                             },
                             viewModel = assessmentViewModel
