@@ -289,6 +289,7 @@ fun MainApp(
     val isPdfViewerScreen = currentRoute?.startsWith("pdf_viewer/") == true
     val isHomeScreen = currentRoute == Screen.Home.route
     val isAssessmentFlow = currentRoute?.startsWith("assessment/") == true || currentRoute == Screen.Quiz.route
+    val isTakingAssessment = currentRoute?.startsWith("assessment/take/") == true
 
     // `isAuthScreen` tidak ada lagi di sini
 
@@ -395,8 +396,8 @@ fun MainApp(
     ) {
         Scaffold(
             topBar = {
-                // ✅ DIPERBARUI: `isAuthScreen` dihilangkan
-                if (!isHomeScreen) {
+                // ✅ DIPERBARUI: Sembunyikan TopAppBar saat mengerjakan ujian
+                if (!isHomeScreen && !isTakingAssessment) {
                     TopAppBar(
                         title = { Text(currentTitle) },
                         navigationIcon = {
