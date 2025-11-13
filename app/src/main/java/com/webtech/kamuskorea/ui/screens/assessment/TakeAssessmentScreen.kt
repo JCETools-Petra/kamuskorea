@@ -749,67 +749,105 @@ fun ExitConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                Icons.Default.Warning,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(48.dp)
-            )
-        },
-        title = {
-            Text(
-                "Keluar dari Ujian?",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column {
-                Text(
-                    "⚠️ Peringatan:",
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.error
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                // Icon
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .align(Alignment.CenterHorizontally)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("• Semua jawaban yang sudah Anda pilih akan HILANG")
-                Text("• Ujian ini akan DIBATALKAN")
-                Text("• Anda harus mengulang dari awal jika ingin mengerjakan lagi")
 
-                if (answeredCount > 0) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Title
+                Text(
+                    "Keluar dari Ujian?",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Content
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        "⚠️ Peringatan:",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("• Semua jawaban yang sudah Anda pilih akan HILANG")
+                    Text("• Ujian ini akan DIBATALKAN")
+                    Text("• Anda harus mengulang dari awal jika ingin mengerjakan lagi")
+
+                    if (answeredCount > 0) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "Anda sudah menjawab $answeredCount dari $totalQuestions soal",
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        "Anda sudah menjawab $answeredCount dari $totalQuestions soal",
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
+                        "Apakah Anda yakin ingin keluar?",
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    "Apakah Anda yakin ingin keluar?",
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text("Ya, Keluar")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Tidak, Lanjutkan Ujian")
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Buttons - Horizontal Layout
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Cancel Button
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Tidak, Lanjutkan")
+                    }
+
+                    // Confirm Button
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Ya, Keluar")
+                    }
+                }
             }
         }
-    )
+    }
 }
 
 @Composable
