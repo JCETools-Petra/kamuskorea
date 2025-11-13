@@ -48,6 +48,7 @@ fun TakeAssessmentScreen(
     assessmentId: Int,
     assessmentTitle: String,
     onFinish: () -> Unit,
+    onExit: () -> Unit = onFinish,
     viewModel: AssessmentViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -264,7 +265,7 @@ fun TakeAssessmentScreen(
             onConfirm = {
                 showExitDialog = false
                 isTimerRunning = false
-                onFinish()
+                onExit()
             },
             onDismiss = { showExitDialog = false }
         )

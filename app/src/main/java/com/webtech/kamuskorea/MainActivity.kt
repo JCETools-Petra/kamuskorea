@@ -509,6 +509,11 @@ fun MainApp(
                                     popUpTo(backStackEntry.destination.route!!) { inclusive = true }
                                 }
                             },
+                            onExit = {
+                                navController.navigate(Screen.Quiz.route) {
+                                    popUpTo("assessment_graph") { inclusive = false }
+                                }
+                            },
                             viewModel = assessmentViewModel
                         )
                     }
