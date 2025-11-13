@@ -77,7 +77,13 @@ fun TakeAssessmentScreen(
     var isTimerRunning by remember { mutableStateOf(false) }
 
     LaunchedEffect(assessmentId) {
-        viewModel.startAssessment(assessmentId)
+        // Only start assessment if questions are not already loaded
+        if (questions.isEmpty() && !isLoading && error == null) {
+            Log.d("TakeAssessment", "🚀 Starting assessment for ID: $assessmentId")
+            viewModel.startAssessment(assessmentId)
+        } else {
+            Log.d("TakeAssessment", "⏭️ Skipping startAssessment - questions already loaded or loading in progress")
+        }
     }
 
     LaunchedEffect(questions) {
