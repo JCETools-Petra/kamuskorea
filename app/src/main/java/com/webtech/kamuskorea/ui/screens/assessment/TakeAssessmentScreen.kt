@@ -48,6 +48,7 @@ fun TakeAssessmentScreen(
     assessmentId: Int,
     assessmentTitle: String,
     onFinish: () -> Unit,
+    onExit: () -> Unit = onFinish,
     viewModel: AssessmentViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -264,7 +265,7 @@ fun TakeAssessmentScreen(
             onConfirm = {
                 showExitDialog = false
                 isTimerRunning = false
-                onFinish()
+                onExit()
             },
             onDismiss = { showExitDialog = false }
         )
@@ -801,61 +802,18 @@ fun ExitConfirmationDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Content
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 200.dp)
-                        .verticalScroll(rememberScrollState())
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp)
-                        ) {
-                            Text(
-                                "⚠️ Peringatan:",
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.titleSmall
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "• Semua jawaban akan HILANG",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                "• Ujian akan DIBATALKAN",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                "• Harus mengulang dari awal",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-
-                    if (answeredCount > 0) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                "Anda sudah menjawab $answeredCount dari $totalQuestions soal",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(12.dp)
-                            )
-                        }
-                    }
+                    Text(
+                        "Ujian anda akan dibatalkan.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(16.dp)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
