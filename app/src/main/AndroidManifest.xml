@@ -38,6 +38,13 @@
             android:enabled="true"
             android:exported="false" />
 
+        <!-- AdMob App ID -->
+        <!-- IMPORTANT: Ganti dengan AdMob App ID Anda sendiri setelah mendaftar di https://admob.google.com -->
+        <!-- Untuk testing, gunakan test app ID ini: ca-app-pub-3940256099942544~3347511713 -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713"/>
+
     </application>
 
 </manifest>

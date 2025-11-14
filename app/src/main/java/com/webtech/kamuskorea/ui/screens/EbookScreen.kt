@@ -32,53 +32,65 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.webtech.kamuskorea.data.Ebook
 import com.webtech.kamuskorea.ui.screens.ebook.EbookViewModel
+import com.webtech.kamuskorea.ads.BannerAdView
 
 @Composable
 fun EbookScreen(
     viewModel: EbookViewModel = hiltViewModel(),
     onNavigateToPdf: (String, String) -> Unit,
-    onNavigateToPremiumLock: () -> Unit
+    onNavigateToPremiumLock: () -> Unit,
+    isPremium: Boolean = false
 ) {
     val ebooks by viewModel.ebooks.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        if (isLoading) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-        }
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Main content
+        Box(modifier = Modifier.weight(1f)) {
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
 
-        errorMessage?.let { message ->
-            Text(
-                text = message,
-                color = MaterialTheme.colorScheme.error, // M3: colorScheme
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .align(Alignment.Center)
-            )
-        }
-
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(items = ebooks, key = { it.id }) { ebook ->
-                EbookItem(
-                    ebook = ebook,
-                    onClick = {
-                        if (ebook.pdfUrl.isNotEmpty()) {
-                            onNavigateToPdf(Uri.encode(ebook.pdfUrl), ebook.title)
-                        } else if (ebook.isPremium) {
-                            onNavigateToPremiumLock()
-                        }
-                    }
+            errorMessage?.let { message ->
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.error, // M3: colorScheme
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .align(Alignment.Center)
                 )
             }
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(items = ebooks, key = { it.id }) { ebook ->
+                    EbookItem(
+                        ebook = ebook,
+                        onClick = {
+                            if (ebook.pdfUrl.isNotEmpty()) {
+                                onNavigateToPdf(Uri.encode(ebook.pdfUrl), ebook.title)
+                            } else if (ebook.isPremium) {
+                                onNavigateToPremiumLock()
+                            }
+                        }
+                    )
+                }
+            }
+        }
+
+        // Banner Ad di bagian bawah (hanya untuk non-premium user)
+        if (!isPremium) {
+            BannerAdView(
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
