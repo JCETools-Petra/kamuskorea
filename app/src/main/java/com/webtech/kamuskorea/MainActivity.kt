@@ -140,7 +140,9 @@ class MainActivity : ComponentActivity() {
                                 MainApp(
                                     firebaseAuth = firebaseAuth,
                                     isPremium = isPremium,
-                                    settingsViewModel = settingsViewModel
+                                    settingsViewModel = settingsViewModel,
+                                    adManager = adManager,
+                                    activity = this@MainActivity
                                 )
                             } else {
                                 // --- PENGGUNA BELUM LOGIN ---
@@ -248,7 +250,9 @@ data class NavItem(
 fun MainApp(
     firebaseAuth: FirebaseAuth,
     isPremium: Boolean,
-    settingsViewModel: SettingsViewModel = hiltViewModel() // Ambil VM di sini
+    settingsViewModel: SettingsViewModel = hiltViewModel(), // Ambil VM di sini
+    adManager: AdManager,
+    activity: ComponentActivity
 ) {
     val strings = LocalStrings.current
 
@@ -606,17 +610,13 @@ fun MainApp(
                     val pdfUrl = backStackEntry.arguments?.getString("pdfUrl")?.let { Uri.decode(it) }
                     val title = backStackEntry.arguments?.getString("title")
                     if (pdfUrl != null && title != null) {
-                        // Capture activity and adManager reference untuk digunakan dalam composable
-                        val activity = this@MainActivity
-                        val adMgr = adManager
-
                         // State untuk track apakah ad sudah ditampilkan/dismissed
                         var adDismissed by remember { mutableStateOf(false) }
 
                         // Show ad saat pertama kali masuk (jika bukan premium user)
                         LaunchedEffect(pdfUrl) {
                             if (!isPremium && !adDismissed) {
-                                adMgr.showInterstitialAd(
+                                adManager.showInterstitialAd(
                                     activity = activity,
                                     onAdDismissed = {
                                         adDismissed = true
