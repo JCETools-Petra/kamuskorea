@@ -606,14 +606,18 @@ fun MainApp(
                     val pdfUrl = backStackEntry.arguments?.getString("pdfUrl")?.let { Uri.decode(it) }
                     val title = backStackEntry.arguments?.getString("title")
                     if (pdfUrl != null && title != null) {
+                        // Capture activity and adManager reference untuk digunakan dalam composable
+                        val activity = this@MainActivity
+                        val adMgr = adManager
+
                         // State untuk track apakah ad sudah ditampilkan/dismissed
                         var adDismissed by remember { mutableStateOf(false) }
 
                         // Show ad saat pertama kali masuk (jika bukan premium user)
                         LaunchedEffect(pdfUrl) {
                             if (!isPremium && !adDismissed) {
-                                adManager.showInterstitialAd(
-                                    activity = this@MainActivity,
+                                adMgr.showInterstitialAd(
+                                    activity = activity,
                                     onAdDismissed = {
                                         adDismissed = true
                                     }

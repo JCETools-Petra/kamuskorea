@@ -27,9 +27,9 @@ class KamusKoreaApp : Application() {
         // Setup test devices untuk development (opsional, untuk testing)
         if (BuildConfig.DEBUG) {
             val testDeviceIds = listOf(
-                RequestConfiguration.TEST_DEVICE_ID_EMULATOR
+                "EMULATOR" // Emulator akan otomatis terdeteksi sebagai test device
                 // Tambahkan device ID Anda di sini jika perlu untuk testing
-                // "YOUR_TEST_DEVICE_ID"
+                // Lihat logcat untuk "Use RequestConfiguration.Builder().setTestDeviceIds()" untuk mendapatkan ID
             )
             val configuration = RequestConfiguration.Builder()
                 .setTestDeviceIds(testDeviceIds)
