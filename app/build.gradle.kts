@@ -111,6 +111,9 @@ dependencies {
     // Google Sign-In
     implementation("com.google.android.gms:play-services-auth:21.2.0")
 
+    // Google AdMob
+    implementation("com.google.android.gms:play-services-ads:23.0.0")
+
     // Hilt Dependency Injection
     implementation("com.google.dagger:hilt-android:2.51.1")
     ksp("com.google.dagger:hilt-compiler:2.51.1")

@@ -2,6 +2,8 @@ package com.webtech.kamuskorea
 
 import android.app.Application
 import android.util.Log
+import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.ads.RequestConfiguration
 import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
@@ -16,6 +18,25 @@ class KamusKoreaApp : Application() {
 
         // Inisialisasi Firebase
         FirebaseApp.initializeApp(this)
+
+        // Inisialisasi Google AdMob
+        MobileAds.initialize(this) { initializationStatus ->
+            Log.d("AdMob", "✅ AdMob initialized: ${initializationStatus.adapterStatusMap}")
+        }
+
+        // Setup test devices untuk development (opsional, untuk testing)
+        if (BuildConfig.DEBUG) {
+            val testDeviceIds = listOf(
+                RequestConfiguration.TEST_DEVICE_ID_EMULATOR
+                // Tambahkan device ID Anda di sini jika perlu untuk testing
+                // "YOUR_TEST_DEVICE_ID"
+            )
+            val configuration = RequestConfiguration.Builder()
+                .setTestDeviceIds(testDeviceIds)
+                .build()
+            MobileAds.setRequestConfiguration(configuration)
+            Log.d("AdMob", "⚠️ Test mode enabled for development")
+        }
 
         // Dapatkan instance FirebaseAppCheck
         val firebaseAppCheck = FirebaseAppCheck.getInstance()

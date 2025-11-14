@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.webtech.kamuskorea.ads.BannerAdView
 
 /**
  * Screen utama untuk memilih jenis assessment (Quiz atau Ujian)
@@ -22,7 +23,8 @@ import androidx.compose.ui.unit.dp
 fun AssessmentMainScreen(
     onNavigateToQuiz: () -> Unit,
     onNavigateToExam: () -> Unit,
-    onNavigateToHistory: () -> Unit
+    onNavigateToHistory: () -> Unit,
+    isPremium: Boolean = false
 ) {
     Column(
         modifier = Modifier
@@ -103,6 +105,14 @@ fun AssessmentMainScreen(
                     )
                 }
             }
+        }
+
+        // Banner Ad di bagian bawah (hanya untuk non-premium user)
+        if (!isPremium) {
+            Spacer(modifier = Modifier.height(8.dp))
+            BannerAdView(
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

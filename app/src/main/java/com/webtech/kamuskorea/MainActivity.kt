@@ -50,6 +50,7 @@ import com.webtech.kamuskorea.ui.screens.auth.LoginScreen
 import com.webtech.kamuskorea.ui.screens.auth.RegisterScreen
 import com.webtech.kamuskorea.ui.screens.dictionary.KamusSyncViewModel
 import com.webtech.kamuskorea.ui.screens.ebook.PdfViewerScreen
+import com.webtech.kamuskorea.ads.AdManager
 import com.webtech.kamuskorea.ui.screens.onboarding.OnboardingScreen
 import com.webtech.kamuskorea.ui.screens.profile.ProfileScreen
 import com.webtech.kamuskorea.ui.screens.settings.ModernSettingsScreen
@@ -70,6 +71,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var firebaseAuth: FirebaseAuth
 
+    @Inject
+    lateinit var adManager: AdManager
+
     private val kamusSyncViewModel: KamusSyncViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
 
@@ -79,6 +83,9 @@ class MainActivity : ComponentActivity() {
         requestWindowFeature(Window.FEATURE_NO_TITLE)
 
         kamusSyncViewModel.syncDatabase()
+
+        // Preload ads untuk performa yang lebih baik
+        adManager.preloadAd(this)
 
         setContent {
             val isPremium by userRepository.isPremium.collectAsState(initial = false)
@@ -451,7 +458,8 @@ fun MainApp(
                             },
                             onNavigateToHistory = {
                                 navController.navigate("assessment/history")
-                            }
+                            },
+                            isPremium = isPremium
                         )
                     }
                     composable("assessment/quiz/list") {
@@ -572,7 +580,8 @@ fun MainApp(
                         },
                         onNavigateToPremiumLock = {
                             navController.navigate(Screen.PremiumLock.route)
-                        }
+                        },
+                        isPremium = isPremium
                     )
                 }
                 composable(Screen.PremiumLock.route) {
@@ -597,11 +606,39 @@ fun MainApp(
                     val pdfUrl = backStackEntry.arguments?.getString("pdfUrl")?.let { Uri.decode(it) }
                     val title = backStackEntry.arguments?.getString("title")
                     if (pdfUrl != null && title != null) {
-                        PdfViewerScreen(
-                            navController = navController,
-                            pdfUrl = pdfUrl,
-                            title = title
-                        )
+                        // State untuk track apakah ad sudah ditampilkan/dismissed
+                        var adDismissed by remember { mutableStateOf(false) }
+
+                        // Show ad saat pertama kali masuk (jika bukan premium user)
+                        LaunchedEffect(pdfUrl) {
+                            if (!isPremium && !adDismissed) {
+                                adManager.showInterstitialAd(
+                                    activity = this@MainActivity,
+                                    onAdDismissed = {
+                                        adDismissed = true
+                                    }
+                                )
+                            } else {
+                                adDismissed = true
+                            }
+                        }
+
+                        // Tampilkan PDF hanya setelah ad dismissed atau user premium
+                        if (adDismissed || isPremium) {
+                            PdfViewerScreen(
+                                navController = navController,
+                                pdfUrl = pdfUrl,
+                                title = title
+                            )
+                        } else {
+                            // Loading screen sementara menunggu ad
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
                     } else {
                         Box(
                             modifier = Modifier.fillMaxSize(),
