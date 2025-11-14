@@ -27,10 +27,10 @@ class AdManager @Inject constructor() {
     // IMPORTANT: Ganti dengan Ad Unit ID Anda sendiri setelah mendaftar di AdMob
     companion object {
         // Test Interstitial Ad Unit ID
-        private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712"
+        private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-7038054430257806/5551158856"
 
         // Test Banner Ad Unit ID
-        const val BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/6300978111"
+        const val BANNER_AD_UNIT_ID = "ca-app-pub-7038054430257806/1559108807"
 
         // Frekuensi iklan: tampilkan interstitial setiap N kali aksi
         private const val AD_FREQUENCY = 3
