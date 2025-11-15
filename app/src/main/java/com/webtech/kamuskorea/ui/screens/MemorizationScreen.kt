@@ -348,6 +348,14 @@ fun FlashcardScreen(
 fun FlashCard(vocabulary: Vocabulary) {
     var isFlipped by remember { mutableStateOf(false) }
 
+    // Auto-flip back to Indonesian after 5 seconds
+    LaunchedEffect(isFlipped) {
+        if (isFlipped) {
+            kotlinx.coroutines.delay(5000L) // 5 seconds
+            isFlipped = false
+        }
+    }
+
     // Animation for card flip
     val rotation by animateFloatAsState(
         targetValue = if (isFlipped) 180f else 0f,
