@@ -9,8 +9,11 @@ import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.OnUserEarnedRewardListener
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -33,6 +36,11 @@ class AdManager @Inject constructor() {
         // Ad Unit IDs
         private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-7038054430257806/5551158856"
         const val BANNER_AD_UNIT_ID = "ca-app-pub-7038054430257806/1559108807"
+        // TODO: Replace with your actual Rewarded Video Ad Unit ID
+        private const val REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917" // Test ID
+
+        // Flashcard click frequency
+        private const val FLASHCARD_CLICK_FREQUENCY = 20 // Show ad every 20 clicks
 
         // ✅ OPTIMIZED: Different frequency for each action
         private const val PDF_OPEN_FREQUENCY = 2          // Show ad every 2 PDF opens
@@ -48,12 +56,15 @@ class AdManager @Inject constructor() {
     // Ad instances
     private var interstitialAd: InterstitialAd? = null
     private var isLoadingAd = false
+    private var rewardedAd: RewardedAd? = null
+    private var isLoadingRewardedAd = false
 
     // ✅ Separate counters for each action type
     private var pdfOpenCounter = 0
     private var quizCompleteCounter = 0
     private var sessionStartCounter = 0
     private var navigationCounter = 0
+    private var flashcardClickCounter = 0
 
     // ✅ Rate limiting tracking
     private var lastAdShownTime = 0L
@@ -279,12 +290,92 @@ class AdManager @Inject constructor() {
     }
 
     /**
+     * Load rewarded video ad
+     */
+    private fun loadRewardedAd(context: Context) {
+        if (isLoadingRewardedAd || rewardedAd != null) {
+            Log.d(TAG, "⏭️ Skipping rewarded ad load (already loading or loaded)")
+            return
+        }
+
+        isLoadingRewardedAd = true
+        val adRequest = AdRequest.Builder().build()
+
+        RewardedAd.load(
+            context,
+            REWARDED_AD_UNIT_ID,
+            adRequest,
+            object : RewardedAdLoadCallback() {
+                override fun onAdLoaded(ad: RewardedAd) {
+                    Log.d(TAG, "✅ Rewarded ad loaded successfully")
+                    rewardedAd = ad
+                    isLoadingRewardedAd = false
+                }
+
+                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    Log.e(TAG, "❌ Rewarded ad failed to load: ${loadAdError.message}")
+                    rewardedAd = null
+                    isLoadingRewardedAd = false
+                }
+            }
+        )
+    }
+
+    /**
+     * Show rewarded ad after flashcard clicks
+     */
+    fun showRewardedAdOnFlashcardClick(
+        activity: Activity,
+        onAdDismissed: () -> Unit
+    ) {
+        flashcardClickCounter++
+        Log.d(TAG, "🎴 Flashcard click counter: $flashcardClickCounter (show every $FLASHCARD_CLICK_FREQUENCY)")
+
+        if (flashcardClickCounter % FLASHCARD_CLICK_FREQUENCY == 0) {
+            if (rewardedAd != null) {
+                Log.d(TAG, "🎬 Showing rewarded ad for flashcard clicks")
+
+                rewardedAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
+                    override fun onAdDismissedFullScreenContent() {
+                        Log.d(TAG, "📺 Rewarded ad dismissed")
+                        rewardedAd = null
+                        loadRewardedAd(activity) // Preload next ad
+                        onAdDismissed()
+                    }
+
+                    override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+                        Log.e(TAG, "❌ Rewarded ad failed to show: ${adError.message}")
+                        rewardedAd = null
+                        loadRewardedAd(activity) // Preload next ad
+                        onAdDismissed()
+                    }
+
+                    override fun onAdShowedFullScreenContent() {
+                        Log.d(TAG, "📺 Rewarded ad shown successfully")
+                    }
+                }
+
+                rewardedAd?.show(activity, OnUserEarnedRewardListener { reward ->
+                    Log.d(TAG, "💰 User earned reward: ${reward.amount} ${reward.type}")
+                })
+            } else {
+                Log.d(TAG, "⚠️ Rewarded ad not ready, loading now")
+                loadRewardedAd(activity)
+                onAdDismissed()
+            }
+        } else {
+            onAdDismissed()
+        }
+    }
+
+    /**
      * Preload ad for better performance
      * Call this in MainActivity.onCreate or Application.onCreate
      */
     fun preloadAd(context: Context) {
-        Log.d(TAG, "🔄 Preloading ad for better performance")
+        Log.d(TAG, "🔄 Preloading ads for better performance")
         loadInterstitialAd(context)
+        loadRewardedAd(context)
     }
 
     /**
@@ -295,6 +386,7 @@ class AdManager @Inject constructor() {
         quizCompleteCounter = 0
         sessionStartCounter = 0
         navigationCounter = 0
+        flashcardClickCounter = 0
         interstitialCountThisHour = 0
         Log.d(TAG, "🔄 All counters reset")
     }
@@ -308,8 +400,10 @@ class AdManager @Inject constructor() {
             Quiz Completions: $quizCompleteCounter
             Sessions: $sessionStartCounter
             Navigations: $navigationCounter
+            Flashcard Clicks: $flashcardClickCounter
             Ads This Hour: $interstitialCountThisHour/$MAX_INTERSTITIAL_PER_HOUR
-            Ad Ready: ${interstitialAd != null}
+            Interstitial Ready: ${interstitialAd != null}
+            Rewarded Ad Ready: ${rewardedAd != null}
         """.trimIndent()
     }
 }
