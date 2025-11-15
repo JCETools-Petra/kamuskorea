@@ -10,19 +10,19 @@ data class Vocabulary(
     val id: Int = 0,
 
     @ColumnInfo(name = "chapter_number")
-    val chapterNumber: Int,
+    val chapterNumber: Int?,
 
     @ColumnInfo(name = "chapter_title_korean")
-    val chapterTitleKorean: String,
+    val chapterTitleKorean: String?,
 
     @ColumnInfo(name = "chapter_title_indonesian")
-    val chapterTitleIndonesian: String,
+    val chapterTitleIndonesian: String?,
 
     @ColumnInfo(name = "korean_word")
-    val koreanWord: String,
+    val koreanWord: String?,
 
     @ColumnInfo(name = "indonesian_meaning")
-    val indonesianMeaning: String
+    val indonesianMeaning: String?
 )
 
 /**
