@@ -14,7 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.webtech.kamuskorea.ads.BannerAdView
+import com.webtech.kamuskorea.ads.LargeBannerAdView
 
 /**
  * Screen utama untuk memilih jenis assessment (Quiz atau Ujian)
@@ -107,10 +107,11 @@ fun AssessmentMainScreen(
             }
         }
 
-        // Banner Ad di bagian bawah (hanya untuk non-premium user)
+        // Large Banner Ad di bagian bawah (hanya untuk non-premium user)
+        // Using Large Banner for higher revenue
         if (!isPremium) {
             Spacer(modifier = Modifier.height(8.dp))
-            BannerAdView(
+            LargeBannerAdView(
                 modifier = Modifier.fillMaxWidth()
             )
         }

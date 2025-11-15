@@ -19,13 +19,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.webtech.kamuskorea.data.assessment.AssessmentResult
 import com.webtech.kamuskorea.data.assessment.QuestionResult
+import com.webtech.kamuskorea.ads.MediumRectangleBannerAdView
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AssessmentResultScreen(
     result: AssessmentResult,
     onBackToList: () -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    isPremium: Boolean = false
 ) {
     Scaffold(
         topBar = {
@@ -90,6 +92,16 @@ fun AssessmentResultScreen(
 
             itemsIndexed(result.details) { index, detail ->
                 QuestionResultCard(index + 1, detail)
+            }
+
+            // Medium Rectangle Banner Ad at the bottom (high revenue placement)
+            if (!isPremium) {
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    MediumRectangleBannerAdView(
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
     }
