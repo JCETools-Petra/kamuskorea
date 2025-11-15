@@ -94,10 +94,10 @@ class MainActivity : ComponentActivity() {
 
             var showSplash by remember { mutableStateOf(true) }
 
-            // ✅ BARU: State untuk melacak status login secara reaktif
+            // State untuk melacak status login secara reaktif
             var isLoggedIn by remember { mutableStateOf(firebaseAuth.currentUser != null) }
 
-            // ✅ BARU: Listener yang akan otomatis memperbarui `isLoggedIn`
+            // Listener yang akan otomatis memperbarui `isLoggedIn`
             // saat status autentikasi Firebase berubah (login atau logout)
             DisposableEffect(firebaseAuth) {
                 val authListener = FirebaseAuth.AuthStateListener { auth ->
@@ -125,7 +125,7 @@ class MainActivity : ComponentActivity() {
                             onTimeout = { showSplash = false }
                         )
                     } else {
-                        // ✅ BARU: Logika "Penjaga"
+                        // Logika "Penjaga"
                         // Tentukan Composable mana yang akan ditampilkan berdasarkan status login
 
                         // Dapatkan tema saat ini di sini agar bisa diteruskan ke kedua alur
@@ -190,7 +190,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// ✅ BARU: Composable ini HANYA menangani alur Onboarding, Login, dan Register
+// Composable ini HANYA menangani alur Onboarding, Login, dan Register
 // Tidak ada Drawer, tidak ada Scaffold.
 @Composable
 fun AuthApp() {
@@ -250,24 +250,21 @@ data class NavItem(
 fun MainApp(
     firebaseAuth: FirebaseAuth,
     isPremium: Boolean,
-    settingsViewModel: SettingsViewModel = hiltViewModel(), // Ambil VM di sini
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
     adManager: AdManager,
     activity: ComponentActivity
 ) {
     val strings = LocalStrings.current
 
-    // --- Tema sudah diatur di `setContent`, kita tidak perlu mengaturnya lagi di sini ---
-    // KamusKoreaTheme(...) { ... } // <-- Ini dihapus
-
     val navController = rememberNavController()
 
-    // ✅ DIPERBARUI: startDestination sekarang selalu Home,
+    // startDestination sekarang selalu Home,
     // karena MainApp hanya dipanggil jika pengguna sudah login.
     val startDestination = Screen.Home.route
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    var currentTitle by remember { mutableStateOf("") } // Default kosong
+    var currentTitle by remember { mutableStateOf("") }
     val application = LocalContext.current.applicationContext as Application
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -285,7 +282,7 @@ fun MainApp(
             currentRoute?.startsWith("pdf_viewer/") == true ->
                 navBackStackEntry?.arguments?.getString("title") ?: strings.ebook
             currentRoute?.startsWith("assessment/") == true -> "Latihan & Ujian"
-            else -> strings.appName // Fallback
+            else -> strings.appName
         }
     }
 
@@ -296,21 +293,16 @@ fun MainApp(
         NavItem(strings.quiz, Icons.Outlined.Quiz, Screen.Quiz)
     )
 
-    // ✅ DIPERBARUI: Logika ini disederhanakan
     val isPdfViewerScreen = currentRoute?.startsWith("pdf_viewer/") == true
     val isHomeScreen = currentRoute == Screen.Home.route
     val isAssessmentFlow = currentRoute?.startsWith("assessment/") == true || currentRoute == Screen.Quiz.route
     val isTakingAssessment = currentRoute?.startsWith("assessment/take/") == true
 
-    // `isAuthScreen` tidak ada lagi di sini
-
     ModalNavigationDrawer(
         drawerState = drawerState,
-        // ✅ DIPERBARUI: `isAuthScreen` dihilangkan dari gesturesEnabled
         gesturesEnabled = !isPdfViewerScreen,
         drawerContent = {
             ModalDrawerSheet {
-                // ... (Konten drawer Anda tidak berubah)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -392,10 +384,6 @@ fun MainApp(
                             )
                             googleSignInClient.signOut().addOnCompleteListener {
                                 firebaseAuth.signOut()
-                                // ✅ DIPERBARUI: Hapus navigasi
-                                // Listener Firebase di MainActivity akan
-                                // otomatis menangani perpindahan ke AuthApp
-                                // navController.navigate(Screen.Login.route) { popUpTo(0) } // <-- DIHAPUS
                             }
                         }
                     },
@@ -407,7 +395,7 @@ fun MainApp(
     ) {
         Scaffold(
             topBar = {
-                // ✅ DIPERBARUI: Sembunyikan TopAppBar saat mengerjakan ujian
+                // Sembunyikan TopAppBar saat mengerjakan ujian
                 if (!isHomeScreen && !isTakingAssessment) {
                     TopAppBar(
                         title = { Text(currentTitle) },
@@ -431,9 +419,6 @@ fun MainApp(
                 startDestination = startDestination,
                 modifier = Modifier.padding(innerPadding)
             ) {
-                // ✅ DIHAPUS: Rute-rute Auth (Login, Register, ForgotPassword, Onboarding)
-                // dipindahkan ke AuthApp
-
                 composable(Screen.Home.route) {
                     ModernHomeScreen(navController = navController, isPremium = isPremium)
                 }
@@ -447,7 +432,7 @@ fun MainApp(
                     )
                 }
 
-                // ... (Rute Assessment Anda tidak berubah)
+                // Assessment Navigation Graph
                 navigation(
                     startDestination = Screen.Quiz.route,
                     route = "assessment_graph"
@@ -522,9 +507,7 @@ fun MainApp(
                                 }
                             },
                             onExit = {
-                                // Reset semua state assessment yang sedang berjalan
                                 assessmentViewModel.resetAssessment()
-                                // Clear back stack dan kembali ke halaman pilihan assessment
                                 navController.navigate(Screen.Quiz.route) {
                                     popUpTo(Screen.Quiz.route) { inclusive = true }
                                     launchSingleTop = true
@@ -570,7 +553,7 @@ fun MainApp(
                             viewModel = assessmentViewModel
                         )
                     }
-                } // --- Akhir Rute Assessment ---
+                }
 
                 composable(Screen.Settings.route) {
                     ModernSettingsScreen(viewModel = hiltViewModel())
@@ -610,10 +593,8 @@ fun MainApp(
                     val pdfUrl = backStackEntry.arguments?.getString("pdfUrl")?.let { Uri.decode(it) }
                     val title = backStackEntry.arguments?.getString("title")
                     if (pdfUrl != null && title != null) {
-                        // State untuk track apakah ad sudah ditampilkan/dismissed
                         var adDismissed by remember { mutableStateOf(false) }
 
-                        // Show ad saat pertama kali masuk (jika bukan premium user)
                         LaunchedEffect(pdfUrl) {
                             if (!isPremium && !adDismissed) {
                                 adManager.showInterstitialAd(
@@ -627,7 +608,6 @@ fun MainApp(
                             }
                         }
 
-                        // Tampilkan PDF hanya setelah ad dismissed atau user premium
                         if (adDismissed || isPremium) {
                             PdfViewerScreen(
                                 navController = navController,
@@ -635,7 +615,6 @@ fun MainApp(
                                 title = title
                             )
                         } else {
-                            // Loading screen sementara menunggu ad
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
@@ -652,8 +631,7 @@ fun MainApp(
                         }
                     }
                 }
-            } // --- Akhir NavHost MainApp ---
-        } // --- Akhir Scaffold ---
-    } // --- Akhir ModalNavigationDrawer ---
-    // } // --- Akhir KamusKoreaTheme (dihapus) ---
+            }
+        }
+    }
 }

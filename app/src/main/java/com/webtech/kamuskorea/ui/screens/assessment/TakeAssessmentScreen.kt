@@ -227,7 +227,7 @@ fun TakeAssessmentScreen(
         }
     }
 
-    // Question Grid Dialog
+    // Dialogs
     if (showQuestionGrid) {
         QuestionGridDialog(
             questions = questions,
@@ -241,7 +241,6 @@ fun TakeAssessmentScreen(
         )
     }
 
-    // Submit Dialog
     if (showSubmitDialog) {
         SubmitConfirmationDialog(
             answeredCount = userAnswers.size,
@@ -257,7 +256,6 @@ fun TakeAssessmentScreen(
         )
     }
 
-    // Exit Dialog
     if (showExitDialog) {
         ExitConfirmationDialog(
             answeredCount = userAnswers.size,
@@ -283,7 +281,6 @@ fun LandscapeTopBar(
     onShowGrid: () -> Unit,
     onExit: () -> Unit
 ) {
-    // Compact TopBar - hide title to save space
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
@@ -433,6 +430,7 @@ fun QuestionContentLandscape(
         }
     }
 }
+// TakeAssessmentScreen - Part 2 (lanjutan dari Part 1)
 
 @Composable
 fun LandscapeAnswerOption(
@@ -818,12 +816,11 @@ fun ExitConfirmationDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Buttons - Horizontal Layout
+                // Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Cancel Button
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier
@@ -840,7 +837,6 @@ fun ExitConfirmationDialog(
                         )
                     }
 
-                    // Confirm Button
                     Button(
                         onClick = onConfirm,
                         modifier = Modifier

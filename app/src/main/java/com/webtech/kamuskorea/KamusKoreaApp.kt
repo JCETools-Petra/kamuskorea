@@ -1,7 +1,7 @@
 package com.webtech.kamuskorea
 
-import android.app.Application
 import android.util.Log
+import androidx.multidex.MultiDexApplication
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.RequestConfiguration
 import com.google.firebase.FirebaseApp
@@ -11,7 +11,7 @@ import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderF
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
-class KamusKoreaApp : Application() {
+class KamusKoreaApp : MultiDexApplication() {
 
     override fun onCreate() {
         super.onCreate()
