@@ -6,8 +6,8 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "Vocabulary")
 data class Vocabulary(
-    @PrimaryKey(autoGenerate = true)
-    val id: Int = 0,
+    @PrimaryKey
+    val id: Int?,
 
     @ColumnInfo(name = "chapter_number")
     val chapterNumber: Int?,
