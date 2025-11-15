@@ -136,6 +136,16 @@ class MainActivity : ComponentActivity() {
                         KamusKoreaTheme(darkTheme = useDarkTheme, dynamicColor = false, colorScheme = colors) {
                             if (isLoggedIn) {
                                 // --- PENGGUNA SUDAH LOGIN ---
+                                // Show session start interstitial (once per session for non-premium users)
+                                LaunchedEffect(Unit) {
+                                    if (!isPremium) {
+                                        adManager.showInterstitialOnSessionStart(
+                                            activity = this@MainActivity,
+                                            onAdDismissed = {}
+                                        )
+                                    }
+                                }
+
                                 // Tampilkan aplikasi utama (dengan menu, scaffold, dll.)
                                 MainApp(
                                     firebaseAuth = firebaseAuth,
@@ -423,7 +433,7 @@ fun MainApp(
                     ModernHomeScreen(navController = navController, isPremium = isPremium)
                 }
                 composable(Screen.Dictionary.route) {
-                    SimpleDictionaryScreen(viewModel = hiltViewModel())
+                    SimpleDictionaryScreen(viewModel = hiltViewModel(), isPremium = isPremium)
                 }
                 composable(Screen.Memorization.route) {
                     MemorizationScreen(
@@ -502,8 +512,20 @@ fun MainApp(
                             assessmentId = assessmentId,
                             assessmentTitle = title,
                             onFinish = {
-                                navController.navigate("assessment/result") {
-                                    popUpTo(backStackEntry.destination.route!!) { inclusive = true }
+                                // Show interstitial ad after quiz/exam completion (for non-premium users)
+                                if (!isPremium) {
+                                    adManager.showInterstitialOnQuizComplete(
+                                        activity = activity,
+                                        onAdDismissed = {
+                                            navController.navigate("assessment/result") {
+                                                popUpTo(backStackEntry.destination.route!!) { inclusive = true }
+                                            }
+                                        }
+                                    )
+                                } else {
+                                    navController.navigate("assessment/result") {
+                                        popUpTo(backStackEntry.destination.route!!) { inclusive = true }
+                                    }
                                 }
                             },
                             onExit = {
@@ -534,7 +556,8 @@ fun MainApp(
                                 onRetry = {
                                     viewModel.resetResult()
                                     navController.popBackStack()
-                                }
+                                },
+                                isPremium = isPremium
                             )
                         } ?: Box(
                             modifier = Modifier.fillMaxSize(),
