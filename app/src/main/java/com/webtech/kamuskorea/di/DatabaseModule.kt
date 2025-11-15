@@ -9,6 +9,8 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.webtech.kamuskorea.data.local.AppDatabase
 import com.webtech.kamuskorea.data.local.WordDao
+import com.webtech.kamuskorea.data.local.VocabularyDatabase
+import com.webtech.kamuskorea.data.local.VocabularyDao
 import com.webtech.kamuskorea.ui.datastore.dataStore
 import dagger.Module
 import dagger.Provides
@@ -92,6 +94,63 @@ object DatabaseModule {
     fun provideWordDao(appDatabase: AppDatabase): WordDao {
         Log.d("DatabaseModule", "Providing WordDao...")
         return appDatabase.wordDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideVocabularyDatabase(@ApplicationContext context: Context): VocabularyDatabase {
+        Log.d("DatabaseModule", "Creating VocabularyDatabase...")
+
+        return Room.databaseBuilder(
+            context.applicationContext,
+            VocabularyDatabase::class.java,
+            "hafalan_database"
+        )
+            .createFromAsset("database/hafalan.db")
+            .fallbackToDestructiveMigration()
+            .addCallback(object : RoomDatabase.Callback() {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    super.onCreate(db)
+                    Log.d("DatabaseModule", "========== VOCABULARY DATABASE CREATED ==========")
+
+                    try {
+                        val cursor = db.query("SELECT COUNT(*) FROM Vocabulary")
+                        if (cursor.moveToFirst()) {
+                            val count = cursor.getInt(0)
+                            Log.d("DatabaseModule", "✅ Vocabulary database contains $count words")
+                        }
+                        cursor.close()
+                    } catch (e: Exception) {
+                        Log.e("DatabaseModule", "❌ Error checking vocabulary database", e)
+                    }
+                    Log.d("DatabaseModule", "=================================================")
+                }
+
+                override fun onOpen(db: SupportSQLiteDatabase) {
+                    super.onOpen(db)
+                    Log.d("DatabaseModule", "========== VOCABULARY DATABASE OPENED ==========")
+
+                    try {
+                        val cursor = db.query("SELECT COUNT(*) FROM Vocabulary")
+                        if (cursor.moveToFirst()) {
+                            val count = cursor.getInt(0)
+                            Log.d("DatabaseModule", "Current vocabulary count: $count")
+                        }
+                        cursor.close()
+                    } catch (e: Exception) {
+                        Log.e("DatabaseModule", "Error counting vocabulary", e)
+                    }
+                    Log.d("DatabaseModule", "================================================")
+                }
+            })
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideVocabularyDao(vocabularyDatabase: VocabularyDatabase): VocabularyDao {
+        Log.d("DatabaseModule", "Providing VocabularyDao...")
+        return vocabularyDatabase.vocabularyDao()
     }
 
     @Provides
