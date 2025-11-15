@@ -438,7 +438,8 @@ fun MainApp(
                 composable(Screen.Memorization.route) {
                     MemorizationScreen(
                         isPremium = isPremium,
-                        onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
+                        onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                        adManager = adManager
                     )
                 }
 

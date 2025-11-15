@@ -26,6 +26,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.app.Activity
+import androidx.compose.ui.platform.LocalContext
+import com.webtech.kamuskorea.ads.AdManager
 import com.webtech.kamuskorea.ads.BannerAdView
 import com.webtech.kamuskorea.data.local.ChapterInfo
 import com.webtech.kamuskorea.data.local.Vocabulary
@@ -35,8 +38,12 @@ import com.webtech.kamuskorea.data.local.Vocabulary
 fun MemorizationScreen(
     isPremium: Boolean,
     onNavigateToProfile: () -> Unit,
+    adManager: AdManager? = null,
     viewModel: MemorizationViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val activity = context as? Activity
+
     val chapters by viewModel.chapters.collectAsState()
     val vocabularyList by viewModel.vocabularyList.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -63,7 +70,10 @@ fun MemorizationScreen(
                         vocabularyList = vocabularyList,
                         chapterNumber = currentChapterNumber!!,
                         isLoading = isLoading,
-                        onBackClick = { viewModel.backToChapterList() }
+                        onBackClick = { viewModel.backToChapterList() },
+                        adManager = adManager,
+                        activity = activity,
+                        isPremium = isPremium
                     )
                 }
             }
@@ -284,7 +294,10 @@ fun FlashcardScreen(
     vocabularyList: List<Vocabulary>,
     chapterNumber: Int,
     isLoading: Boolean,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    adManager: AdManager? = null,
+    activity: Activity? = null,
+    isPremium: Boolean = false
 ) {
     val chapterTitle = vocabularyList.firstOrNull()?.chapterTitleIndonesian ?: "Bab $chapterNumber"
 
@@ -337,7 +350,12 @@ fun FlashcardScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 itemsIndexed(vocabularyList) { index, vocabulary ->
-                    FlashCard(vocabulary = vocabulary)
+                    FlashCard(
+                        vocabulary = vocabulary,
+                        adManager = adManager,
+                        activity = activity,
+                        isPremium = isPremium
+                    )
                 }
             }
         }
@@ -345,7 +363,12 @@ fun FlashcardScreen(
 }
 
 @Composable
-fun FlashCard(vocabulary: Vocabulary) {
+fun FlashCard(
+    vocabulary: Vocabulary,
+    adManager: AdManager? = null,
+    activity: Activity? = null,
+    isPremium: Boolean = false
+) {
     var isFlipped by remember { mutableStateOf(false) }
 
     // Auto-flip back to Indonesian after 5 seconds
@@ -353,6 +376,19 @@ fun FlashCard(vocabulary: Vocabulary) {
         if (isFlipped) {
             kotlinx.coroutines.delay(5000L) // 5 seconds
             isFlipped = false
+        }
+    }
+
+    // Handle flashcard click with rewarded ad (only for non-premium users)
+    val onCardClick: () -> Unit = {
+        if (!isPremium && adManager != null && activity != null) {
+            // Show rewarded ad every 20 clicks
+            adManager.showRewardedAdOnFlashcardClick(activity) {
+                isFlipped = !isFlipped
+            }
+        } else {
+            // Premium users or no adManager - just flip
+            isFlipped = !isFlipped
         }
     }
 
@@ -380,7 +416,7 @@ fun FlashCard(vocabulary: Vocabulary) {
                 rotationY = rotation
                 cameraDistance = 12f * density
             }
-            .clickable { isFlipped = !isFlipped },
+            .clickable { onCardClick() },
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(
