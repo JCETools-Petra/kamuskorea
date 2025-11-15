@@ -404,7 +404,7 @@ fun FlashCard(vocabulary: Vocabulary) {
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = vocabulary.indonesianMeaning,
+                        text = vocabulary.indonesianMeaning ?: "",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
@@ -432,7 +432,7 @@ fun FlashCard(vocabulary: Vocabulary) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = vocabulary.koreanWord,
+                        text = vocabulary.koreanWord ?: "",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
@@ -441,7 +441,7 @@ fun FlashCard(vocabulary: Vocabulary) {
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = vocabulary.indonesianMeaning,
+                        text = vocabulary.indonesianMeaning ?: "",
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
