@@ -1,3 +1,5 @@
+// app/src/main/java/com/webtech/kamuskorea/ui/screens/dictionary/SimpleDictionaryScreen.kt
+
 package com.webtech.kamuskorea.ui.screens.dictionary
 
 import androidx.compose.foundation.clickable
@@ -16,11 +18,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.webtech.kamuskorea.data.local.Word
+import com.webtech.kamuskorea.ads.BannerAdView // ✅ TAMBAHKAN
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SimpleDictionaryScreen(
-    viewModel: DictionaryViewModel = hiltViewModel()
+    viewModel: DictionaryViewModel = hiltViewModel(),
+    isPremium: Boolean = false // ✅ TAMBAHKAN parameter
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
     val words by viewModel.words.collectAsState()
@@ -55,25 +59,35 @@ fun SimpleDictionaryScreen(
                 modifier = Modifier.padding(16.dp)
             )
 
-            // Content
-            when {
-                isLoading -> {
-                    LoadingIndicator()
+            // Content - ✅ UBAH: Gunakan weight agar banner bisa di bottom
+            Box(modifier = Modifier.weight(1f)) {
+                when {
+                    isLoading -> {
+                        LoadingIndicator()
+                    }
+                    words.isEmpty() && searchQuery.isNotEmpty() -> {
+                        EmptySearchResult(searchQuery)
+                    }
+                    words.isEmpty() -> {
+                        EmptyState()
+                    }
+                    else -> {
+                        WordsList(words = words)
+                    }
                 }
-                words.isEmpty() && searchQuery.isNotEmpty() -> {
-                    EmptySearchResult(searchQuery)
-                }
-                words.isEmpty() -> {
-                    EmptyState()
-                }
-                else -> {
-                    WordsList(words = words)
-                }
+            }
+
+            // ✅ TAMBAHKAN: Banner ad di bottom (hanya untuk free user)
+            if (!isPremium) {
+                BannerAdView(
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }
 }
 
+// ✅ Rest of the code remains the same...
 @Composable
 fun SearchBarSection(
     searchQuery: String,
@@ -149,7 +163,6 @@ fun WordCard(word: Word) {
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Korean Word (Main)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -172,7 +185,6 @@ fun WordCard(word: Word) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Romanization
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -197,7 +209,6 @@ fun WordCard(word: Word) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Indonesian Translation
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -217,7 +228,6 @@ fun WordCard(word: Word) {
                 )
             }
 
-            // Additional info when expanded
             if (expanded) {
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -352,7 +362,6 @@ fun EmptyState() {
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Stats card
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
