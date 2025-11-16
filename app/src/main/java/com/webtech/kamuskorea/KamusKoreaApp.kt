@@ -54,6 +54,22 @@ class KamusKoreaApp : MultiDexApplication() {
             )
             Log.d("AppCheck", "✅ Using DEBUG Provider (Development)")
 
+            // Log debug token untuk registrasi di Firebase Console
+            Log.d("AppCheck", "════════════════════════════════════════════════")
+            Log.d("AppCheck", "📋 FIREBASE APP CHECK DEBUG TOKEN:")
+            Log.d("AppCheck", "════════════════════════════════════════════════")
+            Log.d("AppCheck", "")
+            Log.d("AppCheck", "Cari log dengan tag 'DebugAppCheckProvider' di Logcat")
+            Log.d("AppCheck", "Atau filter dengan: tag:DebugAppCheckProvider")
+            Log.d("AppCheck", "")
+            Log.d("AppCheck", "Token akan terlihat seperti:")
+            Log.d("AppCheck", "DebugAppCheckProvider: Enter this debug secret into the allow list in")
+            Log.d("AppCheck", "the Firebase Console for your project: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX")
+            Log.d("AppCheck", "")
+            Log.d("AppCheck", "Kemudian daftarkan token tersebut di:")
+            Log.d("AppCheck", "Firebase Console → App Check → Apps → Debug tokens")
+            Log.d("AppCheck", "════════════════════════════════════════════════")
+
         } else {
             // RELEASE BUILD
             // PILIH SALAH SATU:
@@ -63,6 +79,22 @@ class KamusKoreaApp : MultiDexApplication() {
                 DebugAppCheckProviderFactory.getInstance()
             )
             Log.d("AppCheck", "⚠️ Using DEBUG Provider (Release Build for Testing)")
+
+            // Log debug token untuk registrasi di Firebase Console
+            Log.d("AppCheck", "════════════════════════════════════════════════")
+            Log.d("AppCheck", "📋 FIREBASE APP CHECK DEBUG TOKEN:")
+            Log.d("AppCheck", "════════════════════════════════════════════════")
+            Log.d("AppCheck", "")
+            Log.d("AppCheck", "Cari log dengan tag 'DebugAppCheckProvider' di Logcat")
+            Log.d("AppCheck", "Atau filter dengan: tag:DebugAppCheckProvider")
+            Log.d("AppCheck", "")
+            Log.d("AppCheck", "Token akan terlihat seperti:")
+            Log.d("AppCheck", "DebugAppCheckProvider: Enter this debug secret into the allow list in")
+            Log.d("AppCheck", "the Firebase Console for your project: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX")
+            Log.d("AppCheck", "")
+            Log.d("AppCheck", "Kemudian daftarkan token tersebut di:")
+            Log.d("AppCheck", "Firebase Console → App Check → Apps → Debug tokens")
+            Log.d("AppCheck", "════════════════════════════════════════════════")
 
             // OPSI B: Gunakan Play Integrity (uncomment saat deploy ke Play Store)
             /*
