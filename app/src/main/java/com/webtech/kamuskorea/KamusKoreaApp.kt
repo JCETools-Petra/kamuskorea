@@ -9,7 +9,6 @@ import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import dagger.hilt.android.HiltAndroidApp
-import com.google.firebase.appcheck.debug.internal.DebugAppCheckProvider
 
 @HiltAndroidApp
 class KamusKoreaApp : MultiDexApplication() {
