@@ -621,7 +621,7 @@ fun MainApp(
 
                         LaunchedEffect(pdfUrl) {
                             if (!isPremium && !adDismissed) {
-                                adManager.showInterstitialAd(
+                                adManager.showInterstitialOnPdfOpen(
                                     activity = activity,
                                     onAdDismissed = {
                                         adDismissed = true
