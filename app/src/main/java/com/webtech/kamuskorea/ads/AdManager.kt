@@ -35,9 +35,9 @@ class AdManager @Inject constructor() {
 
         // Ad Unit IDs
         // DEBUG: Use Google's test ad unit IDs for testing
-        private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712" // Google Test ID
-        const val BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/6300978111" // Google Test ID
-        private const val REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917" // Google Test ID
+        private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-7038054430257806/5551158856"
+        const val BANNER_AD_UNIT_ID = "ca-app-pub-7038054430257806/1559108807"
+        private const val REWARDED_AD_UNIT_ID = "ca-app-pub-7038054430257806/9227831362"
 
         // PRODUCTION: Uncomment these and comment above for production release
         // private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-7038054430257806/5551158856"
