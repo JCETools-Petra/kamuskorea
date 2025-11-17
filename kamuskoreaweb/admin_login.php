@@ -1,49 +1,58 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+/**
+ * Admin Login Page - SECURED
+ * Anti brute force, CSRF protection, XSS protection
+ */
+
+// Disable error display for production
+error_reporting(0);
+ini_set('display_errors', 0);
 
 $error = '';
-$debug = '';
+$success = '';
 
-// Try to load config
-try {
-    require_once __DIR__ . '/admin_config.php';
-} catch (Exception $e) {
-    $error = 'Config load error: ' . $e->getMessage();
-}
+// Load config
+require_once __DIR__ . '/admin_config.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
-    $username = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
+// Security headers
+header('X-Frame-Options: DENY');
+header('X-Content-Type-Options: nosniff');
+header('X-XSS-Protection: 1; mode=block');
+header('Referrer-Policy: strict-origin-when-cross-origin');
 
-    if (empty($username) || empty($password)) {
-        $error = 'Username dan password harus diisi!';
-    } else {
-        try {
-            if (adminLogin($username, $password)) {
-                header('Location: admin_dashboard.php');
-                exit();
-            } else {
-                $error = 'Username atau password salah! Cek file admin_login.log untuk detail.';
-            }
-        } catch (Exception $e) {
-            $error = 'Login error: ' . $e->getMessage();
-        }
-    }
-}
-
-if (empty($error) && function_exists('isAdminLoggedIn') && isAdminLoggedIn()) {
+// Redirect if already logged in
+if (isAdminLoggedIn()) {
     header('Location: admin_dashboard.php');
     exit();
 }
 
-// Check if log file exists and show last entries
-$logFile = __DIR__ . '/admin_login.log';
-if (file_exists($logFile)) {
-    $logContent = file_get_contents($logFile);
-    $logLines = explode("\n", trim($logContent));
-    $lastLines = array_slice($logLines, -20); // Last 20 lines
-    $debug = implode("\n", $lastLines);
+// Generate CSRF token for the form
+$csrfToken = generateCSRFToken();
+
+// Handle login POST request
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Verify CSRF token
+    $submittedToken = $_POST['csrf_token'] ?? '';
+    if (!verifyCSRFToken($submittedToken)) {
+        $error = 'Sesi tidak valid. Silakan refresh halaman dan coba lagi.';
+    } else {
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+
+        $result = adminLogin($username, $password);
+
+        if ($result['success']) {
+            // Successful login
+            header('Location: admin_dashboard.php');
+            exit();
+        } else {
+            $error = $result['message'];
+        }
+    }
+
+    // Regenerate CSRF token after each attempt
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    $csrfToken = $_SESSION['csrf_token'];
 }
 ?>
 <!DOCTYPE html>
@@ -51,6 +60,7 @@ if (file_exists($logFile)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
     <title>Admin Login - Kamus Korea</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -67,21 +77,22 @@ if (file_exists($logFile)) {
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
             padding: 40px;
             width: 100%;
-            max-width: 500px;
+            max-width: 400px;
         }
         .logo {
             font-size: 3rem;
             margin-bottom: 20px;
         }
-        .debug-log {
-            font-family: monospace;
-            font-size: 11px;
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 5px;
-            max-height: 200px;
-            overflow-y: auto;
-            white-space: pre-wrap;
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
         }
     </style>
 </head>
@@ -94,40 +105,67 @@ if (file_exists($logFile)) {
         </div>
 
         <?php if ($error): ?>
-            <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
         <?php endif; ?>
 
-        <form method="POST">
+        <?php if ($success): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <?= htmlspecialchars($success, ENT_QUOTES, 'UTF-8') ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
+
+        <form method="POST" autocomplete="off">
+            <!-- CSRF Protection -->
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+
             <div class="mb-3">
                 <label for="username" class="form-label">Username</label>
-                <input type="text" class="form-control" id="username" name="username" required autofocus
-                       value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
+                <input type="text"
+                       class="form-control"
+                       id="username"
+                       name="username"
+                       required
+                       autofocus
+                       maxlength="50"
+                       pattern="[a-zA-Z0-9_]+"
+                       title="Hanya huruf, angka, dan underscore"
+                       autocomplete="username">
             </div>
             <div class="mb-3">
                 <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" name="password" required>
+                <input type="password"
+                       class="form-control"
+                       id="password"
+                       name="password"
+                       required
+                       maxlength="255"
+                       autocomplete="current-password">
             </div>
-            <button type="submit" class="btn btn-primary w-100">Login</button>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-box-arrow-in-right"></i> Login
+            </button>
         </form>
 
-        <?php if (!empty($debug)): ?>
-            <hr>
-            <div class="mt-3">
-                <h6>Debug Log (Last 20 lines):</h6>
-                <div class="debug-log"><?= htmlspecialchars($debug) ?></div>
-                <small class="text-muted">File: <?= $logFile ?></small>
-            </div>
-        <?php endif; ?>
-
-        <hr>
-        <div class="mt-3">
+        <div class="text-center mt-4">
             <small class="text-muted">
-                <strong>Troubleshooting:</strong><br>
-                1. Pastikan tabel <code>admin_users</code> sudah dibuat<br>
-                2. Pastikan file <code>.env</code> ada di parent directory<br>
-                3. Cek file <code>admin_login.log</code> untuk detail error
+                &copy; <?= date('Y') ?> Kamus Korea. Secure Admin Panel.
             </small>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Prevent form resubmission on page refresh
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);
+        }
+
+        // Clear password field on page load (security)
+        document.getElementById('password').value = '';
+    </script>
 </body>
 </html>
