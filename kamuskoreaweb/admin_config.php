@@ -119,18 +119,30 @@ function verifyCSRFToken($token) {
  * Check if IP is blocked due to too many failed attempts
  */
 function isIPBlocked($ip) {
-    $pdo = getAdminDB();
+    try {
+        $pdo = getAdminDB();
 
-    // Clean old attempts (older than 30 minutes)
-    $stmt = $pdo->prepare("DELETE FROM admin_login_attempts WHERE attempt_time < DATE_SUB(NOW(), INTERVAL 30 MINUTE)");
-    $stmt->execute();
+        // Check if table exists first
+        $tableCheck = $pdo->query("SHOW TABLES LIKE 'admin_login_attempts'");
+        if ($tableCheck->rowCount() === 0) {
+            // Table doesn't exist, skip brute force check
+            return false;
+        }
 
-    // Count recent failed attempts
-    $stmt = $pdo->prepare("SELECT COUNT(*) as attempts FROM admin_login_attempts WHERE ip_address = ? AND attempt_time > DATE_SUB(NOW(), INTERVAL 30 MINUTE)");
-    $stmt->execute([$ip]);
-    $result = $stmt->fetch();
+        // Clean old attempts (older than 30 minutes)
+        $stmt = $pdo->prepare("DELETE FROM admin_login_attempts WHERE attempt_time < DATE_SUB(NOW(), INTERVAL 30 MINUTE)");
+        $stmt->execute();
 
-    return $result['attempts'] >= 5; // Block after 5 failed attempts
+        // Count recent failed attempts
+        $stmt = $pdo->prepare("SELECT COUNT(*) as attempts FROM admin_login_attempts WHERE ip_address = ? AND attempt_time > DATE_SUB(NOW(), INTERVAL 30 MINUTE)");
+        $stmt->execute([$ip]);
+        $result = $stmt->fetch();
+
+        return $result['attempts'] >= 5; // Block after 5 failed attempts
+    } catch (Exception $e) {
+        error_log("isIPBlocked error: " . $e->getMessage());
+        return false; // Don't block on error
+    }
 }
 
 /**
@@ -139,6 +151,13 @@ function isIPBlocked($ip) {
 function recordFailedAttempt($ip, $username) {
     try {
         $pdo = getAdminDB();
+
+        // Check if table exists
+        $tableCheck = $pdo->query("SHOW TABLES LIKE 'admin_login_attempts'");
+        if ($tableCheck->rowCount() === 0) {
+            return; // Table doesn't exist, skip
+        }
+
         $stmt = $pdo->prepare("INSERT INTO admin_login_attempts (ip_address, username, attempt_time) VALUES (?, ?, NOW())");
         $stmt->execute([$ip, $username]);
     } catch (Exception $e) {
@@ -153,6 +172,13 @@ function recordFailedAttempt($ip, $username) {
 function clearFailedAttempts($ip) {
     try {
         $pdo = getAdminDB();
+
+        // Check if table exists
+        $tableCheck = $pdo->query("SHOW TABLES LIKE 'admin_login_attempts'");
+        if ($tableCheck->rowCount() === 0) {
+            return; // Table doesn't exist, skip
+        }
+
         $stmt = $pdo->prepare("DELETE FROM admin_login_attempts WHERE ip_address = ?");
         $stmt->execute([$ip]);
     } catch (Exception $e) {
