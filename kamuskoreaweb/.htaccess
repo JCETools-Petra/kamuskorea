@@ -5,11 +5,15 @@
 # PENTING: Pastikan header Authorization diteruskan ke PHP
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    
+
+    # Redirect root directory to admin_login.php
+    RewriteCond %{REQUEST_URI} ^/kamuskorea/?$
+    RewriteRule ^$ admin_login.php [L,R=302]
+
     # Teruskan header Authorization ke variabel HTTP_AUTHORIZATION
     RewriteCond %{HTTP:Authorization} ^(.*)
     RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
-    
+
     # Jika ada header Authorization, set ke environment
     SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 </IfModule>
@@ -27,8 +31,8 @@
     Header set Access-Control-Allow-Headers "Authorization, Content-Type"
 </IfModule>
 
-# Index file
-DirectoryIndex index.php api.php
+# Index file - redirect to admin login
+DirectoryIndex admin_login.php index.php api.php
 
 # Keamanan: Jangan tampilkan isi direktori
 Options -Indexes
