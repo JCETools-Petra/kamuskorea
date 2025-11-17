@@ -43,11 +43,19 @@ class AdManager @Inject constructor() {
         private const val FLASHCARD_CLICK_FREQUENCY = 20 // Show ad every 20 clicks
 
         // ✅ OPTIMIZED: Different frequency for each action
-        private const val PDF_OPEN_FREQUENCY = 2          // Show ad every 2 PDF opens
-        private const val QUIZ_START_FREQUENCY = 2        // Show ad every 2 quiz/exam starts
-        private const val QUIZ_COMPLETE_FREQUENCY = 3     // Show ad every 3 quiz completions
-        private const val SESSION_START_FREQUENCY = 5     // Show ad every 5 app sessions
+        // DEBUG: Set frequencies to 1 for testing (show every time)
+        private const val PDF_OPEN_FREQUENCY = 1          // Show ad every PDF open (DEBUG)
+        private const val QUIZ_START_FREQUENCY = 1        // Show ad every quiz/exam start (DEBUG)
+        private const val QUIZ_COMPLETE_FREQUENCY = 1     // Show ad every quiz completion (DEBUG)
+        private const val SESSION_START_FREQUENCY = 1     // Show ad every session (DEBUG)
         private const val NAVIGATION_FREQUENCY = 10       // Show ad every 10 navigations
+
+        // PRODUCTION: Uncomment these and comment above for production
+        // private const val PDF_OPEN_FREQUENCY = 2          // Show ad every 2 PDF opens
+        // private const val QUIZ_START_FREQUENCY = 2        // Show ad every 2 quiz/exam starts
+        // private const val QUIZ_COMPLETE_FREQUENCY = 3     // Show ad every 3 quiz completions
+        // private const val SESSION_START_FREQUENCY = 5     // Show ad every 5 app sessions
+        // private const val NAVIGATION_FREQUENCY = 10       // Show ad every 10 navigations
 
         // ✅ RATE LIMITING: Prevent ad fatigue
         private const val MAX_INTERSTITIAL_PER_HOUR = 4   // Maximum 4 interstitial ads per hour
