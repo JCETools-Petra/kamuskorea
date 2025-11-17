@@ -37,8 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
-import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
@@ -465,24 +463,18 @@ fun QuestionContentLandscape(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = 180.dp),
-                            contentScale = ContentScale.Fit
-                        ) {
-                            when (painter.state) {
-                                is AsyncImagePainter.State.Loading -> {
-                                    ShimmerPlaceholder(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(150.dp)
-                                    )
-                                }
-                                is AsyncImagePainter.State.Error -> {
-                                    MediaErrorPlaceholder(type = "image")
-                                }
-                                else -> {
-                                    SubcomposeAsyncImageContent()
-                                }
+                            contentScale = ContentScale.Fit,
+                            loading = {
+                                ShimmerPlaceholder(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(150.dp)
+                                )
+                            },
+                            error = {
+                                MediaErrorPlaceholder(type = "image")
                             }
-                        }
+                        )
                     }
                 }
             }
