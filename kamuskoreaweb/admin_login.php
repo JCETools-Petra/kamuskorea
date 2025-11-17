@@ -7,52 +7,59 @@
 // Disable error display for production
 error_reporting(0);
 ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 
 $error = '';
 $success = '';
 
-// Load config
-require_once __DIR__ . '/admin_config.php';
+try {
+    // Load config
+    require_once __DIR__ . '/admin_config.php';
 
-// Security headers
-header('X-Frame-Options: DENY');
-header('X-Content-Type-Options: nosniff');
-header('X-XSS-Protection: 1; mode=block');
-header('Referrer-Policy: strict-origin-when-cross-origin');
+    // Security headers
+    header('X-Frame-Options: DENY');
+    header('X-Content-Type-Options: nosniff');
+    header('X-XSS-Protection: 1; mode=block');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
 
-// Redirect if already logged in
-if (isAdminLoggedIn()) {
-    header('Location: admin_dashboard.php');
-    exit();
-}
-
-// Generate CSRF token for the form
-$csrfToken = generateCSRFToken();
-
-// Handle login POST request
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Verify CSRF token
-    $submittedToken = $_POST['csrf_token'] ?? '';
-    if (!verifyCSRFToken($submittedToken)) {
-        $error = 'Sesi tidak valid. Silakan refresh halaman dan coba lagi.';
-    } else {
-        $username = trim($_POST['username'] ?? '');
-        $password = $_POST['password'] ?? '';
-
-        $result = adminLogin($username, $password);
-
-        if ($result['success']) {
-            // Successful login
-            header('Location: admin_dashboard.php');
-            exit();
-        } else {
-            $error = $result['message'];
-        }
+    // Redirect if already logged in
+    if (isAdminLoggedIn()) {
+        header('Location: admin_dashboard.php');
+        exit();
     }
 
-    // Regenerate CSRF token after each attempt
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    $csrfToken = $_SESSION['csrf_token'];
+    // Generate CSRF token for the form
+    $csrfToken = generateCSRFToken();
+
+    // Handle login POST request
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // Verify CSRF token
+        $submittedToken = $_POST['csrf_token'] ?? '';
+        if (!verifyCSRFToken($submittedToken)) {
+            $error = 'Sesi tidak valid. Silakan refresh halaman dan coba lagi.';
+        } else {
+            $username = trim($_POST['username'] ?? '');
+            $password = $_POST['password'] ?? '';
+
+            $result = adminLogin($username, $password);
+
+            if ($result['success']) {
+                // Successful login
+                header('Location: admin_dashboard.php');
+                exit();
+            } else {
+                $error = $result['message'];
+            }
+        }
+
+        // Regenerate CSRF token after each attempt
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        $csrfToken = $_SESSION['csrf_token'];
+    }
+} catch (Exception $e) {
+    error_log("Admin login page error: " . $e->getMessage());
+    $error = 'Terjadi kesalahan sistem. Silakan coba lagi.';
+    $csrfToken = '';
 }
 ?>
 <!DOCTYPE html>
