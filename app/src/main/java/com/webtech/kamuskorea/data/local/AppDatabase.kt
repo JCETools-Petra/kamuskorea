@@ -9,14 +9,15 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
 
 @Database(
-    entities = [Word::class, FavoriteWord::class],
-    version = 2,
+    entities = [Word::class, FavoriteWord::class, FavoriteVocabulary::class],
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun wordDao(): WordDao
     abstract fun favoriteWordDao(): FavoriteWordDao
+    abstract fun favoriteVocabularyDao(): FavoriteVocabularyDao
 
     companion object {
         @Volatile
@@ -37,6 +38,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from version 2 to 3: Add favorite_vocabulary table
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS favorite_vocabulary (
+                        vocabulary_id INTEGER PRIMARY KEY NOT NULL,
+                        korean_word TEXT NOT NULL,
+                        indonesian_meaning TEXT NOT NULL,
+                        chapter_number INTEGER NOT NULL,
+                        chapter_title_indonesian TEXT NOT NULL,
+                        added_at INTEGER NOT NULL
+                    )
+                """)
+            }
+        }
+
         fun getDatabase(
             context: Context,
             coroutineScope: CoroutineScope
@@ -48,7 +65,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "kamus_korea.db"
                 )
                     .createFromAsset("database/kamus_korea.db")
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                 INSTANCE = instance
                 instance

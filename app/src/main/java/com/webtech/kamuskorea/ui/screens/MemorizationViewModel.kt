@@ -1,21 +1,30 @@
 package com.webtech.kamuskorea.ui.screens
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.webtech.kamuskorea.data.VocabularyRepository
 import com.webtech.kamuskorea.data.local.ChapterInfo
 import com.webtech.kamuskorea.data.local.Vocabulary
+import com.webtech.kamuskorea.data.local.FavoriteVocabulary
+import com.webtech.kamuskorea.data.local.FavoriteVocabularyDao
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class MemorizationViewModel @Inject constructor(
-    private val vocabularyRepository: VocabularyRepository
+    private val vocabularyRepository: VocabularyRepository,
+    private val favoriteVocabularyDao: FavoriteVocabularyDao
 ) : ViewModel() {
+
+    private val TAG = "MemorizationViewModel"
 
     private val _chapters = MutableStateFlow<List<ChapterInfo>>(emptyList())
     val chapters: StateFlow<List<ChapterInfo>> = _chapters.asStateFlow()
@@ -28,6 +37,23 @@ class MemorizationViewModel @Inject constructor(
 
     private val _currentChapterNumber = MutableStateFlow<Int?>(null)
     val currentChapterNumber: StateFlow<Int?> = _currentChapterNumber.asStateFlow()
+
+    // Track favorite vocabulary IDs
+    val favoriteVocabularyIds: StateFlow<Set<Int>> = favoriteVocabularyDao.getAllFavoriteIds()
+        .map { it.toSet() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptySet()
+        )
+
+    // Get all favorite vocabularies
+    val favoriteVocabularies: StateFlow<List<FavoriteVocabulary>> = favoriteVocabularyDao.getAllFavorites()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     init {
         loadChapters()
@@ -66,5 +92,39 @@ class MemorizationViewModel @Inject constructor(
     fun backToChapterList() {
         _currentChapterNumber.value = null
         _vocabularyList.value = emptyList()
+    }
+
+    /**
+     * Toggle favorite status for a vocabulary item
+     */
+    fun toggleFavoriteVocabulary(vocabulary: Vocabulary) {
+        viewModelScope.launch {
+            val vocabId = vocabulary.id ?: return@launch
+            val isFav = favoriteVocabularyIds.value.contains(vocabId)
+            if (isFav) {
+                favoriteVocabularyDao.removeFavorite(vocabId)
+                Log.d(TAG, "Removed from favorites: ${vocabulary.koreanWord}")
+            } else {
+                val favoriteVocabulary = FavoriteVocabulary(
+                    vocabularyId = vocabId,
+                    koreanWord = vocabulary.koreanWord ?: "",
+                    indonesianMeaning = vocabulary.indonesianMeaning ?: "",
+                    chapterNumber = vocabulary.chapterNumber ?: 0,
+                    chapterTitleIndonesian = vocabulary.chapterTitleIndonesian ?: ""
+                )
+                favoriteVocabularyDao.addFavorite(favoriteVocabulary)
+                Log.d(TAG, "Added to favorites: ${vocabulary.koreanWord}")
+            }
+        }
+    }
+
+    /**
+     * Remove favorite vocabulary by ID
+     */
+    fun removeFavoriteVocabularyById(vocabularyId: Int) {
+        viewModelScope.launch {
+            favoriteVocabularyDao.removeFavorite(vocabularyId)
+            Log.d(TAG, "Removed favorite vocabulary by ID: $vocabularyId")
+        }
     }
 }
