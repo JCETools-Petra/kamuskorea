@@ -50,7 +50,9 @@ class AdManager @Inject constructor() {
 
         // ✅ RATE LIMITING: Prevent ad fatigue
         private const val MAX_INTERSTITIAL_PER_HOUR = 4   // Maximum 4 interstitial ads per hour
-        private const val MIN_INTERVAL_SECONDS = 60       // Minimum 60 seconds between ads
+        // DEBUG: Set to 5 seconds for testing, change to 60 for production
+        private const val MIN_INTERVAL_SECONDS = 5        // Minimum 5 seconds between ads (DEBUG)
+        // private const val MIN_INTERVAL_SECONDS = 60    // Minimum 60 seconds between ads (PRODUCTION)
     }
 
     // Ad instances
