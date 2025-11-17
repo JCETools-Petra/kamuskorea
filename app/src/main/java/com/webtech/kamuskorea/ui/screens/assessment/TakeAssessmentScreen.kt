@@ -6,6 +6,7 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -47,6 +48,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 
+// Language options for UI display
+enum class UILanguage(val displayName: String, val flag: String) {
+    KOREAN("한국어", "🇰🇷"),
+    INDONESIAN("Indonesia", "🇮🇩"),
+    ENGLISH("English", "🇺🇸")
+}
+
 enum class AnswerLanguage {
     PRIMARY,    // Default language (as stored in database)
     ALTERNATIVE // Alternative language (Korean/Indonesian)
@@ -82,7 +90,14 @@ fun TakeAssessmentScreen(
     var showQuestionGrid by remember { mutableStateOf(false) }
     var showSubmitDialog by remember { mutableStateOf(false) }
     var showExitDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
     var answerLanguage by remember { mutableStateOf(AnswerLanguage.PRIMARY) }
+    var uiLanguage by remember { mutableStateOf(UILanguage.KOREAN) }
+
+    // Block back button during quiz - show exit dialog instead
+    BackHandler(enabled = questions.isNotEmpty() && result == null) {
+        showExitDialog = true
+    }
 
     // Timer states
     val durationMinutes = remember { mutableStateOf(10) }
@@ -145,12 +160,8 @@ fun TakeAssessmentScreen(
                 totalQuestions = questions.size,
                 timeText = timeText,
                 timerColor = timerColor,
-                answerLanguage = answerLanguage,
-                hasAltOptions = currentQuestion?.hasAlternativeOptions() ?: false,
-                onToggleLanguage = {
-                    answerLanguage = if (answerLanguage == AnswerLanguage.PRIMARY)
-                        AnswerLanguage.ALTERNATIVE else AnswerLanguage.PRIMARY
-                },
+                uiLanguage = uiLanguage,
+                onShowLanguageDialog = { showLanguageDialog = true },
                 onShowGrid = { showQuestionGrid = true },
                 onExit = { showExitDialog = true }
             )
@@ -239,6 +250,7 @@ fun TakeAssessmentScreen(
                             NavigationButtons(
                                 currentIndex = currentIndex,
                                 totalQuestions = questions.size,
+                                uiLanguage = uiLanguage,
                                 onPrevious = { viewModel.previousQuestion() },
                                 onNext = { viewModel.nextQuestion() },
                                 onFinish = { showSubmitDialog = true }
@@ -251,6 +263,17 @@ fun TakeAssessmentScreen(
     }
 
     // Dialogs
+    if (showLanguageDialog) {
+        LanguageSelectionDialog(
+            currentLanguage = uiLanguage,
+            onSelectLanguage = { selectedLang ->
+                uiLanguage = selectedLang
+                showLanguageDialog = false
+            },
+            onDismiss = { showLanguageDialog = false }
+        )
+    }
+
     if (showQuestionGrid) {
         QuestionGridDialog(
             questions = questions,
@@ -301,12 +324,18 @@ fun LandscapeTopBar(
     totalQuestions: Int,
     timeText: String,
     timerColor: Color,
-    answerLanguage: AnswerLanguage = AnswerLanguage.PRIMARY,
-    hasAltOptions: Boolean = false,
-    onToggleLanguage: () -> Unit = {},
+    uiLanguage: UILanguage = UILanguage.KOREAN,
+    onShowLanguageDialog: () -> Unit = {},
     onShowGrid: () -> Unit,
     onExit: () -> Unit
 ) {
+    // Localized text based on UI language
+    val allQuestionsText = when (uiLanguage) {
+        UILanguage.KOREAN -> "전체"
+        UILanguage.INDONESIAN -> "Semua"
+        UILanguage.ENGLISH -> "All"
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
@@ -347,28 +376,31 @@ fun LandscapeTopBar(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Language Toggle Button
-            if (hasAltOptions) {
-                FilledTonalButton(
-                    onClick = onToggleLanguage,
-                    modifier = Modifier.height(32.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.SwapHoriz,
-                        contentDescription = "Toggle Language",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (answerLanguage == AnswerLanguage.PRIMARY) "한국어" else "Indonesia",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+            // Language Selector Button - Always visible
+            FilledTonalButton(
+                onClick = onShowLanguageDialog,
+                modifier = Modifier.height(32.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Text(
+                    text = uiLanguage.flag,
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = uiLanguage.displayName,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Icon(
+                    Icons.Default.ArrowDropDown,
+                    contentDescription = "Change Language",
+                    modifier = Modifier.size(16.dp)
+                )
             }
 
             // Timer
@@ -402,9 +434,9 @@ fun LandscapeTopBar(
                 modifier = Modifier.height(32.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Icon(Icons.Default.GridView, "Lihat Semua", modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.GridView, "View All Questions", modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("전체", fontSize = 12.sp)
+                Text(allQuestionsText, fontSize = 12.sp)
             }
         }
     }
@@ -572,10 +604,28 @@ fun LandscapeAnswerOption(
 fun NavigationButtons(
     currentIndex: Int,
     totalQuestions: Int,
+    uiLanguage: UILanguage = UILanguage.KOREAN,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onFinish: () -> Unit
 ) {
+    // Localized button text
+    val previousText = when (uiLanguage) {
+        UILanguage.KOREAN -> "이전"
+        UILanguage.INDONESIAN -> "Sebelumnya"
+        UILanguage.ENGLISH -> "Previous"
+    }
+    val nextText = when (uiLanguage) {
+        UILanguage.KOREAN -> "다음"
+        UILanguage.INDONESIAN -> "Selanjutnya"
+        UILanguage.ENGLISH -> "Next"
+    }
+    val finishText = when (uiLanguage) {
+        UILanguage.KOREAN -> "마감"
+        UILanguage.INDONESIAN -> "Selesai"
+        UILanguage.ENGLISH -> "Finish"
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -591,7 +641,7 @@ fun NavigationButtons(
         ) {
             Icon(Icons.Default.ChevronLeft, null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text("이전", fontSize = 13.sp)
+            Text(previousText, fontSize = 13.sp)
         }
 
         // Next or Finish Button
@@ -606,7 +656,7 @@ fun NavigationButtons(
                 ),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Text("마감", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(finishText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
             }
@@ -618,7 +668,7 @@ fun NavigationButtons(
                     .height(38.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Text("다음", fontSize = 13.sp)
+                Text(nextText, fontSize = 13.sp)
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(16.dp))
             }
@@ -1304,6 +1354,129 @@ fun VideoPlayerCompactCached(url: String, mediaPreloader: MediaPreloader?) {
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Language selection dialog for quiz UI
+ * Allows switching between Korean, Indonesian, and English
+ */
+@Composable
+fun LanguageSelectionDialog(
+    currentLanguage: UILanguage,
+    onSelectLanguage: (UILanguage) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Select Language / Pilih Bahasa / 언어 선택",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Choose your preferred language for the quiz interface:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Language Options
+                UILanguage.entries.forEach { language ->
+                    LanguageOptionItem(
+                        language = language,
+                        isSelected = language == currentLanguage,
+                        onClick = { onSelectLanguage(language) }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close / Tutup / 닫기")
+            }
+        }
+    )
+}
+
+@Composable
+fun LanguageOptionItem(
+    language: UILanguage,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        border = if (isSelected)
+            androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        else
+            null
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Flag emoji
+            Text(
+                text = language.flag,
+                fontSize = 24.sp
+            )
+
+            // Language name
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = language.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    else
+                        MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = when (language) {
+                        UILanguage.KOREAN -> "Korean Language"
+                        UILanguage.INDONESIAN -> "Bahasa Indonesia"
+                        UILanguage.ENGLISH -> "English Language"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Check icon for selected
+            if (isSelected) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }
