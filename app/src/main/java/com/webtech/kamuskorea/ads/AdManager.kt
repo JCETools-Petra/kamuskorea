@@ -44,6 +44,7 @@ class AdManager @Inject constructor() {
 
         // ✅ OPTIMIZED: Different frequency for each action
         private const val PDF_OPEN_FREQUENCY = 2          // Show ad every 2 PDF opens
+        private const val QUIZ_START_FREQUENCY = 2        // Show ad every 2 quiz/exam starts
         private const val QUIZ_COMPLETE_FREQUENCY = 3     // Show ad every 3 quiz completions
         private const val SESSION_START_FREQUENCY = 5     // Show ad every 5 app sessions
         private const val NAVIGATION_FREQUENCY = 10       // Show ad every 10 navigations
@@ -63,6 +64,7 @@ class AdManager @Inject constructor() {
 
     // ✅ Separate counters for each action type
     private var pdfOpenCounter = 0
+    private var quizStartCounter = 0
     private var quizCompleteCounter = 0
     private var sessionStartCounter = 0
     private var navigationCounter = 0
@@ -161,6 +163,23 @@ class AdManager @Inject constructor() {
 
         if (pdfOpenCounter % PDF_OPEN_FREQUENCY == 0 && canShowInterstitial()) {
             showInterstitialInternal(activity, "PDF_OPEN", onAdDismissed)
+        } else {
+            onAdDismissed()
+        }
+    }
+
+    /**
+     * Show interstitial ad when starting quiz/exam
+     */
+    fun showInterstitialOnQuizStart(
+        activity: Activity,
+        onAdDismissed: () -> Unit
+    ) {
+        quizStartCounter++
+        Log.d(TAG, "🎯 Quiz/Exam start counter: $quizStartCounter (show every $QUIZ_START_FREQUENCY)")
+
+        if (quizStartCounter % QUIZ_START_FREQUENCY == 0 && canShowInterstitial()) {
+            showInterstitialInternal(activity, "QUIZ_START", onAdDismissed)
         } else {
             onAdDismissed()
         }
@@ -385,6 +404,7 @@ class AdManager @Inject constructor() {
      */
     fun resetAllCounters() {
         pdfOpenCounter = 0
+        quizStartCounter = 0
         quizCompleteCounter = 0
         sessionStartCounter = 0
         navigationCounter = 0
@@ -399,6 +419,7 @@ class AdManager @Inject constructor() {
     fun getAdStats(): String {
         return """
             PDF Opens: $pdfOpenCounter
+            Quiz/Exam Starts: $quizStartCounter
             Quiz Completions: $quizCompleteCounter
             Sessions: $sessionStartCounter
             Navigations: $navigationCounter
