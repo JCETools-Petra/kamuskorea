@@ -1,0 +1,7 @@
+# Ignore all uploaded media files
+*
+
+# But keep these important files
+!.gitignore
+!.gitkeep
+!.htaccess
