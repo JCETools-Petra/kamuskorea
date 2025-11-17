@@ -69,8 +69,15 @@ function requireAdminLogin() {
  * Login admin using database
  */
 function adminLogin($username, $password) {
+    $logFile = __DIR__ . '/admin_login.log';
+
     try {
+        writeAdminLog($logFile, "=== LOGIN ATTEMPT ===");
+        writeAdminLog($logFile, "Username: " . $username);
+        writeAdminLog($logFile, "Password length: " . strlen($password));
+
         $pdo = getAdminDB();
+        writeAdminLog($logFile, "Database connection: SUCCESS");
 
         $stmt = $pdo->prepare("
             SELECT id, username, password, full_name, is_active
@@ -80,7 +87,18 @@ function adminLogin($username, $password) {
         $stmt->execute([$username]);
         $admin = $stmt->fetch();
 
-        if ($admin && password_verify($password, $admin['password'])) {
+        if (!$admin) {
+            writeAdminLog($logFile, "User not found in database or not active");
+            return false;
+        }
+
+        writeAdminLog($logFile, "User found: ID=" . $admin['id'] . ", Full Name=" . $admin['full_name']);
+        writeAdminLog($logFile, "Stored password hash: " . substr($admin['password'], 0, 20) . "...");
+
+        $passwordMatch = password_verify($password, $admin['password']);
+        writeAdminLog($logFile, "Password verify result: " . ($passwordMatch ? "MATCH" : "NO MATCH"));
+
+        if ($passwordMatch) {
             // Update last login
             $updateStmt = $pdo->prepare("UPDATE admin_users SET last_login = NOW() WHERE id = ?");
             $updateStmt->execute([$admin['id']]);
@@ -92,14 +110,27 @@ function adminLogin($username, $password) {
             $_SESSION['admin_fullname'] = $admin['full_name'];
             $_SESSION['admin_login_time'] = time();
 
+            writeAdminLog($logFile, "Login SUCCESS - Session created");
             return true;
         }
 
+        writeAdminLog($logFile, "Login FAILED - Password mismatch");
         return false;
     } catch (Exception $e) {
+        writeAdminLog($logFile, "EXCEPTION: " . $e->getMessage());
+        writeAdminLog($logFile, "Stack trace: " . $e->getTraceAsString());
         error_log("Admin login error: " . $e->getMessage());
         return false;
     }
+}
+
+/**
+ * Write to admin log file
+ */
+function writeAdminLog($logFile, $message) {
+    $timestamp = date('Y-m-d H:i:s');
+    $logMessage = "[$timestamp] $message\n";
+    file_put_contents($logFile, $logMessage, FILE_APPEND | LOCK_EX);
 }
 
 /**
