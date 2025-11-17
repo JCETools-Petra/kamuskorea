@@ -17,16 +17,26 @@ CREATE TABLE IF NOT EXISTS `admin_users` (
     `updated_at` DATETIME ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Tabel untuk tracking login attempts (Anti Brute Force)
+CREATE TABLE IF NOT EXISTS `admin_login_attempts` (
+    `id` INT(11) AUTO_INCREMENT PRIMARY KEY,
+    `ip_address` VARCHAR(45) NOT NULL,
+    `username` VARCHAR(50) NOT NULL,
+    `attempt_time` DATETIME NOT NULL,
+    INDEX `idx_ip_time` (`ip_address`, `attempt_time`),
+    INDEX `idx_attempt_time` (`attempt_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insert default admin user
 -- Username: admin
 -- Password: kamuskorea2024
 INSERT INTO `admin_users` (`username`, `password`, `email`, `full_name`) VALUES
-('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin@kamuskorea.com', 'Administrator');
+('admin', '$2y$12$GGAwA200dDiRMIYEMCWDZeUvMmAwrzeq53ieLSLptBZQdLaRgJHN2', 'admin@kamuskorea.com', 'Administrator');
 
 -- Catatan:
 -- Password di atas adalah hash dari 'kamuskorea2024'
 -- Anda bisa mengubah password dengan generate hash baru menggunakan:
--- PHP: password_hash('password_baru', PASSWORD_DEFAULT)
+-- PHP: password_hash('password_baru', PASSWORD_DEFAULT, ['cost' => 12])
 
 -- =============================================
 -- TABEL UNTUK ASSESSMENT (JIKA BELUM ADA)
