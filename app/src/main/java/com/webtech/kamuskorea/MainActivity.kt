@@ -137,22 +137,6 @@ class MainActivity : ComponentActivity() {
                         KamusKoreaTheme(darkTheme = useDarkTheme, dynamicColor = false, colorScheme = colors) {
                             if (isLoggedIn) {
                                 // --- PENGGUNA SUDAH LOGIN ---
-                                // Show session start interstitial (once per session for non-premium users)
-                                LaunchedEffect(Unit) {
-                                    Log.d("MainActivity", "🔍 Checking session start ad - isPremium: $isPremium")
-                                    if (!isPremium) {
-                                        Log.d("MainActivity", "📺 Attempting to show session start ad...")
-                                        adManager.showInterstitialOnSessionStart(
-                                            activity = this@MainActivity,
-                                            onAdDismissed = {
-                                                Log.d("MainActivity", "✅ Session start ad dismissed or skipped")
-                                            }
-                                        )
-                                    } else {
-                                        Log.d("MainActivity", "⏭️ Skipping session start ad - user is premium")
-                                    }
-                                }
-
                                 // Tampilkan aplikasi utama (dengan menu, scaffold, dll.)
                                 MainApp(
                                     firebaseAuth = firebaseAuth,

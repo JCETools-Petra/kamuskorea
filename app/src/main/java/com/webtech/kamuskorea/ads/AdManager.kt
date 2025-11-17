@@ -34,34 +34,32 @@ class AdManager @Inject constructor() {
         private const val TAG = "AdManager"
 
         // Ad Unit IDs
-        private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-7038054430257806/5551158856"
-        const val BANNER_AD_UNIT_ID = "ca-app-pub-7038054430257806/1559108807"
-        // TODO: Replace with your actual Rewarded Video Ad Unit ID
-        private const val REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917" // Test ID
+        // DEBUG: Use Google's test ad unit IDs for testing
+        private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712" // Google Test ID
+        const val BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/6300978111" // Google Test ID
+        private const val REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917" // Google Test ID
+
+        // PRODUCTION: Uncomment these and comment above for production release
+        // private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-7038054430257806/5551158856"
+        // const val BANNER_AD_UNIT_ID = "ca-app-pub-7038054430257806/1559108807"
+        // private const val REWARDED_AD_UNIT_ID = "YOUR_REWARDED_AD_UNIT_ID" // Replace with actual ID
 
         // Flashcard click frequency
-        private const val FLASHCARD_CLICK_FREQUENCY = 20 // Show ad every 20 clicks
+        private const val FLASHCARD_CLICK_FREQUENCY = 10 // Show ad every 10 clicks (10, 20, 30, etc.)
 
-        // ✅ OPTIMIZED: Different frequency for each action
-        // DEBUG: Set frequencies to 1 for testing (show every time)
-        private const val PDF_OPEN_FREQUENCY = 1          // Show ad every PDF open (DEBUG)
-        private const val QUIZ_START_FREQUENCY = 1        // Show ad every quiz/exam start (DEBUG)
-        private const val QUIZ_COMPLETE_FREQUENCY = 1     // Show ad every quiz completion (DEBUG)
-        private const val SESSION_START_FREQUENCY = 1     // Show ad every session (DEBUG)
-        private const val NAVIGATION_FREQUENCY = 10       // Show ad every 10 navigations
+        // ✅ AD PLACEMENT STRATEGY:
+        // - Show ad BEFORE opening PDF/quiz (user expects it)
+        // - No ad on session start (annoying)
+        // - No ad on quiz completion (already shown at start)
+        private const val PDF_OPEN_FREQUENCY = 1          // Show ad EVERY PDF open
+        private const val QUIZ_START_FREQUENCY = 1        // Show ad EVERY quiz/exam start
+        private const val QUIZ_COMPLETE_FREQUENCY = 999   // Disabled (already shown at start)
+        private const val SESSION_START_FREQUENCY = 999   // Disabled (annoying on first login)
+        private const val NAVIGATION_FREQUENCY = 999      // Disabled
 
-        // PRODUCTION: Uncomment these and comment above for production
-        // private const val PDF_OPEN_FREQUENCY = 2          // Show ad every 2 PDF opens
-        // private const val QUIZ_START_FREQUENCY = 2        // Show ad every 2 quiz/exam starts
-        // private const val QUIZ_COMPLETE_FREQUENCY = 3     // Show ad every 3 quiz completions
-        // private const val SESSION_START_FREQUENCY = 5     // Show ad every 5 app sessions
-        // private const val NAVIGATION_FREQUENCY = 10       // Show ad every 10 navigations
-
-        // ✅ RATE LIMITING: Prevent ad fatigue
-        private const val MAX_INTERSTITIAL_PER_HOUR = 4   // Maximum 4 interstitial ads per hour
-        // DEBUG: Set to 5 seconds for testing, change to 60 for production
-        private const val MIN_INTERVAL_SECONDS = 5        // Minimum 5 seconds between ads (DEBUG)
-        // private const val MIN_INTERVAL_SECONDS = 60    // Minimum 60 seconds between ads (PRODUCTION)
+        // ✅ RATE LIMITING: Allow frequent ads for important actions
+        private const val MAX_INTERSTITIAL_PER_HOUR = 30  // Allow many ads per hour
+        private const val MIN_INTERVAL_SECONDS = 3        // Only 3 seconds between ads
     }
 
     // Ad instances
