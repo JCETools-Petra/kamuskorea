@@ -1,23 +1,49 @@
 <?php
-require_once __DIR__ . '/admin_config.php';
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 $error = '';
+$debug = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'] ?? '';
+// Try to load config
+try {
+    require_once __DIR__ . '/admin_config.php';
+} catch (Exception $e) {
+    $error = 'Config load error: ' . $e->getMessage();
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
+    $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    if (adminLogin($username, $password)) {
-        header('Location: admin_dashboard.php');
-        exit();
+    if (empty($username) || empty($password)) {
+        $error = 'Username dan password harus diisi!';
     } else {
-        $error = 'Username atau password salah!';
+        try {
+            if (adminLogin($username, $password)) {
+                header('Location: admin_dashboard.php');
+                exit();
+            } else {
+                $error = 'Username atau password salah! Cek file admin_login.log untuk detail.';
+            }
+        } catch (Exception $e) {
+            $error = 'Login error: ' . $e->getMessage();
+        }
     }
 }
 
-if (isAdminLoggedIn()) {
+if (empty($error) && function_exists('isAdminLoggedIn') && isAdminLoggedIn()) {
     header('Location: admin_dashboard.php');
     exit();
+}
+
+// Check if log file exists and show last entries
+$logFile = __DIR__ . '/admin_login.log';
+if (file_exists($logFile)) {
+    $logContent = file_get_contents($logFile);
+    $logLines = explode("\n", trim($logContent));
+    $lastLines = array_slice($logLines, -20); // Last 20 lines
+    $debug = implode("\n", $lastLines);
 }
 ?>
 <!DOCTYPE html>
@@ -41,11 +67,21 @@ if (isAdminLoggedIn()) {
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
             padding: 40px;
             width: 100%;
-            max-width: 400px;
+            max-width: 500px;
         }
         .logo {
             font-size: 3rem;
             margin-bottom: 20px;
+        }
+        .debug-log {
+            font-family: monospace;
+            font-size: 11px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
         }
     </style>
 </head>
@@ -64,7 +100,8 @@ if (isAdminLoggedIn()) {
         <form method="POST">
             <div class="mb-3">
                 <label for="username" class="form-label">Username</label>
-                <input type="text" class="form-control" id="username" name="username" required autofocus>
+                <input type="text" class="form-control" id="username" name="username" required autofocus
+                       value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
             </div>
             <div class="mb-3">
                 <label for="password" class="form-label">Password</label>
@@ -72,6 +109,25 @@ if (isAdminLoggedIn()) {
             </div>
             <button type="submit" class="btn btn-primary w-100">Login</button>
         </form>
+
+        <?php if (!empty($debug)): ?>
+            <hr>
+            <div class="mt-3">
+                <h6>Debug Log (Last 20 lines):</h6>
+                <div class="debug-log"><?= htmlspecialchars($debug) ?></div>
+                <small class="text-muted">File: <?= $logFile ?></small>
+            </div>
+        <?php endif; ?>
+
+        <hr>
+        <div class="mt-3">
+            <small class="text-muted">
+                <strong>Troubleshooting:</strong><br>
+                1. Pastikan tabel <code>admin_users</code> sudah dibuat<br>
+                2. Pastikan file <code>.env</code> ada di parent directory<br>
+                3. Cek file <code>admin_login.log</code> untuk detail error
+            </small>
+        </div>
     </div>
 </body>
 </html>
