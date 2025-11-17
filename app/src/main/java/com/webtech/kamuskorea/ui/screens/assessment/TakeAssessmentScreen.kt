@@ -7,6 +7,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,6 +26,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -35,12 +38,16 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
+import coil.compose.SubcomposeAsyncImage
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.PlayerView
 import com.webtech.kamuskorea.data.assessment.Question
+import com.webtech.kamuskorea.data.media.MediaPreloader
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
 
 enum class AnswerLanguage {
     PRIMARY,    // Default language (as stored in database)
@@ -185,7 +192,8 @@ fun TakeAssessmentScreen(
                             QuestionContentLandscape(
                                 question = currentQuestion,
                                 currentIndex = currentIndex,
-                                totalQuestions = questions.size
+                                totalQuestions = questions.size,
+                                mediaPreloader = viewModel.getMediaPreloader()
                             )
                         }
 
@@ -408,7 +416,8 @@ fun LandscapeTopBar(
 fun QuestionContentLandscape(
     question: Question,
     currentIndex: Int,
-    totalQuestions: Int
+    totalQuestions: Int,
+    mediaPreloader: MediaPreloader? = null
 ) {
     Column(
         modifier = Modifier
@@ -441,7 +450,7 @@ fun QuestionContentLandscape(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Media Content
+        // Media Content with Loading States
         when (question.questionType) {
             "image" -> {
                 question.mediaUrl?.let { url ->
@@ -450,25 +459,41 @@ fun QuestionContentLandscape(
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         shape = RoundedCornerShape(6.dp)
                     ) {
-                        AsyncImage(
+                        SubcomposeAsyncImage(
                             model = url,
                             contentDescription = "Question Image",
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = 180.dp),
                             contentScale = ContentScale.Fit
-                        )
+                        ) {
+                            when (painter.state) {
+                                is AsyncImagePainter.State.Loading -> {
+                                    ShimmerPlaceholder(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(150.dp)
+                                    )
+                                }
+                                is AsyncImagePainter.State.Error -> {
+                                    MediaErrorPlaceholder(type = "image")
+                                }
+                                else -> {
+                                    SubcomposeAsyncImageContent()
+                                }
+                            }
+                        }
                     }
                 }
             }
             "audio" -> {
                 question.mediaUrl?.let { url ->
-                    AudioPlayerCompact(url)
+                    AudioPlayerCompactCached(url, mediaPreloader)
                 }
             }
             "video" -> {
                 question.mediaUrl?.let { url ->
-                    VideoPlayerCompact(url)
+                    VideoPlayerCompactCached(url, mediaPreloader)
                 }
             }
         }
@@ -956,4 +981,338 @@ fun QuestionGridDialog(
             }
         }
     )
+}
+
+// ========== SHIMMER AND CACHED MEDIA PLAYERS ==========
+
+/**
+ * Shimmer placeholder for loading media content
+ */
+@Composable
+fun ShimmerPlaceholder(modifier: Modifier = Modifier) {
+    val shimmerColors = listOf(
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+    )
+
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateAnimation = transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_translate"
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset.Zero,
+        end = Offset(x = translateAnimation.value, y = translateAnimation.value)
+    )
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(brush)
+    ) {
+        // Loading indicator in center
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(32.dp),
+                    strokeWidth = 3.dp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Loading...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Error placeholder for failed media loading
+ */
+@Composable
+fun MediaErrorPlaceholder(type: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                when (type) {
+                    "image" -> Icons.Default.BrokenImage
+                    "audio" -> Icons.Default.MusicOff
+                    else -> Icons.Default.ErrorOutline
+                },
+                contentDescription = "Error",
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Failed to load $type",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+/**
+ * Audio player that uses cached files when available
+ */
+@Composable
+fun AudioPlayerCompactCached(url: String, mediaPreloader: MediaPreloader?) {
+    val context = LocalContext.current
+    var isPlaying by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
+    var hasError by remember { mutableStateOf(false) }
+
+    // Check for cached file first
+    val audioSource = remember(url) {
+        mediaPreloader?.getCachedFilePath(url, "audio") ?: url
+    }
+
+    val mediaPlayer = remember(audioSource) {
+        MediaPlayer().apply {
+            try {
+                if (audioSource.startsWith("/")) {
+                    // Local cached file
+                    setDataSource(audioSource)
+                    prepare() // Synchronous for local files
+                    isLoading = false
+                } else {
+                    // Stream from URL
+                    setDataSource(audioSource)
+                    setOnPreparedListener { isLoading = false }
+                    setOnErrorListener { _, _, _ ->
+                        hasError = true
+                        isLoading = false
+                        true
+                    }
+                    prepareAsync()
+                }
+                setOnCompletionListener { isPlaying = false }
+            } catch (e: Exception) {
+                Log.e("AudioPlayer", "Error initializing", e)
+                hasError = true
+                isLoading = false
+            }
+        }
+    }
+
+    DisposableEffect(audioSource) {
+        onDispose { mediaPlayer.release() }
+    }
+
+    if (hasError) {
+        MediaErrorPlaceholder(type = "audio")
+    } else {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer
+            ),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        strokeWidth = 3.dp
+                    )
+                } else {
+                    IconButton(
+                        onClick = {
+                            if (isPlaying) mediaPlayer.pause()
+                            else mediaPlayer.start()
+                            isPlaying = !isPlaying
+                        },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "오디오 문제",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (mediaPreloader?.isCached(url) == true) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = Color(0xFF4CAF50).copy(alpha = 0.2f)
+                            ) {
+                                Text(
+                                    "Cached",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFF4CAF50),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        if (isLoading) "Loading..." else "재생하려면 누르세요",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Video player that uses cached files when available
+ */
+@Composable
+fun VideoPlayerCompactCached(url: String, mediaPreloader: MediaPreloader?) {
+    val context = LocalContext.current
+    var isLoading by remember { mutableStateOf(true) }
+    var hasError by remember { mutableStateOf(false) }
+
+    // Check for cached file first
+    val videoSource = remember(url) {
+        mediaPreloader?.getCachedFilePath(url, "video") ?: url
+    }
+
+    val exoPlayer = remember(videoSource) {
+        ExoPlayer.Builder(context).build().apply {
+            try {
+                val mediaItem = if (videoSource.startsWith("/")) {
+                    // Local cached file
+                    MediaItem.fromUri(Uri.fromFile(File(videoSource)))
+                } else {
+                    // Stream from URL
+                    MediaItem.fromUri(Uri.parse(videoSource))
+                }
+                setMediaItem(mediaItem)
+                addListener(object : com.google.android.exoplayer2.Player.Listener {
+                    override fun onPlaybackStateChanged(state: Int) {
+                        when (state) {
+                            com.google.android.exoplayer2.Player.STATE_READY -> isLoading = false
+                            com.google.android.exoplayer2.Player.STATE_ENDED -> {}
+                        }
+                    }
+
+                    override fun onPlayerError(error: com.google.android.exoplayer2.PlaybackException) {
+                        hasError = true
+                        isLoading = false
+                        Log.e("VideoPlayer", "Error: ${error.message}")
+                    }
+                })
+                prepare()
+            } catch (e: Exception) {
+                Log.e("VideoPlayer", "Error initializing", e)
+                hasError = true
+                isLoading = false
+            }
+        }
+    }
+
+    DisposableEffect(videoSource) {
+        onDispose { exoPlayer.release() }
+    }
+
+    if (hasError) {
+        MediaErrorPlaceholder(type = "video")
+    } else {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Box {
+                AndroidView(
+                    factory = { ctx ->
+                        PlayerView(ctx).apply { player = exoPlayer }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                )
+
+                // Loading overlay
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .background(Color.Black.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 3.dp
+                        )
+                    }
+                }
+
+                // Cache indicator
+                if (mediaPreloader?.isCached(url) == true && !isLoading) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp),
+                        shape = RoundedCornerShape(4.dp),
+                        color = Color(0xFF4CAF50).copy(alpha = 0.8f)
+                    ) {
+                        Text(
+                            "Cached",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
 }

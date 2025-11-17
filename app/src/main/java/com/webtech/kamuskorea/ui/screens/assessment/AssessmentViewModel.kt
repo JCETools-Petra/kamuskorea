@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.webtech.kamuskorea.data.assessment.*
+import com.webtech.kamuskorea.data.media.MediaPreloader
 import com.webtech.kamuskorea.data.network.ApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +24,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AssessmentViewModel @Inject constructor(
     private val apiService: ApiService,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val mediaPreloader: MediaPreloader
 ) : ViewModel() {
 
     companion object {
@@ -60,6 +62,14 @@ class AssessmentViewModel @Inject constructor(
     val error: StateFlow<String?> = _error.asStateFlow()
 
     private val _startTime = MutableStateFlow(0L)
+
+    // Expose media preloader for UI
+    val mediaLoadingStates = mediaPreloader.loadingStates
+
+    /**
+     * Get the MediaPreloader instance
+     */
+    fun getMediaPreloader(): MediaPreloader = mediaPreloader
 
     // Fetch kategori
     fun fetchCategories(type: String? = null) {
@@ -149,6 +159,12 @@ class AssessmentViewModel @Inject constructor(
                     }
 
                     _questions.value = questionsList
+
+                    // Start preloading media for questions
+                    if (questionsList.isNotEmpty()) {
+                        Log.d("AssessmentVM", "📦 Starting media preload for ${questionsList.size} questions")
+                        mediaPreloader.preloadQuestions(questionsList, 0)
+                    }
                 } else {
                     val errorBody = response.errorBody()?.string() ?: "Unknown error"
                     val errorMsg = "Gagal memuat soal: ${response.code()} - $errorBody"
@@ -180,6 +196,8 @@ class AssessmentViewModel @Inject constructor(
         if (_currentQuestionIndex.value < _questions.value.size - 1) {
             _currentQuestionIndex.value++
             Log.d("AssessmentVM", "➡️ Next question: ${_currentQuestionIndex.value + 1}")
+            // Preload upcoming questions
+            mediaPreloader.preloadQuestions(_questions.value, _currentQuestionIndex.value)
         }
     }
 
@@ -188,6 +206,8 @@ class AssessmentViewModel @Inject constructor(
         if (_currentQuestionIndex.value > 0) {
             _currentQuestionIndex.value--
             Log.d("AssessmentVM", "⬅️ Previous question: ${_currentQuestionIndex.value + 1}")
+            // Preload upcoming questions from new position
+            mediaPreloader.preloadQuestions(_questions.value, _currentQuestionIndex.value)
         }
     }
 
@@ -196,6 +216,8 @@ class AssessmentViewModel @Inject constructor(
         if (index in _questions.value.indices) {
             _currentQuestionIndex.value = index
             Log.d("AssessmentVM", "🎯 Jump to question: ${index + 1}")
+            // Preload upcoming questions from jumped position
+            mediaPreloader.preloadQuestions(_questions.value, index)
         }
     }
 
@@ -299,6 +321,8 @@ class AssessmentViewModel @Inject constructor(
         _assessmentResult.value = null
         _error.value = null
         _startTime.value = 0L
+        // Cancel any pending preload operations
+        mediaPreloader.cancelAll()
         Log.d("AssessmentVM", "🔄 Assessment state reset")
     }
 
