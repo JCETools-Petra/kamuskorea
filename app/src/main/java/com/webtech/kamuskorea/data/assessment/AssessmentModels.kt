@@ -41,6 +41,10 @@ data class Question(
     @SerializedName("option_b") val optionB: String,
     @SerializedName("option_c") val optionC: String?,
     @SerializedName("option_d") val optionD: String?,
+    @SerializedName("option_a_alt") val optionAAlt: String? = null, // Alternative language (Korean/Indonesian)
+    @SerializedName("option_b_alt") val optionBAlt: String? = null,
+    @SerializedName("option_c_alt") val optionCAlt: String? = null,
+    @SerializedName("option_d_alt") val optionDAlt: String? = null,
     @SerializedName("order_index") val orderIndex: Int
 ) {
     fun getOptions(): List<Pair<String, String>> {
@@ -50,6 +54,19 @@ data class Question(
         optionC?.let { options.add("C" to it) }
         optionD?.let { options.add("D" to it) }
         return options
+    }
+
+    fun getOptionsAlt(): List<Pair<String, String>> {
+        val options = mutableListOf<Pair<String, String>>()
+        options.add("A" to (optionAAlt ?: optionA))
+        options.add("B" to (optionBAlt ?: optionB))
+        optionC?.let { options.add("C" to (optionCAlt ?: it)) }
+        optionD?.let { options.add("D" to (optionDAlt ?: it)) }
+        return options
+    }
+
+    fun hasAlternativeOptions(): Boolean {
+        return optionAAlt != null || optionBAlt != null
     }
 }
 

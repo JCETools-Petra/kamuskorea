@@ -5,16 +5,24 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.webtech.kamuskorea.data.local.Word
 import com.webtech.kamuskorea.data.local.WordDao
+import com.webtech.kamuskorea.data.local.FavoriteWord
+import com.webtech.kamuskorea.data.local.FavoriteWordDao
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+enum class DisplayLanguage {
+    KOREAN,     // Show Korean word first
+    INDONESIAN  // Show Indonesian word first
+}
+
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class DictionaryViewModel @Inject constructor(
-    private val wordDao: WordDao
+    private val wordDao: WordDao,
+    private val favoriteWordDao: FavoriteWordDao
 ) : ViewModel() {
 
     private val TAG = "DictionaryViewModel"
@@ -24,6 +32,26 @@ class DictionaryViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _displayLanguage = MutableStateFlow(DisplayLanguage.KOREAN)
+    val displayLanguage: StateFlow<DisplayLanguage> = _displayLanguage.asStateFlow()
+
+    // Track favorite IDs
+    val favoriteIds: StateFlow<Set<Int>> = favoriteWordDao.getAllFavoriteIds()
+        .map { it.toSet() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptySet()
+        )
+
+    // Get all favorites
+    val favorites: StateFlow<List<FavoriteWord>> = favoriteWordDao.getAllFavorites()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     val words: StateFlow<List<Word>> = searchQuery
         .debounce(300L)
@@ -83,5 +111,39 @@ class DictionaryViewModel @Inject constructor(
     fun onSearchQueryChange(query: String) {
         Log.d(TAG, "onSearchQueryChange: '$query'")
         _searchQuery.value = query
+    }
+
+    fun toggleDisplayLanguage() {
+        _displayLanguage.value = when (_displayLanguage.value) {
+            DisplayLanguage.KOREAN -> DisplayLanguage.INDONESIAN
+            DisplayLanguage.INDONESIAN -> DisplayLanguage.KOREAN
+        }
+        Log.d(TAG, "Display language toggled to: ${_displayLanguage.value}")
+    }
+
+    fun toggleFavorite(word: Word) {
+        viewModelScope.launch {
+            val isFav = favoriteIds.value.contains(word.id)
+            if (isFav) {
+                favoriteWordDao.removeFavorite(word.id)
+                Log.d(TAG, "Removed from favorites: ${word.koreanWord}")
+            } else {
+                val favoriteWord = FavoriteWord(
+                    wordId = word.id,
+                    koreanWord = word.koreanWord,
+                    romanization = word.romanization,
+                    indonesianTranslation = word.indonesianTranslation
+                )
+                favoriteWordDao.addFavorite(favoriteWord)
+                Log.d(TAG, "Added to favorites: ${word.koreanWord}")
+            }
+        }
+    }
+
+    fun removeFavoriteById(wordId: Int) {
+        viewModelScope.launch {
+            favoriteWordDao.removeFavorite(wordId)
+            Log.d(TAG, "Removed favorite by ID: $wordId")
+        }
     }
 }

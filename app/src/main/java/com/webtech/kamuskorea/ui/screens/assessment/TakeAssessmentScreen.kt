@@ -6,7 +6,9 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,6 +27,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -34,13 +38,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.PlayerView
 import com.webtech.kamuskorea.data.assessment.Question
+import com.webtech.kamuskorea.data.media.MediaPreloader
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
+
+// Language options for UI display
+enum class UILanguage(val displayName: String, val flag: String) {
+    KOREAN("한국어", "🇰🇷"),
+    INDONESIAN("Indonesia", "🇮🇩"),
+    ENGLISH("English", "🇺🇸")
+}
+
+enum class AnswerLanguage {
+    PRIMARY,    // Default language (as stored in database)
+    ALTERNATIVE // Alternative language (Korean/Indonesian)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +90,14 @@ fun TakeAssessmentScreen(
     var showQuestionGrid by remember { mutableStateOf(false) }
     var showSubmitDialog by remember { mutableStateOf(false) }
     var showExitDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    var answerLanguage by remember { mutableStateOf(AnswerLanguage.PRIMARY) }
+    var uiLanguage by remember { mutableStateOf(UILanguage.KOREAN) }
+
+    // Block back button during quiz - show exit dialog instead
+    BackHandler(enabled = questions.isNotEmpty() && result == null) {
+        showExitDialog = true
+    }
 
     // Timer states
     val durationMinutes = remember { mutableStateOf(10) }
@@ -134,6 +160,8 @@ fun TakeAssessmentScreen(
                 totalQuestions = questions.size,
                 timeText = timeText,
                 timerColor = timerColor,
+                uiLanguage = uiLanguage,
+                onShowLanguageDialog = { showLanguageDialog = true },
                 onShowGrid = { showQuestionGrid = true },
                 onExit = { showExitDialog = true }
             )
@@ -173,7 +201,8 @@ fun TakeAssessmentScreen(
                             QuestionContentLandscape(
                                 question = currentQuestion,
                                 currentIndex = currentIndex,
-                                totalQuestions = questions.size
+                                totalQuestions = questions.size,
+                                mediaPreloader = viewModel.getMediaPreloader()
                             )
                         }
 
@@ -197,7 +226,12 @@ fun TakeAssessmentScreen(
                                         .padding(8.dp),
                                     verticalArrangement = Arrangement.SpaceEvenly
                                 ) {
-                                    currentQuestion.getOptions().forEach { (letter, text) ->
+                                    val options = if (answerLanguage == AnswerLanguage.ALTERNATIVE)
+                                        currentQuestion.getOptionsAlt()
+                                    else
+                                        currentQuestion.getOptions()
+
+                                    options.forEach { (letter, text) ->
                                         LandscapeAnswerOption(
                                             letter = letter,
                                             text = text,
@@ -216,6 +250,7 @@ fun TakeAssessmentScreen(
                             NavigationButtons(
                                 currentIndex = currentIndex,
                                 totalQuestions = questions.size,
+                                uiLanguage = uiLanguage,
                                 onPrevious = { viewModel.previousQuestion() },
                                 onNext = { viewModel.nextQuestion() },
                                 onFinish = { showSubmitDialog = true }
@@ -228,6 +263,17 @@ fun TakeAssessmentScreen(
     }
 
     // Dialogs
+    if (showLanguageDialog) {
+        LanguageSelectionDialog(
+            currentLanguage = uiLanguage,
+            onSelectLanguage = { selectedLang ->
+                uiLanguage = selectedLang
+                showLanguageDialog = false
+            },
+            onDismiss = { showLanguageDialog = false }
+        )
+    }
+
     if (showQuestionGrid) {
         QuestionGridDialog(
             questions = questions,
@@ -278,9 +324,18 @@ fun LandscapeTopBar(
     totalQuestions: Int,
     timeText: String,
     timerColor: Color,
+    uiLanguage: UILanguage = UILanguage.KOREAN,
+    onShowLanguageDialog: () -> Unit = {},
     onShowGrid: () -> Unit,
     onExit: () -> Unit
 ) {
+    // Localized text based on UI language
+    val allQuestionsText = when (uiLanguage) {
+        UILanguage.KOREAN -> "전체"
+        UILanguage.INDONESIAN -> "Semua"
+        UILanguage.ENGLISH -> "All"
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
@@ -321,6 +376,33 @@ fun LandscapeTopBar(
 
             Spacer(modifier = Modifier.weight(1f))
 
+            // Language Selector Button - Always visible
+            FilledTonalButton(
+                onClick = onShowLanguageDialog,
+                modifier = Modifier.height(32.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Text(
+                    text = uiLanguage.flag,
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = uiLanguage.displayName,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Icon(
+                    Icons.Default.ArrowDropDown,
+                    contentDescription = "Change Language",
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+
             // Timer
             Surface(
                 shape = RoundedCornerShape(6.dp),
@@ -352,9 +434,9 @@ fun LandscapeTopBar(
                 modifier = Modifier.height(32.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Icon(Icons.Default.GridView, "Lihat Semua", modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.GridView, "View All Questions", modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("전체", fontSize = 12.sp)
+                Text(allQuestionsText, fontSize = 12.sp)
             }
         }
     }
@@ -364,7 +446,8 @@ fun LandscapeTopBar(
 fun QuestionContentLandscape(
     question: Question,
     currentIndex: Int,
-    totalQuestions: Int
+    totalQuestions: Int,
+    mediaPreloader: MediaPreloader? = null
 ) {
     Column(
         modifier = Modifier
@@ -397,7 +480,7 @@ fun QuestionContentLandscape(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Media Content
+        // Media Content with Loading States
         when (question.questionType) {
             "image" -> {
                 question.mediaUrl?.let { url ->
@@ -406,25 +489,35 @@ fun QuestionContentLandscape(
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         shape = RoundedCornerShape(6.dp)
                     ) {
-                        AsyncImage(
+                        SubcomposeAsyncImage(
                             model = url,
                             contentDescription = "Question Image",
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = 180.dp),
-                            contentScale = ContentScale.Fit
+                            contentScale = ContentScale.Fit,
+                            loading = {
+                                ShimmerPlaceholder(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(150.dp)
+                                )
+                            },
+                            error = {
+                                MediaErrorPlaceholder(type = "image")
+                            }
                         )
                     }
                 }
             }
             "audio" -> {
                 question.mediaUrl?.let { url ->
-                    AudioPlayerCompact(url)
+                    AudioPlayerCompactCached(url, mediaPreloader)
                 }
             }
             "video" -> {
                 question.mediaUrl?.let { url ->
-                    VideoPlayerCompact(url)
+                    VideoPlayerCompactCached(url, mediaPreloader)
                 }
             }
         }
@@ -511,10 +604,28 @@ fun LandscapeAnswerOption(
 fun NavigationButtons(
     currentIndex: Int,
     totalQuestions: Int,
+    uiLanguage: UILanguage = UILanguage.KOREAN,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onFinish: () -> Unit
 ) {
+    // Localized button text
+    val previousText = when (uiLanguage) {
+        UILanguage.KOREAN -> "이전"
+        UILanguage.INDONESIAN -> "Sebelumnya"
+        UILanguage.ENGLISH -> "Previous"
+    }
+    val nextText = when (uiLanguage) {
+        UILanguage.KOREAN -> "다음"
+        UILanguage.INDONESIAN -> "Selanjutnya"
+        UILanguage.ENGLISH -> "Next"
+    }
+    val finishText = when (uiLanguage) {
+        UILanguage.KOREAN -> "마감"
+        UILanguage.INDONESIAN -> "Selesai"
+        UILanguage.ENGLISH -> "Finish"
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -530,7 +641,7 @@ fun NavigationButtons(
         ) {
             Icon(Icons.Default.ChevronLeft, null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text("이전", fontSize = 13.sp)
+            Text(previousText, fontSize = 13.sp)
         }
 
         // Next or Finish Button
@@ -545,7 +656,7 @@ fun NavigationButtons(
                 ),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Text("마감", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(finishText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
             }
@@ -557,7 +668,7 @@ fun NavigationButtons(
                     .height(38.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Text("다음", fontSize = 13.sp)
+                Text(nextText, fontSize = 13.sp)
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(16.dp))
             }
@@ -912,4 +1023,461 @@ fun QuestionGridDialog(
             }
         }
     )
+}
+
+// ========== SHIMMER AND CACHED MEDIA PLAYERS ==========
+
+/**
+ * Shimmer placeholder for loading media content
+ */
+@Composable
+fun ShimmerPlaceholder(modifier: Modifier = Modifier) {
+    val shimmerColors = listOf(
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+    )
+
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateAnimation = transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_translate"
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset.Zero,
+        end = Offset(x = translateAnimation.value, y = translateAnimation.value)
+    )
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(brush)
+    ) {
+        // Loading indicator in center
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(32.dp),
+                    strokeWidth = 3.dp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Loading...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Error placeholder for failed media loading
+ */
+@Composable
+fun MediaErrorPlaceholder(type: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                when (type) {
+                    "image" -> Icons.Default.BrokenImage
+                    "audio" -> Icons.Default.MusicOff
+                    else -> Icons.Default.ErrorOutline
+                },
+                contentDescription = "Error",
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Failed to load $type",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+/**
+ * Audio player that uses cached files when available
+ */
+@Composable
+fun AudioPlayerCompactCached(url: String, mediaPreloader: MediaPreloader?) {
+    val context = LocalContext.current
+    var isPlaying by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
+    var hasError by remember { mutableStateOf(false) }
+
+    // Check for cached file first
+    val audioSource = remember(url) {
+        mediaPreloader?.getCachedFilePath(url, "audio") ?: url
+    }
+
+    val mediaPlayer = remember(audioSource) {
+        MediaPlayer().apply {
+            try {
+                if (audioSource.startsWith("/")) {
+                    // Local cached file
+                    setDataSource(audioSource)
+                    prepare() // Synchronous for local files
+                    isLoading = false
+                } else {
+                    // Stream from URL
+                    setDataSource(audioSource)
+                    setOnPreparedListener { isLoading = false }
+                    setOnErrorListener { _, _, _ ->
+                        hasError = true
+                        isLoading = false
+                        true
+                    }
+                    prepareAsync()
+                }
+                setOnCompletionListener { isPlaying = false }
+            } catch (e: Exception) {
+                Log.e("AudioPlayer", "Error initializing", e)
+                hasError = true
+                isLoading = false
+            }
+        }
+    }
+
+    DisposableEffect(audioSource) {
+        onDispose { mediaPlayer.release() }
+    }
+
+    if (hasError) {
+        MediaErrorPlaceholder(type = "audio")
+    } else {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer
+            ),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        strokeWidth = 3.dp
+                    )
+                } else {
+                    IconButton(
+                        onClick = {
+                            if (isPlaying) mediaPlayer.pause()
+                            else mediaPlayer.start()
+                            isPlaying = !isPlaying
+                        },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "오디오 문제",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (mediaPreloader?.isCached(url) == true) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = Color(0xFF4CAF50).copy(alpha = 0.2f)
+                            ) {
+                                Text(
+                                    "Cached",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFF4CAF50),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        if (isLoading) "Loading..." else "재생하려면 누르세요",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Video player that uses cached files when available
+ */
+@Composable
+fun VideoPlayerCompactCached(url: String, mediaPreloader: MediaPreloader?) {
+    val context = LocalContext.current
+    var isLoading by remember { mutableStateOf(true) }
+    var hasError by remember { mutableStateOf(false) }
+
+    // Check for cached file first
+    val videoSource = remember(url) {
+        mediaPreloader?.getCachedFilePath(url, "video") ?: url
+    }
+
+    val exoPlayer = remember(videoSource) {
+        ExoPlayer.Builder(context).build().apply {
+            try {
+                val mediaItem = if (videoSource.startsWith("/")) {
+                    // Local cached file
+                    MediaItem.fromUri(Uri.fromFile(File(videoSource)))
+                } else {
+                    // Stream from URL
+                    MediaItem.fromUri(Uri.parse(videoSource))
+                }
+                setMediaItem(mediaItem)
+                addListener(object : com.google.android.exoplayer2.Player.Listener {
+                    override fun onPlaybackStateChanged(state: Int) {
+                        when (state) {
+                            com.google.android.exoplayer2.Player.STATE_READY -> isLoading = false
+                            com.google.android.exoplayer2.Player.STATE_ENDED -> {}
+                        }
+                    }
+
+                    override fun onPlayerError(error: com.google.android.exoplayer2.PlaybackException) {
+                        hasError = true
+                        isLoading = false
+                        Log.e("VideoPlayer", "Error: ${error.message}")
+                    }
+                })
+                prepare()
+            } catch (e: Exception) {
+                Log.e("VideoPlayer", "Error initializing", e)
+                hasError = true
+                isLoading = false
+            }
+        }
+    }
+
+    DisposableEffect(videoSource) {
+        onDispose { exoPlayer.release() }
+    }
+
+    if (hasError) {
+        MediaErrorPlaceholder(type = "video")
+    } else {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Box {
+                AndroidView(
+                    factory = { ctx ->
+                        PlayerView(ctx).apply { player = exoPlayer }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                )
+
+                // Loading overlay
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .background(Color.Black.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 3.dp
+                        )
+                    }
+                }
+
+                // Cache indicator
+                if (mediaPreloader?.isCached(url) == true && !isLoading) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp),
+                        shape = RoundedCornerShape(4.dp),
+                        color = Color(0xFF4CAF50).copy(alpha = 0.8f)
+                    ) {
+                        Text(
+                            "Cached",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Language selection dialog for quiz UI
+ * Allows switching between Korean, Indonesian, and English
+ */
+@Composable
+fun LanguageSelectionDialog(
+    currentLanguage: UILanguage,
+    onSelectLanguage: (UILanguage) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Select Language / Pilih Bahasa / 언어 선택",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Choose your preferred language for the quiz interface:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Language Options
+                UILanguage.entries.forEach { language ->
+                    LanguageOptionItem(
+                        language = language,
+                        isSelected = language == currentLanguage,
+                        onClick = { onSelectLanguage(language) }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close / Tutup / 닫기")
+            }
+        }
+    )
+}
+
+@Composable
+fun LanguageOptionItem(
+    language: UILanguage,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        border = if (isSelected)
+            androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        else
+            null
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Flag emoji
+            Text(
+                text = language.flag,
+                fontSize = 24.sp
+            )
+
+            // Language name
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = language.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    else
+                        MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = when (language) {
+                        UILanguage.KOREAN -> "Korean Language"
+                        UILanguage.INDONESIAN -> "Bahasa Indonesia"
+                        UILanguage.ENGLISH -> "English Language"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Check icon for selected
+            if (isSelected) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+    }
 }

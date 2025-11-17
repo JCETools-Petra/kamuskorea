@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.webtech.kamuskorea.ui.navigation.Screen
 import kotlinx.coroutines.delay
@@ -41,13 +42,19 @@ data class MenuCard(
 @Composable
 fun ModernHomeScreen(
     navController: NavController,
-    isPremium: Boolean = false
+    isPremium: Boolean = false,
+    homeViewModel: HomeViewModel = hiltViewModel()
 ) {
     var showContent by remember { mutableStateOf(false) }
+
+    // Collect statistics from ViewModel
+    val statistics by homeViewModel.statistics.collectAsState()
 
     LaunchedEffect(Unit) {
         delay(100)
         showContent = true
+        // Record activity when user opens the app
+        homeViewModel.recordActivity()
     }
 
     val auth = FirebaseAuth.getInstance()
@@ -227,9 +234,9 @@ fun ModernHomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        StatItem("Kata Tersimpan", "0", Icons.Default.BookmarkBorder)
-                        StatItem("Quiz Selesai", "0", Icons.Default.CheckCircleOutline)
-                        StatItem("Hari Streak", "0", Icons.Default.LocalFireDepartment)
+                        StatItem("Kata Tersimpan", statistics.savedWordsCount.toString(), Icons.Default.BookmarkBorder)
+                        StatItem("Quiz Selesai", statistics.quizCompletedCount.toString(), Icons.Default.CheckCircleOutline)
+                        StatItem("Hari Streak", statistics.streakDays.toString(), Icons.Default.LocalFireDepartment)
                     }
                 }
             }

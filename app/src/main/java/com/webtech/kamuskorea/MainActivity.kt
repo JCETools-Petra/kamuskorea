@@ -131,28 +131,20 @@ class MainActivity : ComponentActivity() {
 
                         // Dapatkan tema saat ini di sini agar bisa diteruskan ke kedua alur
                         val currentTheme by settingsViewModel.currentTheme.collectAsState()
-                        val useDarkTheme = isSystemInDarkTheme()
+                        val darkModeSetting by settingsViewModel.darkMode.collectAsState()
+                        val systemDarkTheme = isSystemInDarkTheme()
+
+                        // Determine actual dark theme based on user preference
+                        val useDarkTheme = when (darkModeSetting) {
+                            "light" -> false
+                            "dark" -> true
+                            else -> systemDarkTheme // "system" or default
+                        }
                         val colors = getColors(currentTheme, useDarkTheme)
 
                         KamusKoreaTheme(darkTheme = useDarkTheme, dynamicColor = false, colorScheme = colors) {
                             if (isLoggedIn) {
                                 // --- PENGGUNA SUDAH LOGIN ---
-                                // Show session start interstitial (once per session for non-premium users)
-                                LaunchedEffect(Unit) {
-                                    Log.d("MainActivity", "🔍 Checking session start ad - isPremium: $isPremium")
-                                    if (!isPremium) {
-                                        Log.d("MainActivity", "📺 Attempting to show session start ad...")
-                                        adManager.showInterstitialOnSessionStart(
-                                            activity = this@MainActivity,
-                                            onAdDismissed = {
-                                                Log.d("MainActivity", "✅ Session start ad dismissed or skipped")
-                                            }
-                                        )
-                                    } else {
-                                        Log.d("MainActivity", "⏭️ Skipping session start ad - user is premium")
-                                    }
-                                }
-
                                 // Tampilkan aplikasi utama (dengan menu, scaffold, dll.)
                                 MainApp(
                                     firebaseAuth = firebaseAuth,
@@ -291,6 +283,7 @@ fun MainApp(
         currentTitle = when {
             currentRoute == Screen.Home.route -> strings.home
             currentRoute == Screen.Dictionary.route -> strings.dictionary
+            currentRoute == Screen.Favorites.route -> strings.favorites
             currentRoute == Screen.Ebook.route -> strings.ebook
             currentRoute == Screen.Quiz.route -> strings.quiz
             currentRoute == Screen.Memorization.route -> strings.memorization
@@ -305,6 +298,7 @@ fun MainApp(
 
     val menuItems = listOf(
         NavItem(strings.dictionary, Icons.AutoMirrored.Outlined.MenuBook, Screen.Dictionary),
+        NavItem(strings.favorites, Icons.Outlined.Favorite, Screen.Favorites),
         NavItem(strings.ebook, Icons.Outlined.AutoStories, Screen.Ebook),
         NavItem(strings.memorization, Icons.Outlined.Bookmark, Screen.Memorization),
         NavItem(strings.quiz, Icons.Outlined.Quiz, Screen.Quiz)
@@ -441,6 +435,9 @@ fun MainApp(
                 }
                 composable(Screen.Dictionary.route) {
                     SimpleDictionaryScreen(viewModel = hiltViewModel(), isPremium = isPremium)
+                }
+                composable(Screen.Favorites.route) {
+                    FavoritesScreen(isPremium = isPremium)
                 }
                 composable(Screen.Memorization.route) {
                     MemorizationScreen(

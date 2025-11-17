@@ -17,8 +17,8 @@ import androidx.core.view.WindowCompat
 @Composable
 fun KamusKoreaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
-    colorScheme: ColorScheme = if (darkTheme) DarkColorScheme else LightColorScheme, // Gunakan ColorScheme dari Color.kt
+    dynamicColor: Boolean = false, // Disable dynamic color by default for consistent professional look
+    colorScheme: ColorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
     content: @Composable () -> Unit
 ) {
     val finalColorScheme = when {
@@ -33,8 +33,10 @@ fun KamusKoreaTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = finalColorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+            // Use surface color for a more modern, edge-to-edge appearance
+            window.statusBarColor = finalColorScheme.surface.toArgb()
+            // Light status bar icons for dark mode, dark icons for light mode
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 
