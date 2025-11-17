@@ -41,6 +41,23 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    // ========== DARK MODE ==========
+    val darkMode = dataStore.data.map { preferences ->
+        preferences[SettingsDataStore.DARK_MODE_KEY] ?: "system"
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "system"
+    )
+
+    fun setDarkMode(mode: String) {
+        viewModelScope.launch {
+            dataStore.edit { settings ->
+                settings[SettingsDataStore.DARK_MODE_KEY] = mode
+            }
+        }
+    }
+
     // ========== TEXT SCALE ==========
     val textScale = dataStore.data.map { preferences ->
         preferences[SettingsDataStore.TEXT_SCALE_KEY] ?: "Sedang"
