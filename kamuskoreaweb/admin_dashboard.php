@@ -91,7 +91,7 @@ $stats['category_count'] = $stmt->fetch()['total'];
             <div class="col-md-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2>Dashboard</h2>
-                    <span class="text-muted">Selamat datang, <?= htmlspecialchars($_SESSION['admin_username']) ?>!</span>
+                    <span class="text-muted">Selamat datang, <?= htmlspecialchars($_SESSION['admin_fullname'] ?? $_SESSION['admin_username']) ?>!</span>
                 </div>
 
                 <!-- Statistics Cards -->
