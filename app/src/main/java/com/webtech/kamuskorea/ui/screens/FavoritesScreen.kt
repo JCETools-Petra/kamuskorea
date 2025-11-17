@@ -105,7 +105,7 @@ fun FavoritesScreen(
                         label = { Text("Kamus (${dictionaryFavorites.size})") },
                         leadingIcon = {
                             Icon(
-                                Icons.AutoMirrored.Filled.MenuBook,
+                                Icons.Default.MenuBook,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
