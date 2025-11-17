@@ -14,6 +14,7 @@ class SettingsDataStore {
     companion object {
         // ========== APPEARANCE SETTINGS ==========
         val THEME_KEY = stringPreferencesKey("theme")
+        val DARK_MODE_KEY = stringPreferencesKey("dark_mode") // "system", "light", "dark"
         val TEXT_SCALE_KEY = stringPreferencesKey("text_scale")
         val LANGUAGE_KEY = stringPreferencesKey("language")
 

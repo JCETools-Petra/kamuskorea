@@ -131,7 +131,15 @@ class MainActivity : ComponentActivity() {
 
                         // Dapatkan tema saat ini di sini agar bisa diteruskan ke kedua alur
                         val currentTheme by settingsViewModel.currentTheme.collectAsState()
-                        val useDarkTheme = isSystemInDarkTheme()
+                        val darkModeSetting by settingsViewModel.darkMode.collectAsState()
+                        val systemDarkTheme = isSystemInDarkTheme()
+
+                        // Determine actual dark theme based on user preference
+                        val useDarkTheme = when (darkModeSetting) {
+                            "light" -> false
+                            "dark" -> true
+                            else -> systemDarkTheme // "system" or default
+                        }
                         val colors = getColors(currentTheme, useDarkTheme)
 
                         KamusKoreaTheme(darkTheme = useDarkTheme, dynamicColor = false, colorScheme = colors) {

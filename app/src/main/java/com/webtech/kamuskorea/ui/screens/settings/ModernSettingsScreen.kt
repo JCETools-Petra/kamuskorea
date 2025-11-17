@@ -37,6 +37,7 @@ fun ModernSettingsScreen(
 
     // ========== STATE COLLECTION ==========
     val currentTheme by viewModel.currentTheme.collectAsState()
+    val darkMode by viewModel.darkMode.collectAsState()
     val textScale by viewModel.textScale.collectAsState()
     val language by viewModel.language.collectAsState()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
@@ -48,6 +49,7 @@ fun ModernSettingsScreen(
 
     // ========== DIALOG STATES ==========
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showDarkModeDialog by remember { mutableStateOf(false) }
     var showTextSizeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
@@ -57,6 +59,11 @@ fun ModernSettingsScreen(
     val themeOptions = listOf(
         "Default", "Forest", "Ocean", "Sunset", "Lavender",
         "Cherry", "Midnight", "Mint", "Autumn", "Coral"
+    )
+    val darkModeOptions = mapOf(
+        "system" to "Ikuti Sistem",
+        "light" to "Mode Terang",
+        "dark" to "Mode Gelap"
     )
     val textSizeOptions = listOf("Kecil", "Sedang", "Besar")
     val languageOptions = mapOf(
@@ -93,6 +100,7 @@ fun ModernSettingsScreen(
 
     // Language display name
     val languageDisplay = languageOptions[language] ?: "Bahasa Indonesia"
+    val darkModeDisplay = darkModeOptions[darkMode] ?: "Ikuti Sistem"
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
@@ -142,6 +150,15 @@ fun ModernSettingsScreen(
                         subtitle = currentTheme
                     ),
                     onClick = { showThemeDialog = true }
+                )
+
+                SettingItemRow(
+                    item = SettingItem(
+                        icon = Icons.Default.DarkMode,
+                        title = "Mode Gelap",
+                        subtitle = darkModeDisplay
+                    ),
+                    onClick = { showDarkModeDialog = true }
                 )
 
                 SettingItemRow(
@@ -322,6 +339,17 @@ fun ModernSettingsScreen(
             currentSelection = currentTheme,
             onSelect = { viewModel.saveTheme(it) },
             onDismiss = { showThemeDialog = false }
+        )
+    }
+
+    // Dark Mode Dialog
+    if (showDarkModeDialog) {
+        SelectionDialog(
+            title = "Mode Gelap",
+            options = darkModeOptions.toList(),
+            currentSelection = darkMode,
+            onSelect = { viewModel.setDarkMode(it) },
+            onDismiss = { showDarkModeDialog = false }
         )
     }
 
