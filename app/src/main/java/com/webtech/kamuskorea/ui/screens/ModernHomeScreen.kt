@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.webtech.kamuskorea.ui.navigation.Screen
 import kotlinx.coroutines.delay
@@ -49,7 +48,7 @@ fun ModernHomeScreen(
     var showContent by remember { mutableStateOf(false) }
 
     // Collect statistics from ViewModel
-    val statistics by homeViewModel.statistics.collectAsStateWithLifecycle()
+    val statistics by homeViewModel.statistics.collectAsState()
 
     LaunchedEffect(Unit) {
         delay(100)
