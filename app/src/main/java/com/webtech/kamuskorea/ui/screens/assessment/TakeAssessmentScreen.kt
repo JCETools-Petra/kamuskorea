@@ -1373,7 +1373,7 @@ fun LanguageSelectionDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                "Select Language / Pilih Bahasa / 언어 선택",
+                "Select Language",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -1381,43 +1381,41 @@ fun LanguageSelectionDialog(
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    "Choose your preferred language for the quiz interface:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Language Options
-                UILanguage.entries.forEach { language ->
-                    LanguageOptionItem(
-                        language = language,
-                        isSelected = language == currentLanguage,
-                        onClick = { onSelectLanguage(language) }
-                    )
+                // Horizontal layout for language options
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    UILanguage.entries.forEach { language ->
+                        LanguageOptionItemCompact(
+                            language = language,
+                            isSelected = language == currentLanguage,
+                            onClick = { onSelectLanguage(language) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close / Tutup / 닫기")
+                Text("Close")
             }
         }
     )
 }
 
 @Composable
-fun LanguageOptionItem(
+fun LanguageOptionItemCompact(
     language: UILanguage,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
@@ -1431,51 +1429,41 @@ fun LanguageOptionItem(
         else
             null
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             // Flag emoji
             Text(
                 text = language.flag,
-                fontSize = 24.sp
+                fontSize = 28.sp
             )
 
+            Spacer(modifier = Modifier.height(6.dp))
+
             // Language name
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = language.displayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isSelected)
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    else
-                        MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = when (language) {
-                        UILanguage.KOREAN -> "Korean Language"
-                        UILanguage.INDONESIAN -> "Bahasa Indonesia"
-                        UILanguage.ENGLISH -> "English Language"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isSelected)
-                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = language.displayName,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isSelected)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else
+                    MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
 
             // Check icon for selected
             if (isSelected) {
+                Spacer(modifier = Modifier.height(4.dp))
                 Icon(
                     Icons.Default.CheckCircle,
                     contentDescription = "Selected",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
