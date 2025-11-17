@@ -42,6 +42,11 @@ import com.webtech.kamuskorea.data.assessment.Question
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+enum class AnswerLanguage {
+    PRIMARY,    // Default language (as stored in database)
+    ALTERNATIVE // Alternative language (Korean/Indonesian)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TakeAssessmentScreen(
@@ -72,6 +77,7 @@ fun TakeAssessmentScreen(
     var showQuestionGrid by remember { mutableStateOf(false) }
     var showSubmitDialog by remember { mutableStateOf(false) }
     var showExitDialog by remember { mutableStateOf(false) }
+    var answerLanguage by remember { mutableStateOf(AnswerLanguage.PRIMARY) }
 
     // Timer states
     val durationMinutes = remember { mutableStateOf(10) }
@@ -134,6 +140,12 @@ fun TakeAssessmentScreen(
                 totalQuestions = questions.size,
                 timeText = timeText,
                 timerColor = timerColor,
+                answerLanguage = answerLanguage,
+                hasAltOptions = currentQuestion?.hasAlternativeOptions() ?: false,
+                onToggleLanguage = {
+                    answerLanguage = if (answerLanguage == AnswerLanguage.PRIMARY)
+                        AnswerLanguage.ALTERNATIVE else AnswerLanguage.PRIMARY
+                },
                 onShowGrid = { showQuestionGrid = true },
                 onExit = { showExitDialog = true }
             )
@@ -197,7 +209,12 @@ fun TakeAssessmentScreen(
                                         .padding(8.dp),
                                     verticalArrangement = Arrangement.SpaceEvenly
                                 ) {
-                                    currentQuestion.getOptions().forEach { (letter, text) ->
+                                    val options = if (answerLanguage == AnswerLanguage.ALTERNATIVE)
+                                        currentQuestion.getOptionsAlt()
+                                    else
+                                        currentQuestion.getOptions()
+
+                                    options.forEach { (letter, text) ->
                                         LandscapeAnswerOption(
                                             letter = letter,
                                             text = text,
@@ -278,6 +295,9 @@ fun LandscapeTopBar(
     totalQuestions: Int,
     timeText: String,
     timerColor: Color,
+    answerLanguage: AnswerLanguage = AnswerLanguage.PRIMARY,
+    hasAltOptions: Boolean = false,
+    onToggleLanguage: () -> Unit = {},
     onShowGrid: () -> Unit,
     onExit: () -> Unit
 ) {
@@ -320,6 +340,30 @@ fun LandscapeTopBar(
             }
 
             Spacer(modifier = Modifier.weight(1f))
+
+            // Language Toggle Button
+            if (hasAltOptions) {
+                FilledTonalButton(
+                    onClick = onToggleLanguage,
+                    modifier = Modifier.height(32.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Icon(
+                        Icons.Default.SwapHoriz,
+                        contentDescription = "Toggle Language",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (answerLanguage == AnswerLanguage.PRIMARY) "한국어" else "Indonesia",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
 
             // Timer
             Surface(
