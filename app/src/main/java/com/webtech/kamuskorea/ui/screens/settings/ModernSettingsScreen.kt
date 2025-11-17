@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.webtech.kamuskorea.notifications.NotificationHelper
+import com.webtech.kamuskorea.ui.localization.LocalStrings
 import java.util.*
 
 data class SettingItem(
@@ -34,6 +35,7 @@ fun ModernSettingsScreen(
 ) {
     val context = LocalContext.current
     val notificationHelper = remember { NotificationHelper(context) }
+    val strings = LocalStrings.current
 
     // ========== STATE COLLECTION ==========
     val currentTheme by viewModel.currentTheme.collectAsState()
@@ -61,11 +63,11 @@ fun ModernSettingsScreen(
         "Cherry", "Midnight", "Mint", "Autumn", "Coral"
     )
     val darkModeOptions = mapOf(
-        "system" to "Ikuti Sistem",
-        "light" to "Mode Terang",
-        "dark" to "Mode Gelap"
+        "system" to strings.followSystem,
+        "light" to strings.lightMode,
+        "dark" to strings.darkModeLabel
     )
-    val textSizeOptions = listOf("Kecil", "Sedang", "Besar")
+    val textSizeOptions = listOf(strings.small, strings.medium, strings.large)
     val languageOptions = mapOf(
         "id" to "Bahasa Indonesia",
         "en" to "English"
@@ -100,7 +102,7 @@ fun ModernSettingsScreen(
 
     // Language display name
     val languageDisplay = languageOptions[language] ?: "Bahasa Indonesia"
-    val darkModeDisplay = darkModeOptions[darkMode] ?: "Ikuti Sistem"
+    val darkModeDisplay = darkModeOptions[darkMode] ?: strings.followSystem
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
@@ -127,12 +129,12 @@ fun ModernSettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "Pengaturan",
+                        strings.settings,
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        "Sesuaikan pengalaman belajar Anda",
+                        strings.customizeExperience,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                     )
@@ -142,11 +144,11 @@ fun ModernSettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // ========== APPEARANCE SECTION ==========
-            SettingsSection(title = "Tampilan") {
+            SettingsSection(title = strings.appearance) {
                 SettingItemRow(
                     item = SettingItem(
                         icon = Icons.Default.Palette,
-                        title = "Tema Aplikasi",
+                        title = strings.theme,
                         subtitle = currentTheme
                     ),
                     onClick = { showThemeDialog = true }
@@ -155,7 +157,7 @@ fun ModernSettingsScreen(
                 SettingItemRow(
                     item = SettingItem(
                         icon = Icons.Default.DarkMode,
-                        title = "Mode Gelap",
+                        title = strings.darkMode,
                         subtitle = darkModeDisplay
                     ),
                     onClick = { showDarkModeDialog = true }
@@ -164,7 +166,7 @@ fun ModernSettingsScreen(
                 SettingItemRow(
                     item = SettingItem(
                         icon = Icons.Default.TextFields,
-                        title = "Ukuran Teks",
+                        title = strings.textSize,
                         subtitle = textScale
                     ),
                     onClick = { showTextSizeDialog = true }
@@ -173,7 +175,7 @@ fun ModernSettingsScreen(
                 SettingItemRow(
                     item = SettingItem(
                         icon = Icons.Default.Language,
-                        title = "Bahasa Interface",
+                        title = strings.language,
                         subtitle = languageDisplay,
                         showDivider = false
                     ),
@@ -182,12 +184,12 @@ fun ModernSettingsScreen(
             }
 
             // ========== NOTIFICATIONS SECTION ==========
-            SettingsSection(title = "Notifikasi") {
+            SettingsSection(title = strings.notifications) {
                 SettingItemRow(
                     item = SettingItem(
                         icon = Icons.Default.Notifications,
-                        title = "Pengingat Harian",
-                        subtitle = if (notificationsEnabled) "Aktif - $formattedTime" else "Nonaktif"
+                        title = strings.dailyReminder,
+                        subtitle = if (notificationsEnabled) "${strings.notificationActive} - $formattedTime" else strings.notificationInactive
                     ),
                     trailing = {
                         Switch(
@@ -211,8 +213,8 @@ fun ModernSettingsScreen(
                     SettingItemRow(
                         item = SettingItem(
                             icon = Icons.Default.AccessTime,
-                            title = "Atur Waktu",
-                            subtitle = "Jam $formattedTime",
+                            title = strings.setTime,
+                            subtitle = "${strings.time} $formattedTime",
                             showDivider = false
                         ),
                         onClick = { timePickerDialog.show() }
@@ -221,12 +223,12 @@ fun ModernSettingsScreen(
             }
 
             // ========== DATA & STORAGE SECTION ==========
-            SettingsSection(title = "Data & Penyimpanan") {
+            SettingsSection(title = strings.dataStorage) {
                 SettingItemRow(
                     item = SettingItem(
                         icon = Icons.Default.CloudDownload,
-                        title = "Download Konten Offline",
-                        subtitle = if (offlineDownloadEnabled) "Aktif" else "Nonaktif"
+                        title = strings.offlineDownload,
+                        subtitle = if (offlineDownloadEnabled) strings.notificationActive else strings.notificationInactive
                     ),
                     trailing = {
                         Switch(
@@ -239,8 +241,8 @@ fun ModernSettingsScreen(
                 SettingItemRow(
                     item = SettingItem(
                         icon = Icons.Default.DeleteSweep,
-                        title = "Hapus Cache",
-                        subtitle = "Ukuran cache: $cacheSize"
+                        title = strings.clearCache,
+                        subtitle = "${strings.cacheSize}: $cacheSize"
                     ),
                     onClick = { showClearCacheDialog = true }
                 )
@@ -248,8 +250,8 @@ fun ModernSettingsScreen(
                 SettingItemRow(
                     item = SettingItem(
                         icon = Icons.Default.Backup,
-                        title = "Backup & Restore",
-                        subtitle = "Simpan progress Anda",
+                        title = strings.backupRestore,
+                        subtitle = strings.saveProgress,
                         showDivider = false
                     ),
                     onClick = {
@@ -259,12 +261,12 @@ fun ModernSettingsScreen(
             }
 
             // ========== ABOUT SECTION ==========
-            SettingsSection(title = "Tentang") {
+            SettingsSection(title = strings.about) {
                 SettingItemRow(
                     item = SettingItem(
                         icon = Icons.Default.Info,
-                        title = "Tentang Aplikasi",
-                        subtitle = "Versi 1.0.0"
+                        title = strings.aboutApp,
+                        subtitle = "${strings.version} 1.0.0"
                     ),
                     onClick = { showAboutDialog = true }
                 )
@@ -272,8 +274,8 @@ fun ModernSettingsScreen(
                 SettingItemRow(
                     item = SettingItem(
                         icon = Icons.Default.PrivacyTip,
-                        title = "Kebijakan Privasi",
-                        subtitle = "Baca kebijakan privasi kami"
+                        title = strings.privacyPolicy,
+                        subtitle = strings.readPrivacyPolicy
                     ),
                     onClick = {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://webtechsolution.my.id/kamuskorea/privacy"))
@@ -284,8 +286,8 @@ fun ModernSettingsScreen(
                 SettingItemRow(
                     item = SettingItem(
                         icon = Icons.Default.Gavel,
-                        title = "Syarat & Ketentuan",
-                        subtitle = "Baca syarat penggunaan"
+                        title = strings.termsConditions,
+                        subtitle = strings.readTerms
                     ),
                     onClick = {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://webtechsolution.my.id/kamuskorea/terms"))
@@ -296,8 +298,8 @@ fun ModernSettingsScreen(
                 SettingItemRow(
                     item = SettingItem(
                         icon = Icons.Default.RateReview,
-                        title = "Beri Rating",
-                        subtitle = "Bantu kami berkembang",
+                        title = strings.rateApp,
+                        subtitle = strings.helpUsGrow,
                         showDivider = false
                     ),
                     onClick = {
@@ -316,7 +318,7 @@ fun ModernSettingsScreen(
 
             // ========== APP VERSION FOOTER ==========
             Text(
-                "Kamus Korea v1.0.0",
+                "${strings.appName} v1.0.0",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 modifier = Modifier
@@ -334,44 +336,48 @@ fun ModernSettingsScreen(
     // Theme Dialog
     if (showThemeDialog) {
         SelectionDialog(
-            title = "Pilih Tema",
+            title = strings.selectTheme,
             options = themeOptions.map { it to it },
             currentSelection = currentTheme,
             onSelect = { viewModel.saveTheme(it) },
-            onDismiss = { showThemeDialog = false }
+            onDismiss = { showThemeDialog = false },
+            closeText = strings.close
         )
     }
 
     // Dark Mode Dialog
     if (showDarkModeDialog) {
         SelectionDialog(
-            title = "Mode Gelap",
+            title = strings.darkMode,
             options = darkModeOptions.toList(),
             currentSelection = darkMode,
             onSelect = { viewModel.setDarkMode(it) },
-            onDismiss = { showDarkModeDialog = false }
+            onDismiss = { showDarkModeDialog = false },
+            closeText = strings.close
         )
     }
 
     // Text Size Dialog
     if (showTextSizeDialog) {
         SelectionDialog(
-            title = "Ukuran Teks",
+            title = strings.textSize,
             options = textSizeOptions.map { it to it },
             currentSelection = textScale,
             onSelect = { viewModel.setTextScale(it) },
-            onDismiss = { showTextSizeDialog = false }
+            onDismiss = { showTextSizeDialog = false },
+            closeText = strings.close
         )
     }
 
     // Language Dialog
     if (showLanguageDialog) {
         SelectionDialog(
-            title = "Bahasa Interface",
+            title = strings.language,
             options = languageOptions.toList(),
             currentSelection = language,
             onSelect = { viewModel.setLanguage(it) },
-            onDismiss = { showLanguageDialog = false }
+            onDismiss = { showLanguageDialog = false },
+            closeText = strings.close
         )
     }
 
@@ -380,21 +386,21 @@ fun ModernSettingsScreen(
         AlertDialog(
             onDismissRequest = { showClearCacheDialog = false },
             icon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
-            title = { Text("Hapus Cache") },
+            title = { Text(strings.clearCache) },
             text = {
-                Text("Apakah Anda yakin ingin menghapus semua cache? Ukuran cache saat ini: $cacheSize")
+                Text("${strings.confirmClearCache} $cacheSize")
             },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.clearCache()
                     showClearCacheDialog = false
                 }) {
-                    Text("Hapus")
+                    Text(strings.delete)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearCacheDialog = false }) {
-                    Text("Batal")
+                    Text(strings.cancel)
                 }
             }
         )
@@ -405,15 +411,15 @@ fun ModernSettingsScreen(
         AlertDialog(
             onDismissRequest = { showAboutDialog = false },
             icon = { Icon(Icons.Default.Info, contentDescription = null) },
-            title = { Text("Tentang Kamus Korea") },
+            title = { Text("${strings.about} ${strings.appName}") },
             text = {
                 Column {
-                    Text("Versi: 1.0.0")
+                    Text("${strings.version}: 1.0.0")
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Kamus Korea adalah aplikasi pembelajaran bahasa Korea yang komprehensif dengan ribuan kata, e-book gratis, dan kuis interaktif.")
+                    Text(strings.appDescription)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "Dikembangkan dengan ❤️ oleh WebTech Solution",
+                        strings.developedBy,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
@@ -421,7 +427,7 @@ fun ModernSettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showAboutDialog = false }) {
-                    Text("Tutup")
+                    Text(strings.close)
                 }
             }
         )
@@ -436,7 +442,8 @@ fun SelectionDialog(
     options: List<Pair<String, String>>, // key to display name
     currentSelection: String,
     onSelect: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    closeText: String = "Close"
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -469,7 +476,7 @@ fun SelectionDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Tutup")
+                Text(closeText)
             }
         }
     )
