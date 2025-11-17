@@ -9,6 +9,7 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.webtech.kamuskorea.data.local.AppDatabase
 import com.webtech.kamuskorea.data.local.WordDao
+import com.webtech.kamuskorea.data.local.FavoriteWordDao
 import com.webtech.kamuskorea.data.local.VocabularyDatabase
 import com.webtech.kamuskorea.data.local.VocabularyDao
 import com.webtech.kamuskorea.ui.datastore.dataStore
@@ -94,6 +95,13 @@ object DatabaseModule {
     fun provideWordDao(appDatabase: AppDatabase): WordDao {
         Log.d("DatabaseModule", "Providing WordDao...")
         return appDatabase.wordDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFavoriteWordDao(appDatabase: AppDatabase): FavoriteWordDao {
+        Log.d("DatabaseModule", "Providing FavoriteWordDao...")
+        return appDatabase.favoriteWordDao()
     }
 
     @Provides

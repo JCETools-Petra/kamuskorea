@@ -21,6 +21,7 @@ data class AppStrings(
     // Navigation
     val home: String,
     val dictionary: String,
+    val favorites: String,
     val ebook: String,
     val memorization: String,
     val quiz: String,
@@ -86,6 +87,7 @@ fun getStrings(languageCode: String): AppStrings {
             // Navigation
             home = "Home",
             dictionary = "Dictionary",
+            favorites = "Favorites",
             ebook = "E-Book",
             memorization = "Memorization",
             quiz = "Quiz",
@@ -147,6 +149,7 @@ fun getStrings(languageCode: String): AppStrings {
             // Navigation
             home = "Beranda",
             dictionary = "Kamus",
+            favorites = "Favorit",
             ebook = "E-Book",
             memorization = "Hafalan",
             quiz = "Latihan",
