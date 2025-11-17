@@ -1,0 +1,200 @@
+package com.webtech.kamuskorea.ui.screens
+
+import android.content.Context
+import android.util.Log
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.webtech.kamuskorea.data.local.FavoriteVocabularyDao
+import com.webtech.kamuskorea.data.local.FavoriteWordDao
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+
+data class LearningStatistics(
+    val savedWordsCount: Int = 0,
+    val quizCompletedCount: Int = 0,
+    val streakDays: Int = 0
+)
+
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val favoriteWordDao: FavoriteWordDao,
+    private val favoriteVocabularyDao: FavoriteVocabularyDao,
+    private val dataStore: DataStore<Preferences>,
+    @ApplicationContext private val context: Context
+) : ViewModel() {
+
+    private val TAG = "HomeViewModel"
+
+    companion object {
+        val QUIZ_COMPLETED_COUNT_KEY = intPreferencesKey("quiz_completed_count")
+        val LAST_ACTIVITY_DATE_KEY = longPreferencesKey("last_activity_date")
+        val STREAK_DAYS_KEY = intPreferencesKey("streak_days")
+    }
+
+    // Combined favorites count (dictionary + hafalan)
+    val totalFavoritesCount: StateFlow<Int> = combine(
+        favoriteWordDao.getAllFavoriteIds(),
+        favoriteVocabularyDao.getAllFavoriteIds()
+    ) { wordIds, vocabIds ->
+        wordIds.size + vocabIds.size
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0
+    )
+
+    // Quiz completed count from DataStore
+    val quizCompletedCount: StateFlow<Int> = dataStore.data.map { preferences ->
+        preferences[QUIZ_COMPLETED_COUNT_KEY] ?: 0
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0
+    )
+
+    // Streak days from DataStore
+    val streakDays: StateFlow<Int> = dataStore.data.map { preferences ->
+        preferences[STREAK_DAYS_KEY] ?: 0
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0
+    )
+
+    // Combined statistics
+    val statistics: StateFlow<LearningStatistics> = combine(
+        totalFavoritesCount,
+        quizCompletedCount,
+        streakDays
+    ) { favorites, quizzes, streak ->
+        LearningStatistics(
+            savedWordsCount = favorites,
+            quizCompletedCount = quizzes,
+            streakDays = streak
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = LearningStatistics()
+    )
+
+    init {
+        Log.d(TAG, "HomeViewModel initialized")
+        updateStreak()
+    }
+
+    /**
+     * Increment quiz completed count
+     * Call this when user completes a quiz
+     */
+    fun incrementQuizCompleted() {
+        viewModelScope.launch {
+            dataStore.edit { preferences ->
+                val currentCount = preferences[QUIZ_COMPLETED_COUNT_KEY] ?: 0
+                preferences[QUIZ_COMPLETED_COUNT_KEY] = currentCount + 1
+                Log.d(TAG, "Quiz completed count incremented to: ${currentCount + 1}")
+            }
+            // Update streak when quiz is completed
+            recordActivity()
+        }
+    }
+
+    /**
+     * Record user activity for streak tracking
+     * Call this when user performs any learning activity
+     */
+    fun recordActivity() {
+        viewModelScope.launch {
+            val today = getStartOfDay(System.currentTimeMillis())
+
+            dataStore.edit { preferences ->
+                val lastActivity = preferences[LAST_ACTIVITY_DATE_KEY] ?: 0L
+                val currentStreak = preferences[STREAK_DAYS_KEY] ?: 0
+
+                val lastActivityDay = getStartOfDay(lastActivity)
+                val daysDifference = TimeUnit.MILLISECONDS.toDays(today - lastActivityDay).toInt()
+
+                val newStreak = when {
+                    lastActivity == 0L -> 1 // First activity
+                    daysDifference == 0 -> currentStreak // Same day, no change
+                    daysDifference == 1 -> currentStreak + 1 // Consecutive day
+                    else -> 1 // Streak broken, restart
+                }
+
+                preferences[LAST_ACTIVITY_DATE_KEY] = today
+                preferences[STREAK_DAYS_KEY] = newStreak
+
+                Log.d(TAG, "Activity recorded. Streak: $newStreak days")
+            }
+        }
+    }
+
+    /**
+     * Update streak on app open
+     * Checks if streak should be reset
+     */
+    private fun updateStreak() {
+        viewModelScope.launch {
+            val today = getStartOfDay(System.currentTimeMillis())
+
+            dataStore.edit { preferences ->
+                val lastActivity = preferences[LAST_ACTIVITY_DATE_KEY] ?: 0L
+
+                if (lastActivity > 0) {
+                    val lastActivityDay = getStartOfDay(lastActivity)
+                    val daysDifference = TimeUnit.MILLISECONDS.toDays(today - lastActivityDay).toInt()
+
+                    if (daysDifference > 1) {
+                        // Streak broken - more than 1 day since last activity
+                        preferences[STREAK_DAYS_KEY] = 0
+                        Log.d(TAG, "Streak reset - no activity for $daysDifference days")
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Get the start of the day in milliseconds
+     */
+    private fun getStartOfDay(timeMillis: Long): Long {
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = timeMillis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        return calendar.timeInMillis
+    }
+
+    /**
+     * Reset all statistics (for testing or user request)
+     */
+    fun resetStatistics() {
+        viewModelScope.launch {
+            dataStore.edit { preferences ->
+                preferences[QUIZ_COMPLETED_COUNT_KEY] = 0
+                preferences[STREAK_DAYS_KEY] = 0
+                preferences[LAST_ACTIVITY_DATE_KEY] = 0L
+            }
+            Log.d(TAG, "Statistics reset")
+        }
+    }
+}

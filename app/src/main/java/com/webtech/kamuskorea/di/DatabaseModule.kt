@@ -6,6 +6,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.webtech.kamuskorea.data.local.AppDatabase
 import com.webtech.kamuskorea.data.local.WordDao
@@ -25,6 +26,65 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    // Migration from version 1 to 2: Add favorite_words table
+    private val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            Log.d("DatabaseModule", "Running MIGRATION_1_2: Creating favorite_words table")
+            database.execSQL("""
+                CREATE TABLE IF NOT EXISTS favorite_words (
+                    word_id INTEGER PRIMARY KEY NOT NULL,
+                    korean_word TEXT NOT NULL,
+                    romanization TEXT NOT NULL,
+                    indonesian_translation TEXT NOT NULL,
+                    added_at INTEGER NOT NULL
+                )
+            """)
+        }
+    }
+
+    // Migration from version 2 to 3: Add favorite_vocabulary table
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            Log.d("DatabaseModule", "Running MIGRATION_2_3: Creating favorite_vocabulary table")
+            database.execSQL("""
+                CREATE TABLE IF NOT EXISTS favorite_vocabulary (
+                    vocabulary_id INTEGER PRIMARY KEY NOT NULL,
+                    korean_word TEXT NOT NULL,
+                    indonesian_meaning TEXT NOT NULL,
+                    chapter_number INTEGER NOT NULL,
+                    chapter_title_indonesian TEXT NOT NULL,
+                    added_at INTEGER NOT NULL
+                )
+            """)
+        }
+    }
+
+    // Migration from version 1 to 3 (for fresh installs that skip version 2)
+    private val MIGRATION_1_3 = object : Migration(1, 3) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            Log.d("DatabaseModule", "Running MIGRATION_1_3: Creating both favorite tables")
+            database.execSQL("""
+                CREATE TABLE IF NOT EXISTS favorite_words (
+                    word_id INTEGER PRIMARY KEY NOT NULL,
+                    korean_word TEXT NOT NULL,
+                    romanization TEXT NOT NULL,
+                    indonesian_translation TEXT NOT NULL,
+                    added_at INTEGER NOT NULL
+                )
+            """)
+            database.execSQL("""
+                CREATE TABLE IF NOT EXISTS favorite_vocabulary (
+                    vocabulary_id INTEGER PRIMARY KEY NOT NULL,
+                    korean_word TEXT NOT NULL,
+                    indonesian_meaning TEXT NOT NULL,
+                    chapter_number INTEGER NOT NULL,
+                    chapter_title_indonesian TEXT NOT NULL,
+                    added_at INTEGER NOT NULL
+                )
+            """)
+        }
+    }
+
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -36,7 +96,7 @@ object DatabaseModule {
             "kamus_database"
         )
             .createFromAsset("database/kamus_korea.db")
-            .fallbackToDestructiveMigration()
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_1_3)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
