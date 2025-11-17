@@ -139,6 +139,32 @@ if ($action === 'list') {
             background: #d4edda;
             border-color: #28a745;
         }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #e8f4ff;
+        }
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .media-preview {
+            max-width: 100%;
+            max-height: 300px;
+            margin-top: 10px;
+            border-radius: 8px;
+        }
+        .upload-progress {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -274,10 +300,31 @@ if ($action === 'list') {
 
                                     <?php if ($q['media_url']): ?>
                                         <div class="mb-3">
-                                            <small class="text-muted">Media:</small>
-                                            <a href="<?= htmlspecialchars($q['media_url']) ?>" target="_blank">
-                                                <?= htmlspecialchars($q['media_url']) ?>
-                                            </a>
+                                            <small class="text-muted d-block mb-2">Media:</small>
+                                            <?php
+                                            $mediaUrl = $q['media_url'];
+                                            $isImage = preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $mediaUrl);
+                                            $isAudio = preg_match('/\.(mp3|wav|ogg|webm)$/i', $mediaUrl);
+                                            $isVideo = preg_match('/\.(mp4|webm|ogv)$/i', $mediaUrl);
+                                            ?>
+                                            <?php if ($isImage): ?>
+                                                <img src="<?= htmlspecialchars($mediaUrl) ?>" class="img-thumbnail" style="max-height: 200px;">
+                                            <?php elseif ($isAudio): ?>
+                                                <audio controls class="w-100">
+                                                    <source src="<?= htmlspecialchars($mediaUrl) ?>">
+                                                </audio>
+                                            <?php elseif ($isVideo): ?>
+                                                <video controls style="max-height: 200px;">
+                                                    <source src="<?= htmlspecialchars($mediaUrl) ?>">
+                                                </video>
+                                            <?php else: ?>
+                                                <a href="<?= htmlspecialchars($mediaUrl) ?>" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-link-45deg"></i> Lihat Media
+                                                </a>
+                                            <?php endif; ?>
+                                            <div class="mt-1">
+                                                <small><a href="<?= htmlspecialchars($mediaUrl) ?>" target="_blank" class="text-muted"><?= htmlspecialchars($mediaUrl) ?></a></small>
+                                            </div>
                                         </div>
                                     <?php endif; ?>
 
@@ -374,20 +421,64 @@ if ($action === 'list') {
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Tipe Soal</label>
-                                            <select name="question_type" class="form-select">
+                                            <select name="question_type" id="question_type" class="form-select">
                                                 <option value="text" <?= ($editQuestion['question_type'] ?? 'text') === 'text' ? 'selected' : '' ?>>Teks</option>
                                                 <option value="image" <?= ($editQuestion['question_type'] ?? '') === 'image' ? 'selected' : '' ?>>Dengan Gambar</option>
                                                 <option value="audio" <?= ($editQuestion['question_type'] ?? '') === 'audio' ? 'selected' : '' ?>>Dengan Audio</option>
+                                                <option value="video" <?= ($editQuestion['question_type'] ?? '') === 'video' ? 'selected' : '' ?>>Dengan Video</option>
                                             </select>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label class="form-label">URL Media (Opsional)</label>
-                                            <input type="url" name="media_url" class="form-control"
+                                            <label class="form-label">URL Media</label>
+                                            <input type="url" name="media_url" id="media_url" class="form-control"
                                                    value="<?= htmlspecialchars($editQuestion['media_url'] ?? '') ?>"
-                                                   placeholder="https://example.com/image.jpg">
+                                                   placeholder="Upload file atau masukkan URL manual">
+                                            <small class="text-muted">URL akan terisi otomatis setelah upload</small>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <!-- Media Upload Section -->
+                                <div class="card bg-light mb-3" id="mediaUploadSection">
+                                    <div class="card-body">
+                                        <h5 class="card-title"><i class="bi bi-cloud-upload"></i> Upload Media</h5>
+                                        <div class="upload-area" id="uploadArea">
+                                            <i class="bi bi-cloud-arrow-up fs-1 text-muted"></i>
+                                            <p class="mb-1">Drag & drop file di sini atau <strong>klik untuk pilih file</strong></p>
+                                            <small class="text-muted">Mendukung: JPG, PNG, GIF, WEBP, MP3, WAV, MP4 (Max 50MB)</small>
+                                            <input type="file" id="mediaFileInput" class="d-none"
+                                                   accept="image/*,audio/*,video/*">
+                                        </div>
+
+                                        <!-- Upload Progress -->
+                                        <div class="upload-progress mt-3" id="uploadProgress">
+                                            <div class="d-flex align-items-center">
+                                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                                    <span class="visually-hidden">Uploading...</span>
+                                                </div>
+                                                <span>Sedang mengupload...</span>
+                                            </div>
+                                            <div class="progress mt-2">
+                                                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                                     id="progressBar" role="progressbar" style="width: 0%"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Media Preview -->
+                                        <div id="mediaPreview" class="mt-3" style="display: none;">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong>Preview:</strong>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" id="removeMedia">
+                                                    <i class="bi bi-trash"></i> Hapus Media
+                                                </button>
+                                            </div>
+                                            <div id="previewContent"></div>
+                                        </div>
+
+                                        <!-- Upload Status -->
+                                        <div id="uploadStatus" class="mt-2"></div>
                                     </div>
                                 </div>
 
@@ -474,5 +565,191 @@ if ($action === 'list') {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const uploadArea = document.getElementById('uploadArea');
+        const mediaFileInput = document.getElementById('mediaFileInput');
+        const mediaUrlInput = document.getElementById('media_url');
+        const questionTypeSelect = document.getElementById('question_type');
+        const uploadProgress = document.getElementById('uploadProgress');
+        const progressBar = document.getElementById('progressBar');
+        const mediaPreview = document.getElementById('mediaPreview');
+        const previewContent = document.getElementById('previewContent');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const removeMediaBtn = document.getElementById('removeMedia');
+
+        if (!uploadArea) return; // Only run on add/edit page
+
+        // Click to upload
+        uploadArea.addEventListener('click', () => mediaFileInput.click());
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileUpload(files[0]);
+            }
+        });
+
+        // File input change
+        mediaFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        // Remove media button
+        if (removeMediaBtn) {
+            removeMediaBtn.addEventListener('click', () => {
+                mediaUrlInput.value = '';
+                mediaPreview.style.display = 'none';
+                previewContent.innerHTML = '';
+                uploadStatus.innerHTML = '';
+                questionTypeSelect.value = 'text';
+            });
+        }
+
+        // Load existing preview if URL exists
+        if (mediaUrlInput && mediaUrlInput.value) {
+            showPreview(mediaUrlInput.value, questionTypeSelect.value);
+        }
+
+        function handleFileUpload(file) {
+            // Validate file size (50MB)
+            if (file.size > 50 * 1024 * 1024) {
+                showError('File terlalu besar. Maksimal 50MB');
+                return;
+            }
+
+            // Validate file type
+            const allowedTypes = [
+                'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+                'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/webm',
+                'video/mp4', 'video/webm', 'video/ogg'
+            ];
+
+            if (!allowedTypes.includes(file.type)) {
+                showError('Tipe file tidak didukung');
+                return;
+            }
+
+            // Show progress
+            uploadProgress.style.display = 'block';
+            uploadStatus.innerHTML = '';
+            progressBar.style.width = '0%';
+
+            // Create FormData
+            const formData = new FormData();
+            formData.append('media_file', file);
+
+            // Upload via AJAX
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', 'admin_upload_media.php', true);
+
+            // Progress tracking
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progressBar.style.width = percentComplete + '%';
+                }
+            });
+
+            xhr.onload = function() {
+                uploadProgress.style.display = 'none';
+                progressBar.style.width = '0%';
+
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        // Set URL field
+                        mediaUrlInput.value = response.url;
+
+                        // Auto-select question type
+                        if (response.type === 'image') {
+                            questionTypeSelect.value = 'image';
+                        } else if (response.type === 'audio') {
+                            questionTypeSelect.value = 'audio';
+                        } else if (response.type === 'video') {
+                            questionTypeSelect.value = 'video';
+                        }
+
+                        // Show preview
+                        showPreview(response.url, response.type);
+
+                        // Show success message
+                        const fileSize = (response.size / 1024 / 1024).toFixed(2);
+                        uploadStatus.innerHTML = `
+                            <div class="alert alert-success py-2">
+                                <i class="bi bi-check-circle"></i>
+                                File berhasil diupload (${fileSize} MB)
+                            </div>
+                        `;
+                    } else {
+                        showError(response.message || 'Upload gagal');
+                    }
+                } catch (e) {
+                    showError('Terjadi kesalahan saat upload');
+                }
+            };
+
+            xhr.onerror = function() {
+                uploadProgress.style.display = 'none';
+                showError('Network error. Pastikan koneksi internet stabil');
+            };
+
+            xhr.send(formData);
+        }
+
+        function showPreview(url, type) {
+            previewContent.innerHTML = '';
+            mediaPreview.style.display = 'block';
+
+            if (type === 'image' || url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+                previewContent.innerHTML = `
+                    <img src="${url}" class="media-preview img-thumbnail" alt="Preview">
+                `;
+            } else if (type === 'audio' || url.match(/\.(mp3|wav|ogg|webm)$/i)) {
+                previewContent.innerHTML = `
+                    <audio controls class="w-100">
+                        <source src="${url}">
+                        Browser tidak mendukung audio player.
+                    </audio>
+                `;
+            } else if (type === 'video' || url.match(/\.(mp4|webm|ogv)$/i)) {
+                previewContent.innerHTML = `
+                    <video controls class="media-preview">
+                        <source src="${url}">
+                        Browser tidak mendukung video player.
+                    </video>
+                `;
+            } else {
+                previewContent.innerHTML = `
+                    <a href="${url}" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-link-45deg"></i> Lihat Media
+                    </a>
+                `;
+            }
+        }
+
+        function showError(message) {
+            uploadStatus.innerHTML = `
+                <div class="alert alert-danger py-2">
+                    <i class="bi bi-exclamation-circle"></i> ${message}
+                </div>
+            `;
+        }
+    });
+    </script>
 </body>
 </html>
