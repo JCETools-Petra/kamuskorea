@@ -1,6 +1,11 @@
 package com.webtech.kamuskorea.ui.screens.assessment
 
 import android.util.Log
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.webtech.kamuskorea.data.assessment.*
@@ -10,13 +15,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 
 @HiltViewModel
 class AssessmentViewModel @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val dataStore: DataStore<Preferences>
 ) : ViewModel() {
+
+    companion object {
+        val QUIZ_COMPLETED_COUNT_KEY = intPreferencesKey("quiz_completed_count")
+        val LAST_ACTIVITY_DATE_KEY = longPreferencesKey("last_activity_date")
+        val STREAK_DAYS_KEY = intPreferencesKey("streak_days")
+    }
 
     private val _categories = MutableStateFlow<List<AssessmentCategory>>(emptyList())
     val categories: StateFlow<List<AssessmentCategory>> = _categories.asStateFlow()
@@ -219,6 +233,9 @@ class AssessmentViewModel @Inject constructor(
                     Log.d("AssessmentVM", "Correct: ${result?.correctAnswers}/${result?.totalQuestions}")
 
                     _assessmentResult.value = result
+
+                    // Update learning statistics
+                    updateStatisticsOnQuizComplete()
                 } else {
                     val errorBody = response.errorBody()?.string() ?: "Unknown error"
                     val errorMsg = "Gagal submit jawaban: ${response.code()} - $errorBody"
@@ -283,5 +300,49 @@ class AssessmentViewModel @Inject constructor(
         _error.value = null
         _startTime.value = 0L
         Log.d("AssessmentVM", "🔄 Assessment state reset")
+    }
+
+    // Update statistics when quiz is completed
+    private fun updateStatisticsOnQuizComplete() {
+        viewModelScope.launch {
+            val today = getStartOfDay(System.currentTimeMillis())
+
+            dataStore.edit { preferences ->
+                // Increment quiz completed count
+                val currentCount = preferences[QUIZ_COMPLETED_COUNT_KEY] ?: 0
+                preferences[QUIZ_COMPLETED_COUNT_KEY] = currentCount + 1
+                Log.d("AssessmentVM", "📊 Quiz completed count updated: ${currentCount + 1}")
+
+                // Update streak
+                val lastActivity = preferences[LAST_ACTIVITY_DATE_KEY] ?: 0L
+                val currentStreak = preferences[STREAK_DAYS_KEY] ?: 0
+
+                val lastActivityDay = getStartOfDay(lastActivity)
+                val daysDifference = TimeUnit.MILLISECONDS.toDays(today - lastActivityDay).toInt()
+
+                val newStreak = when {
+                    lastActivity == 0L -> 1 // First activity
+                    daysDifference == 0 -> currentStreak // Same day, no change
+                    daysDifference == 1 -> currentStreak + 1 // Consecutive day
+                    else -> 1 // Streak broken, restart
+                }
+
+                preferences[LAST_ACTIVITY_DATE_KEY] = today
+                preferences[STREAK_DAYS_KEY] = newStreak
+
+                Log.d("AssessmentVM", "🔥 Streak updated: $newStreak days")
+            }
+        }
+    }
+
+    private fun getStartOfDay(timeMillis: Long): Long {
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = timeMillis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        return calendar.timeInMillis
     }
 }
