@@ -9,6 +9,7 @@ sealed class Screen(val route: String) {
     }
     object Home : Screen("home_screen")
     object Dictionary : Screen("dictionary_screen")
+    object Favorites : Screen("favorites_screen")
     object Quiz : Screen("quiz_screen")
     object Memorization : Screen("memorization_screen")
     object Ebook : Screen("ebook_screen")

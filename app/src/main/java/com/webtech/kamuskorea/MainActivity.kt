@@ -275,6 +275,7 @@ fun MainApp(
         currentTitle = when {
             currentRoute == Screen.Home.route -> strings.home
             currentRoute == Screen.Dictionary.route -> strings.dictionary
+            currentRoute == Screen.Favorites.route -> strings.favorites
             currentRoute == Screen.Ebook.route -> strings.ebook
             currentRoute == Screen.Quiz.route -> strings.quiz
             currentRoute == Screen.Memorization.route -> strings.memorization
@@ -289,6 +290,7 @@ fun MainApp(
 
     val menuItems = listOf(
         NavItem(strings.dictionary, Icons.AutoMirrored.Outlined.MenuBook, Screen.Dictionary),
+        NavItem(strings.favorites, Icons.Outlined.Favorite, Screen.Favorites),
         NavItem(strings.ebook, Icons.Outlined.AutoStories, Screen.Ebook),
         NavItem(strings.memorization, Icons.Outlined.Bookmark, Screen.Memorization),
         NavItem(strings.quiz, Icons.Outlined.Quiz, Screen.Quiz)
@@ -425,6 +427,9 @@ fun MainApp(
                 }
                 composable(Screen.Dictionary.route) {
                     SimpleDictionaryScreen(viewModel = hiltViewModel(), isPremium = isPremium)
+                }
+                composable(Screen.Favorites.route) {
+                    FavoritesScreen(viewModel = hiltViewModel(), isPremium = isPremium)
                 }
                 composable(Screen.Memorization.route) {
                     MemorizationScreen(
