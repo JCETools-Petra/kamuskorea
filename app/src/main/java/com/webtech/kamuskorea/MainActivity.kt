@@ -509,35 +509,61 @@ fun MainApp(
                             navController.getBackStackEntry("assessment_graph")
                         }
                         val assessmentViewModel: AssessmentViewModel = hiltViewModel(assessmentBackStackEntry)
-                        TakeAssessmentScreen(
-                            assessmentId = assessmentId,
-                            assessmentTitle = title,
-                            onFinish = {
-                                // Show interstitial ad after quiz/exam completion (for non-premium users)
-                                if (!isPremium) {
-                                    adManager.showInterstitialOnQuizComplete(
-                                        activity = activity,
-                                        onAdDismissed = {
-                                            navController.navigate("assessment/result") {
-                                                popUpTo(backStackEntry.destination.route!!) { inclusive = true }
-                                            }
-                                        }
-                                    )
-                                } else {
-                                    navController.navigate("assessment/result") {
-                                        popUpTo(backStackEntry.destination.route!!) { inclusive = true }
+
+                        // Show interstitial ad before starting quiz/exam (for non-premium users)
+                        var adDismissed by remember { mutableStateOf(false) }
+
+                        LaunchedEffect(assessmentId) {
+                            if (!isPremium && !adDismissed) {
+                                adManager.showInterstitialOnQuizStart(
+                                    activity = activity,
+                                    onAdDismissed = {
+                                        adDismissed = true
                                     }
-                                }
-                            },
-                            onExit = {
-                                assessmentViewModel.resetAssessment()
-                                navController.navigate(Screen.Quiz.route) {
-                                    popUpTo(Screen.Quiz.route) { inclusive = true }
-                                    launchSingleTop = true
-                                }
-                            },
-                            viewModel = assessmentViewModel
-                        )
+                                )
+                            } else {
+                                adDismissed = true
+                            }
+                        }
+
+                        if (adDismissed || isPremium) {
+                            TakeAssessmentScreen(
+                                assessmentId = assessmentId,
+                                assessmentTitle = title,
+                                onFinish = {
+                                    // Show interstitial ad after quiz/exam completion (for non-premium users)
+                                    if (!isPremium) {
+                                        adManager.showInterstitialOnQuizComplete(
+                                            activity = activity,
+                                            onAdDismissed = {
+                                                navController.navigate("assessment/result") {
+                                                    popUpTo(backStackEntry.destination.route!!) { inclusive = true }
+                                                }
+                                            }
+                                        )
+                                    } else {
+                                        navController.navigate("assessment/result") {
+                                            popUpTo(backStackEntry.destination.route!!) { inclusive = true }
+                                        }
+                                    }
+                                },
+                                onExit = {
+                                    assessmentViewModel.resetAssessment()
+                                    navController.navigate(Screen.Quiz.route) {
+                                        popUpTo(Screen.Quiz.route) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                },
+                                viewModel = assessmentViewModel
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
                     }
                     composable("assessment/result") {
                         val assessmentBackStackEntry = remember(it) {
