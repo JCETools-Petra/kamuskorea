@@ -85,6 +85,7 @@ class MainActivity : ComponentActivity() {
         kamusSyncViewModel.syncDatabase()
 
         // Preload ads untuk performa yang lebih baik
+        Log.d("MainActivity", "🎯 Preloading ads...")
         adManager.preloadAd(this)
 
         setContent {
@@ -138,11 +139,17 @@ class MainActivity : ComponentActivity() {
                                 // --- PENGGUNA SUDAH LOGIN ---
                                 // Show session start interstitial (once per session for non-premium users)
                                 LaunchedEffect(Unit) {
+                                    Log.d("MainActivity", "🔍 Checking session start ad - isPremium: $isPremium")
                                     if (!isPremium) {
+                                        Log.d("MainActivity", "📺 Attempting to show session start ad...")
                                         adManager.showInterstitialOnSessionStart(
                                             activity = this@MainActivity,
-                                            onAdDismissed = {}
+                                            onAdDismissed = {
+                                                Log.d("MainActivity", "✅ Session start ad dismissed or skipped")
+                                            }
                                         )
+                                    } else {
+                                        Log.d("MainActivity", "⏭️ Skipping session start ad - user is premium")
                                     }
                                 }
 
@@ -514,10 +521,13 @@ fun MainApp(
                         var adDismissed by remember { mutableStateOf(false) }
 
                         LaunchedEffect(assessmentId) {
+                            Log.d("MainActivity", "🎯 Quiz/Exam start - isPremium: $isPremium, adDismissed: $adDismissed")
                             if (!isPremium && !adDismissed) {
+                                Log.d("MainActivity", "📺 Attempting to show quiz start ad...")
                                 adManager.showInterstitialOnQuizStart(
                                     activity = activity,
                                     onAdDismissed = {
+                                        Log.d("MainActivity", "✅ Quiz start ad dismissed or skipped")
                                         adDismissed = true
                                     }
                                 )
@@ -646,10 +656,13 @@ fun MainApp(
                         var adDismissed by remember { mutableStateOf(false) }
 
                         LaunchedEffect(pdfUrl) {
+                            Log.d("MainActivity", "📄 PDF open - isPremium: $isPremium, adDismissed: $adDismissed")
                             if (!isPremium && !adDismissed) {
+                                Log.d("MainActivity", "📺 Attempting to show PDF open ad...")
                                 adManager.showInterstitialOnPdfOpen(
                                     activity = activity,
                                     onAdDismissed = {
+                                        Log.d("MainActivity", "✅ PDF open ad dismissed or skipped")
                                         adDismissed = true
                                     }
                                 )
