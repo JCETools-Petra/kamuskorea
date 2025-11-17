@@ -429,7 +429,7 @@ fun MainApp(
                     SimpleDictionaryScreen(viewModel = hiltViewModel(), isPremium = isPremium)
                 }
                 composable(Screen.Favorites.route) {
-                    FavoritesScreen(viewModel = hiltViewModel(), isPremium = isPremium)
+                    FavoritesScreen(isPremium = isPremium)
                 }
                 composable(Screen.Memorization.route) {
                     MemorizationScreen(
