@@ -182,6 +182,7 @@ if ($action === 'list') {
                     <a href="admin_exams.php"><i class="bi bi-file-earmark-text"></i> Ujian/UBT</a>
                     <a href="admin_questions.php" class="active"><i class="bi bi-list-check"></i> Semua Soal</a>
                     <hr class="text-white">
+                    <a href="admin_profile.php"><i class="bi bi-person-circle"></i> Profil</a>
                     <a href="admin_logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
                 </nav>
             </div>
