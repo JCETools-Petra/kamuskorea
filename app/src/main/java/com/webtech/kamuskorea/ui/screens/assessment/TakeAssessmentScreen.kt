@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -979,41 +980,57 @@ fun QuestionGridDialog(
     onQuestionSelected: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
+    // Group questions by type
+    val textImageQuestions = questions.mapIndexedNotNull { index, question ->
+        if (question.questionType == "text" || question.questionType == "image") {
+            index to question
+        } else null
+    }
+
+    val audioVideoQuestions = questions.mapIndexedNotNull { index, question ->
+        if (question.questionType == "audio" || question.questionType == "video") {
+            index to question
+        } else null
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("문제 탐색") },
+        title = {
+            Text(
+                "문제 탐색",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
         text = {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(6),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                itemsIndexed(questions) { index, question ->
-                    val isAnswered = userAnswers.containsKey(question.id)
-                    val isCurrent = index == currentIndex
+                // Text and Image Questions Section
+                if (textImageQuestions.isNotEmpty()) {
+                    QuestionCategorySection(
+                        title = "📝 Soal Teks & Gambar",
+                        titleColor = Color(0xFF2196F3),
+                        questions = textImageQuestions,
+                        currentIndex = currentIndex,
+                        userAnswers = userAnswers,
+                        onQuestionSelected = onQuestionSelected
+                    )
+                }
 
-                    Surface(
-                        shape = CircleShape,
-                        color = when {
-                            isCurrent -> MaterialTheme.colorScheme.primary
-                            isAnswered -> MaterialTheme.colorScheme.primaryContainer
-                            else -> MaterialTheme.colorScheme.surfaceVariant
-                        },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clickable { onQuestionSelected(index) }
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "${index + 1}",
-                                fontWeight = FontWeight.Bold,
-                                color = if (isCurrent) Color.White else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
+                // Audio and Video Questions Section
+                if (audioVideoQuestions.isNotEmpty()) {
+                    QuestionCategorySection(
+                        title = "🎬 Soal Video & Audio",
+                        titleColor = Color(0xFFFF5722),
+                        questions = audioVideoQuestions,
+                        currentIndex = currentIndex,
+                        userAnswers = userAnswers,
+                        onQuestionSelected = onQuestionSelected
+                    )
                 }
             }
         },
@@ -1022,6 +1039,144 @@ fun QuestionGridDialog(
                 Text("닫기")
             }
         }
+    )
+}
+
+@Composable
+fun QuestionCategorySection(
+    title: String,
+    titleColor: Color,
+    questions: List<Pair<Int, Question>>,
+    currentIndex: Int,
+    userAnswers: Map<Int, String>,
+    onQuestionSelected: (Int) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Category Header
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = titleColor.copy(alpha = 0.1f)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = titleColor
+                )
+                Surface(
+                    shape = CircleShape,
+                    color = titleColor.copy(alpha = 0.2f)
+                ) {
+                    Text(
+                        text = "${questions.size}",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = titleColor
+                    )
+                }
+            }
+        }
+
+        // Question Grid
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            questions.forEach { (originalIndex, question) ->
+                val isAnswered = userAnswers.containsKey(question.id)
+                val isCurrent = originalIndex == currentIndex
+
+                QuestionNumberBubble(
+                    number = originalIndex + 1,
+                    isCurrent = isCurrent,
+                    isAnswered = isAnswered,
+                    questionType = question.questionType,
+                    onClick = { onQuestionSelected(originalIndex) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun QuestionNumberBubble(
+    number: Int,
+    isCurrent: Boolean,
+    isAnswered: Boolean,
+    questionType: String,
+    onClick: () -> Unit
+) {
+    val backgroundColor = when {
+        isCurrent -> MaterialTheme.colorScheme.primary
+        isAnswered -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    val icon = when (questionType) {
+        "image" -> "🖼️"
+        "audio" -> "🔊"
+        "video" -> "🎥"
+        else -> ""
+    }
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = backgroundColor,
+        modifier = Modifier
+            .size(56.dp)
+            .clickable(onClick = onClick),
+        shadowElevation = if (isCurrent) 4.dp else 0.dp
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "$number",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = if (isCurrent) Color.White else MaterialTheme.colorScheme.onSurface
+                )
+                if (icon.isNotEmpty()) {
+                    Text(
+                        text = icon,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FlowRow(
+    modifier: Modifier = Modifier,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
+    verticalArrangement: Arrangement.Vertical = Arrangement.Top,
+    content: @Composable () -> Unit
+) {
+    androidx.compose.foundation.layout.FlowRow(
+        modifier = modifier,
+        horizontalArrangement = horizontalArrangement,
+        verticalArrangement = verticalArrangement,
+        content = content
     )
 }
 
