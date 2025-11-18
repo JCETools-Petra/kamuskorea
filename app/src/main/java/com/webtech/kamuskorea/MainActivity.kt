@@ -1,13 +1,17 @@
 package com.webtech.kamuskorea
 
 import android.app.Application
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -81,6 +85,17 @@ class MainActivity : ComponentActivity() {
     private val kamusSyncViewModel: KamusSyncViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
 
+    // Permission launcher untuk POST_NOTIFICATIONS (Android 13+)
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Log.d("MainActivity", "✅ Notification permission granted")
+        } else {
+            Log.d("MainActivity", "⚠️ Notification permission denied")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -91,6 +106,20 @@ class MainActivity : ComponentActivity() {
         // Preload ads untuk performa yang lebih baik
         Log.d("MainActivity", "🎯 Preloading ads...")
         adManager.preloadAd(this)
+
+        // Request notification permission untuk Android 13+ (API 33+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.d("MainActivity", "📢 Requesting notification permission...")
+                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                Log.d("MainActivity", "✅ Notification permission already granted")
+            }
+        }
 
         // Subscribe ke FCM topic untuk menerima broadcast notifications
         Log.d("MainActivity", "🔔 Subscribing to push notifications...")
