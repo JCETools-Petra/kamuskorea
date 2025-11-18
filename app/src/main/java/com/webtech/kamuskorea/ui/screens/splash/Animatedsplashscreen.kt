@@ -42,11 +42,13 @@ fun AnimatedSplashScreen(
         contentAlignment = Alignment.Center
     ) {
         // Full screen splash image with fade in effect
+        // TODO: Replace R.drawable.ic_splash_logo with R.drawable.splash_screen
+        // after adding splash_screen.png to app/src/main/res/drawable/
         Image(
-            painter = painterResource(id = R.drawable.splash_screen),
+            painter = painterResource(id = R.drawable.ic_splash_logo),
             contentDescription = "Splash Screen",
             modifier = Modifier
-                .fillMaxSize()
+                .size(200.dp)
                 .alpha(alphaAnim.value),
             contentScale = ContentScale.Fit
         )
