@@ -1098,7 +1098,7 @@ fun QuestionGridDialog(
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
+                .fillMaxWidth(0.98f)
                 .fillMaxHeight(0.85f),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
@@ -1218,13 +1218,18 @@ fun QuestionCategorySection(
             }
         }
 
-        // Question Grid
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
+        // Question Grid - 5 columns
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(5),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 600.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            userScrollEnabled = false
         ) {
-            questions.forEach { (originalIndex, question) ->
+            items(questions.size) { index ->
+                val (originalIndex, question) = questions[index]
                 val isAnswered = userAnswers.containsKey(question.id)
                 val isCurrent = originalIndex == currentIndex
 
