@@ -61,6 +61,99 @@ enum class AnswerLanguage {
     ALTERNATIVE // Alternative language (Korean/Indonesian)
 }
 
+// Helper object for multi-language UI texts
+object AssessmentTexts {
+    fun submitTitle(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "시험을 제출하시겠습니까?"
+        UILanguage.INDONESIAN -> "Kirim jawaban Anda?"
+        UILanguage.ENGLISH -> "Submit your answers?"
+    }
+
+    fun totalQuestions(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "총 문제"
+        UILanguage.INDONESIAN -> "Total soal"
+        UILanguage.ENGLISH -> "Total questions"
+    }
+
+    fun answered(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "답변함"
+        UILanguage.INDONESIAN -> "Dijawab"
+        UILanguage.ENGLISH -> "Answered"
+    }
+
+    fun unanswered(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "미답변"
+        UILanguage.INDONESIAN -> "Belum dijawab"
+        UILanguage.ENGLISH -> "Unanswered"
+    }
+
+    fun timeRemaining(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "남은 시간"
+        UILanguage.INDONESIAN -> "Waktu tersisa"
+        UILanguage.ENGLISH -> "Time remaining"
+    }
+
+    fun confirmSubmit(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "네, 제출"
+        UILanguage.INDONESIAN -> "Ya, kirim"
+        UILanguage.ENGLISH -> "Yes, submit"
+    }
+
+    fun cancel(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "취소"
+        UILanguage.INDONESIAN -> "Batal"
+        UILanguage.ENGLISH -> "Cancel"
+    }
+
+    fun exitTitle(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "시험에서 나가시겠습니까?"
+        UILanguage.INDONESIAN -> "Keluar dari ujian?"
+        UILanguage.ENGLISH -> "Exit the exam?"
+    }
+
+    fun exitMessage(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "진행 상황이 저장되지 않습니다"
+        UILanguage.INDONESIAN -> "Progres Anda tidak akan disimpan"
+        UILanguage.ENGLISH -> "Your progress will not be saved"
+    }
+
+    fun confirmExit(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "나가기"
+        UILanguage.INDONESIAN -> "Keluar"
+        UILanguage.ENGLISH -> "Exit"
+    }
+
+    fun continueExam(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "계속하기"
+        UILanguage.INDONESIAN -> "Lanjutkan"
+        UILanguage.ENGLISH -> "Continue"
+    }
+
+    fun questionNavigation(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "문제 탐색"
+        UILanguage.INDONESIAN -> "Navigasi Soal"
+        UILanguage.ENGLISH -> "Question Navigation"
+    }
+
+    fun textAndImage(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "📝 텍스트 & 이미지"
+        UILanguage.INDONESIAN -> "📝 Teks & Gambar"
+        UILanguage.ENGLISH -> "📝 Text & Image"
+    }
+
+    fun videoAndAudio(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "🎬 비디오 & 오디오"
+        UILanguage.INDONESIAN -> "🎬 Video & Audio"
+        UILanguage.ENGLISH -> "🎬 Video & Audio"
+    }
+
+    fun close(lang: UILanguage) = when(lang) {
+        UILanguage.KOREAN -> "닫기"
+        UILanguage.INDONESIAN -> "Tutup"
+        UILanguage.ENGLISH -> "Close"
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TakeAssessmentScreen(
@@ -281,6 +374,7 @@ fun TakeAssessmentScreen(
             questions = questions,
             currentIndex = currentIndex,
             userAnswers = userAnswers,
+            uiLanguage = uiLanguage,
             onQuestionSelected = { index ->
                 viewModel.goToQuestion(index)
                 showQuestionGrid = false
@@ -295,6 +389,7 @@ fun TakeAssessmentScreen(
             totalQuestions = questions.size,
             timeText = timeText,
             timerColor = timerColor,
+            uiLanguage = uiLanguage,
             onConfirm = {
                 showSubmitDialog = false
                 isTimerRunning = false
@@ -308,6 +403,7 @@ fun TakeAssessmentScreen(
         ExitConfirmationDialog(
             answeredCount = userAnswers.size,
             totalQuestions = questions.size,
+            uiLanguage = uiLanguage,
             onConfirm = {
                 showExitDialog = false
                 isTimerRunning = false
@@ -815,6 +911,7 @@ fun SubmitConfirmationDialog(
     totalQuestions: Int,
     timeText: String,
     timerColor: Color,
+    uiLanguage: UILanguage = UILanguage.KOREAN,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -822,20 +919,20 @@ fun SubmitConfirmationDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("시험을 제출하시겠습니까?") },
+        title = { Text(AssessmentTexts.submitTitle(uiLanguage)) },
         text = {
             Column {
-                Text("총 문제: $totalQuestions")
-                Text("답변함: $answeredCount")
+                Text("${AssessmentTexts.totalQuestions(uiLanguage)}: $totalQuestions")
+                Text("${AssessmentTexts.answered(uiLanguage)}: $answeredCount")
                 if (unansweredCount > 0) {
                     Text(
-                        "미답변: $unansweredCount",
+                        "${AssessmentTexts.unanswered(uiLanguage)}: $unansweredCount",
                         color = MaterialTheme.colorScheme.error
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "남은 시간: $timeText",
+                    "${AssessmentTexts.timeRemaining(uiLanguage)}: $timeText",
                     fontWeight = FontWeight.Bold,
                     color = timerColor
                 )
@@ -843,12 +940,12 @@ fun SubmitConfirmationDialog(
         },
         confirmButton = {
             Button(onClick = onConfirm) {
-                Text("네, 제출")
+                Text(AssessmentTexts.confirmSubmit(uiLanguage))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("취소")
+                Text(AssessmentTexts.cancel(uiLanguage))
             }
         }
     )
@@ -858,6 +955,7 @@ fun SubmitConfirmationDialog(
 fun ExitConfirmationDialog(
     answeredCount: Int,
     totalQuestions: Int,
+    uiLanguage: UILanguage = UILanguage.KOREAN,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -903,7 +1001,7 @@ fun ExitConfirmationDialog(
 
                 // Title
                 Text(
-                    "Keluar dari Ujian?",
+                    AssessmentTexts.exitTitle(uiLanguage),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
@@ -919,7 +1017,7 @@ fun ExitConfirmationDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        "Ujian anda akan dibatalkan.",
+                        AssessmentTexts.exitMessage(uiLanguage),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center,
@@ -943,7 +1041,7 @@ fun ExitConfirmationDialog(
                         border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
                     ) {
                         Text(
-                            "Lanjutkan",
+                            AssessmentTexts.continueExam(uiLanguage),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -961,7 +1059,7 @@ fun ExitConfirmationDialog(
                         )
                     ) {
                         Text(
-                            "Ya, Keluar",
+                            AssessmentTexts.confirmExit(uiLanguage),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -978,6 +1076,7 @@ fun QuestionGridDialog(
     questions: List<Question>,
     currentIndex: Int,
     userAnswers: Map<Int, String>,
+    uiLanguage: UILanguage = UILanguage.KOREAN,
     onQuestionSelected: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -998,7 +1097,7 @@ fun QuestionGridDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                "문제 탐색",
+                AssessmentTexts.questionNavigation(uiLanguage),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -1013,7 +1112,7 @@ fun QuestionGridDialog(
                 // Text and Image Questions Section (Left)
                 if (textImageQuestions.isNotEmpty()) {
                     QuestionCategorySection(
-                        title = "📝 Teks & Gambar",
+                        title = AssessmentTexts.textAndImage(uiLanguage),
                         titleColor = Color(0xFF2196F3),
                         questions = textImageQuestions,
                         currentIndex = currentIndex,
@@ -1026,7 +1125,7 @@ fun QuestionGridDialog(
                 // Audio and Video Questions Section (Right)
                 if (audioVideoQuestions.isNotEmpty()) {
                     QuestionCategorySection(
-                        title = "🎬 Video & Audio",
+                        title = AssessmentTexts.videoAndAudio(uiLanguage),
                         titleColor = Color(0xFFFF5722),
                         questions = audioVideoQuestions,
                         currentIndex = currentIndex,
@@ -1039,7 +1138,7 @@ fun QuestionGridDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("닫기")
+                Text(AssessmentTexts.close(uiLanguage))
             }
         }
     )
