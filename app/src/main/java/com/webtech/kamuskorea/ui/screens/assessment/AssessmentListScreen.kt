@@ -22,7 +22,7 @@ import com.webtech.kamuskorea.data.assessment.Assessment
 fun AssessmentListScreen(
     type: String, // "quiz" atau "exam"
     isPremium: Boolean,
-    onNavigateToAssessment: (Int) -> Unit,
+    onNavigateToAssessment: (Int, Int) -> Unit, // (assessmentId, durationMinutes)
     onNavigateToPremium: () -> Unit,
     viewModel: AssessmentViewModel = hiltViewModel()
 ) {
@@ -89,7 +89,7 @@ fun AssessmentListScreen(
                                     if (assessment.locked) {
                                         onNavigateToPremium()
                                     } else {
-                                        onNavigateToAssessment(assessment.id)
+                                        onNavigateToAssessment(assessment.id, assessment.durationMinutes)
                                     }
                                 }
                             )

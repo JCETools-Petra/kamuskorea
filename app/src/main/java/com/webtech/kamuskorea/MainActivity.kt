@@ -474,8 +474,8 @@ fun MainApp(
                         AssessmentListScreen(
                             type = "quiz",
                             isPremium = isPremium,
-                            onNavigateToAssessment = { assessmentId ->
-                                navController.navigate("assessment/take/$assessmentId/Quiz")
+                            onNavigateToAssessment = { assessmentId, durationMinutes ->
+                                navController.navigate("assessment/take/$assessmentId/Quiz/$durationMinutes")
                             },
                             onNavigateToPremium = {
                                 navController.navigate(Screen.PremiumLock.route)
@@ -491,8 +491,8 @@ fun MainApp(
                         AssessmentListScreen(
                             type = "exam",
                             isPremium = isPremium,
-                            onNavigateToAssessment = { assessmentId ->
-                                navController.navigate("assessment/take/$assessmentId/Exam")
+                            onNavigateToAssessment = { assessmentId, durationMinutes ->
+                                navController.navigate("assessment/take/$assessmentId/Exam/$durationMinutes")
                             },
                             onNavigateToPremium = {
                                 navController.navigate(Screen.PremiumLock.route)
@@ -501,14 +501,16 @@ fun MainApp(
                         )
                     }
                     composable(
-                        route = "assessment/take/{assessmentId}/{title}",
+                        route = "assessment/take/{assessmentId}/{title}/{durationMinutes}",
                         arguments = listOf(
                             navArgument("assessmentId") { type = NavType.IntType },
-                            navArgument("title") { type = NavType.StringType }
+                            navArgument("title") { type = NavType.StringType },
+                            navArgument("durationMinutes") { type = NavType.IntType }
                         )
                     ) { backStackEntry ->
                         val assessmentId = backStackEntry.arguments?.getInt("assessmentId") ?: 0
                         val title = backStackEntry.arguments?.getString("title") ?: "Assessment"
+                        val durationMinutes = backStackEntry.arguments?.getInt("durationMinutes") ?: 10
                         val assessmentBackStackEntry = remember(backStackEntry) {
                             navController.getBackStackEntry("assessment_graph")
                         }
@@ -537,6 +539,7 @@ fun MainApp(
                             TakeAssessmentScreen(
                                 assessmentId = assessmentId,
                                 assessmentTitle = title,
+                                durationMinutes = durationMinutes,
                                 onFinish = {
                                     // Show interstitial ad after quiz/exam completion (for non-premium users)
                                     if (!isPremium) {
