@@ -199,18 +199,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// Composable ini HANYA menangani alur Onboarding, Login, dan Register
+// Composable ini HANYA menangani alur Login dan Register
 // Tidak ada Drawer, tidak ada Scaffold.
+// Onboarding dinonaktifkan - langsung ke Login
 @Composable
 fun AuthApp() {
     val navController = rememberNavController()
-    // TODO: Ganti `mutableStateOf(false)` dengan logika dari DataStore Anda
-    val hasSeenOnboarding = remember { mutableStateOf(false) }
 
-    val startDestination = when {
-        !hasSeenOnboarding.value -> Screen.Onboarding.route
-        else -> Screen.Login.route
-    }
+    // Skip onboarding - langsung ke login screen
+    val startDestination = Screen.Login.route
 
     NavHost(
         navController = navController,
