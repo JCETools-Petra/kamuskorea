@@ -136,15 +136,15 @@ object AssessmentTexts {
     }
 
     fun textAndImage(lang: UILanguage) = when(lang) {
-        UILanguage.KOREAN -> "📝 텍스트 & 이미지"
-        UILanguage.INDONESIAN -> "📝 Teks & Gambar"
-        UILanguage.ENGLISH -> "📝 Text & Image"
+        UILanguage.KOREAN -> "📖 읽기 문제"
+        UILanguage.INDONESIAN -> "📖 Soal Reading"
+        UILanguage.ENGLISH -> "📖 Reading Question"
     }
 
     fun videoAndAudio(lang: UILanguage) = when(lang) {
-        UILanguage.KOREAN -> "🎬 비디오 & 오디오"
-        UILanguage.INDONESIAN -> "🎬 Video & Audio"
-        UILanguage.ENGLISH -> "🎬 Video & Audio"
+        UILanguage.KOREAN -> "🎧 듣기 문제"
+        UILanguage.INDONESIAN -> "🎧 Soal Listening"
+        UILanguage.ENGLISH -> "🎧 Listening Question"
     }
 
     fun close(lang: UILanguage) = when(lang) {
@@ -1093,55 +1093,81 @@ fun QuestionGridDialog(
         } else null
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                AssessmentTexts.questionNavigation(uiLanguage),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Row(
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.85f),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .fillMaxSize()
+                    .padding(20.dp)
             ) {
-                // Text and Image Questions Section (Left)
-                if (textImageQuestions.isNotEmpty()) {
-                    QuestionCategorySection(
-                        title = AssessmentTexts.textAndImage(uiLanguage),
-                        titleColor = Color(0xFF2196F3),
-                        questions = textImageQuestions,
-                        currentIndex = currentIndex,
-                        userAnswers = userAnswers,
-                        onQuestionSelected = onQuestionSelected,
-                        modifier = Modifier.weight(1f)
-                    )
+                // Title
+                Text(
+                    AssessmentTexts.questionNavigation(uiLanguage),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                // Content
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Text and Image Questions Section (Left)
+                    if (textImageQuestions.isNotEmpty()) {
+                        QuestionCategorySection(
+                            title = AssessmentTexts.textAndImage(uiLanguage),
+                            titleColor = Color(0xFF2196F3),
+                            questions = textImageQuestions,
+                            currentIndex = currentIndex,
+                            userAnswers = userAnswers,
+                            onQuestionSelected = onQuestionSelected,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // Audio and Video Questions Section (Right)
+                    if (audioVideoQuestions.isNotEmpty()) {
+                        QuestionCategorySection(
+                            title = AssessmentTexts.videoAndAudio(uiLanguage),
+                            titleColor = Color(0xFFFF5722),
+                            questions = audioVideoQuestions,
+                            currentIndex = currentIndex,
+                            userAnswers = userAnswers,
+                            onQuestionSelected = onQuestionSelected,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
 
-                // Audio and Video Questions Section (Right)
-                if (audioVideoQuestions.isNotEmpty()) {
-                    QuestionCategorySection(
-                        title = AssessmentTexts.videoAndAudio(uiLanguage),
-                        titleColor = Color(0xFFFF5722),
-                        questions = audioVideoQuestions,
-                        currentIndex = currentIndex,
-                        userAnswers = userAnswers,
-                        onQuestionSelected = onQuestionSelected,
-                        modifier = Modifier.weight(1f)
-                    )
+                // Close button
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(AssessmentTexts.close(uiLanguage))
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(AssessmentTexts.close(uiLanguage))
-            }
         }
-    )
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -1236,33 +1262,47 @@ fun QuestionNumberBubble(
     }
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         color = backgroundColor,
         modifier = Modifier
-            .size(56.dp)
+            .size(44.dp)
             .clickable(onClick = onClick),
         shadowElevation = if (isCurrent) 4.dp else 0.dp
     ) {
         Box(
-            contentAlignment = Alignment.Center,
             modifier = Modifier.fillMaxSize()
         ) {
+            // Main content - centered
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxSize()
             ) {
                 Text(
                     text = "$number",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     color = if (isCurrent) Color.White else MaterialTheme.colorScheme.onSurface
                 )
                 if (icon.isNotEmpty()) {
                     Text(
                         text = icon,
-                        fontSize = 12.sp
+                        fontSize = 10.sp
                     )
                 }
+            }
+
+            // Checkmark icon for answered questions - top right corner
+            if (isAnswered && !isCurrent) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Answered",
+                    tint = Color(0xFF4CAF50),
+                    modifier = Modifier
+                        .size(16.dp)
+                        .align(Alignment.TopEnd)
+                        .padding(2.dp)
+                )
             }
         }
     }
