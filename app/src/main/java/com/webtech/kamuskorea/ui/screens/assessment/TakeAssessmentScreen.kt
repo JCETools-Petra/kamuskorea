@@ -1109,7 +1109,7 @@ fun QuestionGridDialog(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(28.dp)
+                    .padding(horizontal = 35.dp, vertical = 28.dp)
             ) {
                 // Title
                 Text(
