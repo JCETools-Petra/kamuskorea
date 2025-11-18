@@ -1098,9 +1098,9 @@ fun QuestionGridDialog(
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth(0.98f)
-                .fillMaxHeight(0.85f),
-            shape = RoundedCornerShape(16.dp),
+                .fillMaxWidth(0.99f)
+                .fillMaxHeight(0.92f),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
@@ -1109,14 +1109,14 @@ fun QuestionGridDialog(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(20.dp)
+                    .padding(horizontal = 35.dp, vertical = 28.dp)
             ) {
                 // Title
                 Text(
                     AssessmentTexts.questionNavigation(uiLanguage),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = 20.dp)
                 )
 
                 // Content
@@ -1125,7 +1125,7 @@ fun QuestionGridDialog(
                         .weight(1f)
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
                     // Text and Image Questions Section (Left)
                     if (textImageQuestions.isNotEmpty()) {
@@ -1155,15 +1155,19 @@ fun QuestionGridDialog(
                 }
 
                 // Close button
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier
                         .align(Alignment.End)
-                        .height(48.dp),
+                        .height(52.dp)
+                        .padding(horizontal = 4.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(AssessmentTexts.close(uiLanguage))
+                    Text(
+                        AssessmentTexts.close(uiLanguage),
+                        style = MaterialTheme.typography.titleMedium
+                    )
                 }
             }
         }
@@ -1183,23 +1187,23 @@ fun QuestionCategorySection(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Category Header
         Surface(
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(10.dp),
             color = titleColor.copy(alpha = 0.1f)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = titleColor
                 )
@@ -1209,8 +1213,8 @@ fun QuestionCategorySection(
                 ) {
                     Text(
                         text = "${questions.size}",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = titleColor
                     )
@@ -1224,8 +1228,8 @@ fun QuestionCategorySection(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 600.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             userScrollEnabled = false
         ) {
             items(questions.size) { index ->
