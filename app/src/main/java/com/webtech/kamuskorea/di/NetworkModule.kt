@@ -17,6 +17,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 import android.util.Log
+import com.webtech.kamuskorea.BuildConfig
 
 /**
  * Interceptor kustom untuk menambahkan Token Autentikasi Firebase
@@ -39,7 +40,9 @@ class AuthInterceptor(private val firebaseAuth: FirebaseAuth) : Interceptor {
 
         // Jika tidak ada user yang login, lanjutkan tanpa token
         if (user == null) {
-            Log.w(TAG, "No authenticated user, proceeding without token")
+            if (BuildConfig.DEBUG) {
+                Log.w(TAG, "No authenticated user, proceeding without token")
+            }
             return chain.proceed(originalRequest)
         }
 
@@ -50,16 +53,20 @@ class AuthInterceptor(private val firebaseAuth: FirebaseAuth) : Interceptor {
                 val result = user.getIdToken(true).await()
                 val freshToken = result?.token
 
-                if (freshToken != null) {
-                    Log.d(TAG, "✅ Token obtained successfully for UID: ${user.uid}")
-                    Log.d(TAG, "Token preview: ${freshToken.take(20)}...")
-                } else {
-                    Log.e(TAG, "❌ Token is null after getIdToken")
+                if (BuildConfig.DEBUG) {
+                    if (freshToken != null) {
+                        Log.d(TAG, "✅ Token obtained successfully for UID: ${user.uid}")
+                        Log.d(TAG, "Token preview: ${freshToken.take(20)}...")
+                    } else {
+                        Log.e(TAG, "❌ Token is null after getIdToken")
+                    }
                 }
 
                 freshToken
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Failed to get Firebase token: ${e.message}", e)
+                if (BuildConfig.DEBUG) {
+                    Log.e(TAG, "❌ Failed to get Firebase token: ${e.message}", e)
+                }
                 null
             }
         }
@@ -71,7 +78,9 @@ class AuthInterceptor(private val firebaseAuth: FirebaseAuth) : Interceptor {
                 .addHeader("X-User-ID", user.uid) // Backup untuk development
                 .build()
         } else {
-            Log.e(TAG, "⚠️ Proceeding without token - authentication may fail")
+            if (BuildConfig.DEBUG) {
+                Log.e(TAG, "⚠️ Proceeding without token - authentication may fail")
+            }
             originalRequest
         }
 
@@ -104,8 +113,12 @@ object NetworkModule {
         authInterceptor: AuthInterceptor
     ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
-            // BODY untuk development, ubah ke BASIC atau NONE untuk production
-            level = HttpLoggingInterceptor.Level.BODY
+            // BODY untuk development, NONE untuk production
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
 
         return OkHttpClient.Builder()
