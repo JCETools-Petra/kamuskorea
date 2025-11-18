@@ -1044,6 +1044,7 @@ fun QuestionGridDialog(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun QuestionCategorySection(
     title: String,
