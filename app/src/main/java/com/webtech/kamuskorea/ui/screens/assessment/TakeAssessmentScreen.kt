@@ -66,6 +66,7 @@ enum class AnswerLanguage {
 fun TakeAssessmentScreen(
     assessmentId: Int,
     assessmentTitle: String,
+    durationMinutes: Int,
     onFinish: () -> Unit,
     onExit: () -> Unit = onFinish,
     viewModel: AssessmentViewModel = hiltViewModel()
@@ -100,9 +101,8 @@ fun TakeAssessmentScreen(
         showExitDialog = true
     }
 
-    // Timer states
-    val durationMinutes = remember { mutableStateOf(10) }
-    var timeRemaining by remember { mutableStateOf(durationMinutes.value * 60) }
+    // Timer states - using server-provided duration
+    var timeRemaining by remember { mutableStateOf(durationMinutes * 60) }
     var isTimerRunning by remember { mutableStateOf(false) }
 
     LaunchedEffect(assessmentId) {
@@ -117,6 +117,7 @@ fun TakeAssessmentScreen(
 
     LaunchedEffect(questions) {
         if (questions.isNotEmpty() && !isTimerRunning) {
+            Log.d("TakeAssessment", "⏱️ Starting timer with duration: $durationMinutes minutes (${durationMinutes * 60} seconds)")
             isTimerRunning = true
         }
     }
