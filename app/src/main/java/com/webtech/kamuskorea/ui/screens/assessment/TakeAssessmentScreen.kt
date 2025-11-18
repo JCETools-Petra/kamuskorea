@@ -1051,10 +1051,11 @@ fun QuestionCategorySection(
     questions: List<Pair<Int, Question>>,
     currentIndex: Int,
     userAnswers: Map<Int, String>,
-    onQuestionSelected: (Int) -> Unit
+    onQuestionSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Category Header
@@ -1172,7 +1173,7 @@ private fun FlowRow(
     modifier: Modifier = Modifier,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
     verticalArrangement: Arrangement.Vertical = Arrangement.Top,
-    content: @Composable () -> Unit
+    content: @Composable FlowRowScope.() -> Unit
 ) {
     androidx.compose.foundation.layout.FlowRow(
         modifier = modifier,
