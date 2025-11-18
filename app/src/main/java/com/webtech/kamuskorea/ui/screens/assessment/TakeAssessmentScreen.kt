@@ -1271,10 +1271,10 @@ fun QuestionNumberBubble(
     }
 
     Surface(
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(12.dp),
         color = backgroundColor,
         modifier = Modifier
-            .size(44.dp)
+            .size(56.dp)
             .clickable(onClick = onClick),
         shadowElevation = if (isCurrent) 4.dp else 0.dp
     ) {
@@ -1290,13 +1290,13 @@ fun QuestionNumberBubble(
                 Text(
                     text = "$number",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
+                    fontSize = 18.sp,
                     color = if (isCurrent) Color.White else MaterialTheme.colorScheme.onSurface
                 )
                 if (icon.isNotEmpty()) {
                     Text(
                         text = icon,
-                        fontSize = 10.sp
+                        fontSize = 14.sp
                     )
                 }
             }
@@ -1308,9 +1308,9 @@ fun QuestionNumberBubble(
                     contentDescription = "Answered",
                     tint = Color(0xFF4CAF50),
                     modifier = Modifier
-                        .size(16.dp)
+                        .size(20.dp)
                         .align(Alignment.TopEnd)
-                        .padding(2.dp)
+                        .padding(3.dp)
                 )
             }
         }
