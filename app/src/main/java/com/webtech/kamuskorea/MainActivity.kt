@@ -51,6 +51,7 @@ import com.webtech.kamuskorea.ui.screens.auth.RegisterScreen
 import com.webtech.kamuskorea.ui.screens.dictionary.KamusSyncViewModel
 import com.webtech.kamuskorea.ui.screens.ebook.PdfViewerScreen
 import com.webtech.kamuskorea.ads.AdManager
+import com.webtech.kamuskorea.notification.NotificationManager
 import com.webtech.kamuskorea.ui.screens.onboarding.OnboardingScreen
 import com.webtech.kamuskorea.ui.screens.profile.ProfileScreen
 import com.webtech.kamuskorea.ui.screens.settings.ModernSettingsScreen
@@ -74,6 +75,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var adManager: AdManager
 
+    @Inject
+    lateinit var notificationManager: NotificationManager
+
     private val kamusSyncViewModel: KamusSyncViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
 
@@ -87,6 +91,16 @@ class MainActivity : ComponentActivity() {
         // Preload ads untuk performa yang lebih baik
         Log.d("MainActivity", "🎯 Preloading ads...")
         adManager.preloadAd(this)
+
+        // Subscribe ke FCM topic untuk menerima broadcast notifications
+        Log.d("MainActivity", "🔔 Subscribing to push notifications...")
+        notificationManager.subscribeToAllUsersNotifications()
+
+        // Optional: Get FCM token untuk debugging
+        notificationManager.getToken { token ->
+            Log.d("MainActivity", "🔑 FCM Token: $token")
+            // TODO: Jika ingin kirim token ke server, lakukan di sini
+        }
 
         setContent {
             val isPremium by userRepository.isPremium.collectAsState(initial = false)

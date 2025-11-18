@@ -38,6 +38,20 @@
             android:enabled="true"
             android:exported="false" />
 
+        <!-- Firebase Cloud Messaging Service -->
+        <service
+            android:name=".notification.KamusKoreaFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Default notification channel for FCM -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="kamus_korea_notifications" />
+
         <!-- AdMob App ID -->
         <!-- IMPORTANT: Ganti dengan AdMob App ID Anda sendiri setelah mendaftar di https://admob.google.com -->
         <!-- Untuk testing, gunakan test app ID ini: ca-app-pub-3940256099942544~3347511713 -->
