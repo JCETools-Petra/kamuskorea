@@ -8,22 +8,18 @@ $pdo = getAdminDB();
 $message = '';
 $error = '';
 
-// CREATE/UPDATE PDF
+// CREATE/UPDATE E-Book
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save') {
     $id = $_POST['id'] ?? null;
     $title = trim($_POST['title']);
-    $author = trim($_POST['author']);
     $description = trim($_POST['description']);
-    $category = trim($_POST['category']);
+    $order_index = intval($_POST['order_index'] ?? 0);
     $is_premium = isset($_POST['is_premium']) ? 1 : 0;
 
-    // Handle file upload
+    // Handle PDF upload
     $pdfUrl = $_POST['current_pdf_url'] ?? '';
-
     if (isset($_FILES['pdf_file']) && $_FILES['pdf_file']['error'] === UPLOAD_ERR_OK) {
         $uploadDir = __DIR__ . '/pdf/';
-
-        // Create directory if not exists
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
@@ -31,7 +27,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $fileName = time() . '_' . basename($_FILES['pdf_file']['name']);
         $targetPath = $uploadDir . $fileName;
 
-        // Validate PDF file
         $fileType = strtolower(pathinfo($targetPath, PATHINFO_EXTENSION));
         if ($fileType !== 'pdf') {
             $error = 'Hanya file PDF yang diizinkan!';
@@ -39,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             if (move_uploaded_file($_FILES['pdf_file']['tmp_name'], $targetPath)) {
                 $pdfUrl = 'pdf/' . $fileName;
 
-                // Delete old file if updating
+                // Delete old PDF if updating
                 if ($id && !empty($_POST['current_pdf_url'])) {
                     $oldFile = __DIR__ . '/' . $_POST['current_pdf_url'];
                     if (file_exists($oldFile)) {
@@ -47,7 +42,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     }
                 }
             } else {
-                $error = 'Gagal upload file!';
+                $error = 'Gagal upload PDF!';
+            }
+        }
+    }
+
+    // Handle Cover Image upload
+    $coverImageUrl = $_POST['current_cover_url'] ?? '';
+    if (isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] === UPLOAD_ERR_OK) {
+        $uploadDir = __DIR__ . '/uploads/covers/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $fileName = time() . '_cover_' . basename($_FILES['cover_image']['name']);
+        $targetPath = $uploadDir . $fileName;
+
+        $fileType = strtolower(pathinfo($targetPath, PATHINFO_EXTENSION));
+        if (!in_array($fileType, ['jpg', 'jpeg', 'png', 'webp'])) {
+            $error = 'Format cover hanya: JPG, PNG, WEBP!';
+        } else {
+            if (move_uploaded_file($_FILES['cover_image']['tmp_name'], $targetPath)) {
+                $coverImageUrl = 'uploads/covers/' . $fileName;
+
+                // Delete old cover if updating
+                if ($id && !empty($_POST['current_cover_url'])) {
+                    $oldFile = __DIR__ . '/' . $_POST['current_cover_url'];
+                    if (file_exists($oldFile)) {
+                        unlink($oldFile);
+                    }
+                }
+            } else {
+                $error = 'Gagal upload cover image!';
             }
         }
     }
@@ -57,10 +83,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             // UPDATE
             $stmt = $pdo->prepare("
                 UPDATE ebooks
-                SET title = ?, author = ?, description = ?, category = ?, pdf_url = ?, is_premium = ?, updated_at = NOW()
+                SET title = ?, description = ?, coverImageUrl = ?, pdfUrl = ?, order_index = ?, is_premium = ?
                 WHERE id = ?
             ");
-            $stmt->execute([$title, $author, $description, $category, $pdfUrl, $is_premium, $id]);
+            $stmt->execute([$title, $description, $coverImageUrl, $pdfUrl, $order_index, $is_premium, $id]);
             $message = 'E-Book berhasil diupdate!';
         } else {
             // CREATE
@@ -68,30 +94,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $error = 'File PDF harus diupload!';
             } else {
                 $stmt = $pdo->prepare("
-                    INSERT INTO ebooks (title, author, description, category, pdf_url, is_premium, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+                    INSERT INTO ebooks (title, description, coverImageUrl, pdfUrl, order_index, is_premium, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())
                 ");
-                $stmt->execute([$title, $author, $description, $category, $pdfUrl, $is_premium]);
+                $stmt->execute([$title, $description, $coverImageUrl, $pdfUrl, $order_index, $is_premium]);
                 $message = 'E-Book berhasil ditambahkan!';
             }
         }
     }
 }
 
-// DELETE PDF
+// DELETE E-Book
 if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
     $id = intval($_GET['id']);
 
-    // Get PDF URL to delete file
-    $stmt = $pdo->prepare("SELECT pdf_url FROM ebooks WHERE id = ?");
+    // Get URLs to delete files
+    $stmt = $pdo->prepare("SELECT pdfUrl, coverImageUrl FROM ebooks WHERE id = ?");
     $stmt->execute([$id]);
     $ebook = $stmt->fetch();
 
     if ($ebook) {
-        // Delete file
-        $filePath = __DIR__ . '/' . $ebook['pdf_url'];
-        if (file_exists($filePath)) {
-            unlink($filePath);
+        // Delete PDF file
+        if (!empty($ebook['pdfUrl'])) {
+            $filePath = __DIR__ . '/' . $ebook['pdfUrl'];
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
+
+        // Delete cover image
+        if (!empty($ebook['coverImageUrl'])) {
+            $filePath = __DIR__ . '/' . $ebook['coverImageUrl'];
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
         }
 
         // Delete from database
@@ -101,8 +137,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
     }
 }
 
-// Get all PDFs
-$pdfs = $pdo->query("SELECT * FROM ebooks ORDER BY created_at DESC")->fetchAll();
+// Get all E-Books
+$pdfs = $pdo->query("SELECT * FROM ebooks ORDER BY order_index ASC, created_at DESC")->fetchAll();
 
 // Get edit data if editing
 $editPdf = null;
@@ -148,12 +184,21 @@ if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) 
             transform: translateY(-5px);
             box-shadow: 0 8px 20px rgba(0,0,0,0.15);
         }
-        .pdf-icon {
-            font-size: 4rem;
-            color: #dc3545;
+        .cover-preview {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            background: #f8f9fa;
         }
         .badge-premium {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .preview-image {
+            max-width: 200px;
+            max-height: 200px;
+            margin-top: 10px;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
         }
     </style>
 </head>
@@ -210,10 +255,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) 
                         <form method="POST" enctype="multipart/form-data">
                             <input type="hidden" name="action" value="save">
                             <input type="hidden" name="id" value="<?= $editPdf['id'] ?? '' ?>">
-                            <input type="hidden" name="current_pdf_url" value="<?= $editPdf['pdf_url'] ?? '' ?>">
+                            <input type="hidden" name="current_pdf_url" value="<?= $editPdf['pdfUrl'] ?? '' ?>">
+                            <input type="hidden" name="current_cover_url" value="<?= $editPdf['coverImageUrl'] ?? '' ?>">
 
                             <div class="row g-3">
-                                <div class="col-md-6">
+                                <div class="col-md-8">
                                     <label class="form-label">Judul E-Book <span class="text-danger">*</span></label>
                                     <input type="text" name="title" class="form-control"
                                            value="<?= htmlspecialchars($editPdf['title'] ?? '') ?>"
@@ -221,38 +267,37 @@ if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) 
                                            required>
                                 </div>
 
-                                <div class="col-md-6">
-                                    <label class="form-label">Penulis <span class="text-danger">*</span></label>
-                                    <input type="text" name="author" class="form-control"
-                                           value="<?= htmlspecialchars($editPdf['author'] ?? '') ?>"
-                                           placeholder="Contoh: Tim Kamus Korea"
-                                           required>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label class="form-label">Kategori <span class="text-danger">*</span></label>
-                                    <select name="category" class="form-select" required>
-                                        <option value="">Pilih Kategori...</option>
-                                        <option value="Pemula" <?= ($editPdf['category'] ?? '') === 'Pemula' ? 'selected' : '' ?>>Pemula</option>
-                                        <option value="Menengah" <?= ($editPdf['category'] ?? '') === 'Menengah' ? 'selected' : '' ?>>Menengah</option>
-                                        <option value="Lanjutan" <?= ($editPdf['category'] ?? '') === 'Lanjutan' ? 'selected' : '' ?>>Lanjutan</option>
-                                        <option value="Tata Bahasa" <?= ($editPdf['category'] ?? '') === 'Tata Bahasa' ? 'selected' : '' ?>>Tata Bahasa</option>
-                                        <option value="Kosakata" <?= ($editPdf['category'] ?? '') === 'Kosakata' ? 'selected' : '' ?>>Kosakata</option>
-                                        <option value="Percakapan" <?= ($editPdf['category'] ?? '') === 'Percakapan' ? 'selected' : '' ?>>Percakapan</option>
-                                        <option value="TOPIK" <?= ($editPdf['category'] ?? '') === 'TOPIK' ? 'selected' : '' ?>>TOPIK</option>
-                                        <option value="Lainnya" <?= ($editPdf['category'] ?? '') === 'Lainnya' ? 'selected' : '' ?>>Lainnya</option>
-                                    </select>
+                                <div class="col-md-4">
+                                    <label class="form-label">Urutan Tampilan</label>
+                                    <input type="number" name="order_index" class="form-control"
+                                           value="<?= $editPdf['order_index'] ?? 0 ?>"
+                                           placeholder="0">
+                                    <small class="text-muted">Angka lebih kecil tampil lebih dulu</small>
                                 </div>
 
                                 <div class="col-md-6">
                                     <label class="form-label">File PDF <?= $editPdf ? '' : '<span class="text-danger">*</span>' ?></label>
                                     <input type="file" name="pdf_file" class="form-control" accept=".pdf"
                                            <?= $editPdf ? '' : 'required' ?>>
-                                    <?php if ($editPdf && !empty($editPdf['pdf_url'])): ?>
+                                    <?php if ($editPdf && !empty($editPdf['pdfUrl'])): ?>
                                         <small class="text-muted">
-                                            File saat ini: <a href="<?= htmlspecialchars($editPdf['pdf_url']) ?>" target="_blank">Lihat PDF</a>
+                                            File saat ini: <a href="<?= htmlspecialchars($editPdf['pdfUrl']) ?>" target="_blank">Lihat PDF</a>
                                             <br>Upload file baru jika ingin mengganti
                                         </small>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Cover Image</label>
+                                    <input type="file" name="cover_image" class="form-control" accept="image/*" onchange="previewCover(event)">
+                                    <small class="text-muted">Format: JPG, PNG, WEBP (Max 2MB)</small>
+                                    <?php if ($editPdf && !empty($editPdf['coverImageUrl'])): ?>
+                                        <br>
+                                        <img src="<?= htmlspecialchars($editPdf['coverImageUrl']) ?>"
+                                             class="preview-image" id="coverPreview" alt="Cover Preview">
+                                    <?php else: ?>
+                                        <br>
+                                        <img id="coverPreview" class="preview-image" style="display: none;" alt="Cover Preview">
                                     <?php endif; ?>
                                 </div>
 
@@ -287,7 +332,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) 
                     </div>
                 </div>
 
-                <!-- PDF List -->
+                <!-- E-Book List -->
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0"><i class="bi bi-list"></i> Daftar E-Book (<?= count($pdfs) ?>)</h5>
@@ -301,25 +346,31 @@ if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) 
                         <?php else: ?>
                             <div class="row g-3">
                                 <?php foreach ($pdfs as $pdf): ?>
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
                                         <div class="card pdf-card h-100">
-                                            <div class="card-body text-center">
-                                                <i class="bi bi-file-pdf pdf-icon mb-3"></i>
-                                                <h5 class="card-title"><?= htmlspecialchars($pdf['title']) ?></h5>
-                                                <p class="text-muted mb-2">
-                                                    <small><i class="bi bi-person"></i> <?= htmlspecialchars($pdf['author']) ?></small>
-                                                </p>
-                                                <span class="badge bg-secondary mb-2"><?= htmlspecialchars($pdf['category']) ?></span>
+                                            <?php if (!empty($pdf['coverImageUrl'])): ?>
+                                                <img src="<?= htmlspecialchars($pdf['coverImageUrl']) ?>"
+                                                     class="cover-preview" alt="Cover">
+                                            <?php else: ?>
+                                                <div class="cover-preview d-flex align-items-center justify-content-center">
+                                                    <i class="bi bi-file-pdf display-1 text-danger"></i>
+                                                </div>
+                                            <?php endif; ?>
+                                            <div class="card-body">
+                                                <h6 class="card-title"><?= htmlspecialchars($pdf['title']) ?></h6>
                                                 <?php if ($pdf['is_premium']): ?>
                                                     <span class="badge badge-premium mb-2"><i class="bi bi-star-fill"></i> Premium</span>
                                                 <?php endif; ?>
+                                                <?php if ($pdf['order_index'] > 0): ?>
+                                                    <span class="badge bg-secondary mb-2">Urutan: <?= $pdf['order_index'] ?></span>
+                                                <?php endif; ?>
                                                 <?php if (!empty($pdf['description'])): ?>
-                                                    <p class="text-muted small mt-2"><?= htmlspecialchars(substr($pdf['description'], 0, 100)) ?><?= strlen($pdf['description']) > 100 ? '...' : '' ?></p>
+                                                    <p class="text-muted small mt-2"><?= htmlspecialchars(substr($pdf['description'], 0, 80)) ?><?= strlen($pdf['description']) > 80 ? '...' : '' ?></p>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="card-footer bg-light">
                                                 <div class="btn-group w-100">
-                                                    <a href="<?= htmlspecialchars($pdf['pdf_url']) ?>" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                    <a href="<?= htmlspecialchars($pdf['pdfUrl']) ?>" target="_blank" class="btn btn-sm btn-outline-primary">
                                                         <i class="bi bi-eye"></i> Lihat
                                                     </a>
                                                     <a href="?action=edit&id=<?= $pdf['id'] ?>" class="btn btn-sm btn-outline-warning">
@@ -327,7 +378,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) 
                                                     </a>
                                                     <a href="?action=delete&id=<?= $pdf['id'] ?>"
                                                        class="btn btn-sm btn-outline-danger"
-                                                       onclick="return confirm('Yakin ingin menghapus e-book ini?')">
+                                                       onclick="return confirm('Yakin ingin menghapus e-book ini?\n\nFile PDF dan cover akan dihapus permanent!')">
                                                         <i class="bi bi-trash"></i> Hapus
                                                     </a>
                                                 </div>
@@ -344,5 +395,20 @@ if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) 
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function previewCover(event) {
+            const file = event.target.files[0];
+            const preview = document.getElementById('coverPreview');
+
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    </script>
 </body>
 </html>
