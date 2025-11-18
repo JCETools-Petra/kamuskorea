@@ -112,6 +112,9 @@ if ($action === 'list') {
                     <a href="admin_quizzes.php"><i class="bi bi-patch-question"></i> Quiz</a>
                     <a href="admin_exams.php"><i class="bi bi-file-earmark-text"></i> Ujian/UBT</a>
                     <a href="admin_questions.php"><i class="bi bi-list-check"></i> Semua Soal</a>
+                    <a href="admin_pdfs.php"><i class="bi bi-file-pdf"></i> E-Book PDF</a>
+                    <hr class="text-white">
+                    <a href="https://webtechsolution.my.id/kamuskorea/send_notification.php" target="_blank"><i class="bi bi-bell"></i> Push Notification</a>
                     <hr class="text-white">
                     <a href="admin_profile.php"><i class="bi bi-person-circle"></i> Profil</a>
                     <a href="admin_logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
