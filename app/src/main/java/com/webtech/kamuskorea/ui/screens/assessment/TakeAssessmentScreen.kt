@@ -1003,33 +1003,35 @@ fun QuestionGridDialog(
             )
         },
         text = {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Text and Image Questions Section
+                // Text and Image Questions Section (Left)
                 if (textImageQuestions.isNotEmpty()) {
                     QuestionCategorySection(
-                        title = "📝 Soal Teks & Gambar",
+                        title = "📝 Teks & Gambar",
                         titleColor = Color(0xFF2196F3),
                         questions = textImageQuestions,
                         currentIndex = currentIndex,
                         userAnswers = userAnswers,
-                        onQuestionSelected = onQuestionSelected
+                        onQuestionSelected = onQuestionSelected,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
-                // Audio and Video Questions Section
+                // Audio and Video Questions Section (Right)
                 if (audioVideoQuestions.isNotEmpty()) {
                     QuestionCategorySection(
-                        title = "🎬 Soal Video & Audio",
+                        title = "🎬 Video & Audio",
                         titleColor = Color(0xFFFF5722),
                         questions = audioVideoQuestions,
                         currentIndex = currentIndex,
                         userAnswers = userAnswers,
-                        onQuestionSelected = onQuestionSelected
+                        onQuestionSelected = onQuestionSelected,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
