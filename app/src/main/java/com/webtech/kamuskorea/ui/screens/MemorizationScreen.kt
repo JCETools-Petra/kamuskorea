@@ -28,9 +28,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import android.app.Activity
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.material.icons.outlined.*
 import com.webtech.kamuskorea.ads.AdManager
 import com.webtech.kamuskorea.ads.BannerAdView
 import com.webtech.kamuskorea.data.local.ChapterInfo
@@ -382,17 +379,7 @@ fun FlashCard(
     isFavorite: Boolean = false,
     onToggleFavorite: () -> Unit = {}
 ) {
-    val clipboardManager = LocalClipboardManager.current
     var isFlipped by remember { mutableStateOf(false) }
-    var showCopied by remember { mutableStateOf(false) }
-
-    // Reset copied indicator
-    LaunchedEffect(showCopied) {
-        if (showCopied) {
-            delay(1500)
-            showCopied = false
-        }
-    }
 
     // Auto-flip back to Indonesian after 5 seconds
     LaunchedEffect(isFlipped) {
@@ -453,86 +440,34 @@ fun FlashCard(
             modifier = Modifier.fillMaxSize()
         ) {
             if (!isFlipped) {
-                // Front side - Indonesian meaning
+                // Front side - Indonesian meaning (TANPA ICON)
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(12.dp)
-                        .graphicsLayer { alpha = animateFront }
+                        .graphicsLayer { alpha = animateFront },
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Action buttons at top
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        IconButton(
-                            onClick = {
-                                clipboardManager.setText(AnnotatedString(vocabulary.indonesianMeaning ?: ""))
-                                showCopied = true
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                if (showCopied) Icons.Default.Check else Icons.Outlined.ContentCopy,
-                                contentDescription = "Copy",
-                                tint = if (showCopied)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = onToggleFavorite,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                if (isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = "Favorite",
-                                tint = if (isFavorite)
-                                    Color(0xFFE91E63)
-                                else
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-
-                    // Content
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            Icons.Default.Translate,
-                            contentDescription = null,
-                            modifier = Modifier.size(28.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = vocabulary.indonesianMeaning ?: "",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 3
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Tap untuk lihat Korea",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            textAlign = TextAlign.Center,
-                            fontSize = 10.sp
-                        )
-                    }
+                    Text(
+                        text = vocabulary.indonesianMeaning ?: "",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 3
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "Tap untuk lihat Korea",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        textAlign = TextAlign.Center,
+                        fontSize = 10.sp
+                    )
                 }
             } else {
-                // Back side - Korean word (flipped)
+                // Back side - Korean word (TANPA ICON)
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -540,71 +475,26 @@ fun FlashCard(
                         .graphicsLayer {
                             alpha = animateBack
                             rotationY = 180f
-                        }
+                        },
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Action buttons at top (mirrored)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        IconButton(
-                            onClick = {
-                                clipboardManager.setText(AnnotatedString(vocabulary.koreanWord ?: ""))
-                                showCopied = true
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                if (showCopied) Icons.Default.Check else Icons.Outlined.ContentCopy,
-                                contentDescription = "Copy",
-                                tint = if (showCopied)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = onToggleFavorite,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                if (isFavorite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = "Favorite",
-                                tint = if (isFavorite)
-                                    Color(0xFFE91E63)
-                                else
-                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-
-                    // Content
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = vocabulary.koreanWord ?: "",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontSize = 28.sp
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = vocabulary.indonesianMeaning ?: "",
-                            style = MaterialTheme.typography.bodySmall,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                            maxLines = 2
-                        )
-                    }
+                    Text(
+                        text = vocabulary.koreanWord ?: "",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontSize = 28.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = vocabulary.indonesianMeaning ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                        maxLines = 2
+                    )
                 }
             }
         }

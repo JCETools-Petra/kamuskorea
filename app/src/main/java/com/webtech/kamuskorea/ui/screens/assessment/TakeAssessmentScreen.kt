@@ -1093,13 +1093,17 @@ fun QuestionGridDialog(
         } else null
     }
 
+    // PERBAIKAN DISINI: Tambahkan properties
     androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false // <-- INI KUNCINYA: Mematikan batas lebar bawaan
+        )
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth(0.99f)
-                .fillMaxHeight(0.92f),
+                .fillMaxWidth(0.95f) // Mengambil 95% lebar layar (Jauh lebih lebar)
+                .fillMaxHeight(0.90f), // Mengambil 90% tinggi layar
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
