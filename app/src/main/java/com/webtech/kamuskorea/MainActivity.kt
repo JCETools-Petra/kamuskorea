@@ -231,16 +231,6 @@ fun AuthApp() {
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-        composable(Screen.Onboarding.route) {
-            OnboardingScreen(
-                onFinish = {
-                    hasSeenOnboarding.value = true // TODO: Simpan ini ke DataStore
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Onboarding.route) { inclusive = true }
-                    }
-                }
-            )
-        }
     }
 }
 
