@@ -33,26 +33,15 @@ class AdManager @Inject constructor() {
     companion object {
         private const val TAG = "AdManager"
 
-        // Ad Unit IDs
-        // PRODUCTION Ad Unit IDs
+        // Ad Unit IDs - PRODUCTION
         private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-7038054430257806/5551158856"
         const val BANNER_AD_UNIT_ID = "ca-app-pub-7038054430257806/1559108807"
         private const val REWARDED_AD_UNIT_ID = "ca-app-pub-7038054430257806/9227831362"
 
         // DEBUG: Use Google's test ad unit IDs for testing
-        claude/check-ad-placement-01Gf9AhpxdAyrz327tgJPkKm
-        // private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712" // Google Test ID
-        // const val BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/6300978111" // Google Test ID
-        // private const val REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917" // Google Test ID
-        private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-7038054430257806/5551158856"
-        const val BANNER_AD_UNIT_ID = "ca-app-pub-7038054430257806/1559108807"
-        private const val REWARDED_AD_UNIT_ID = "ca-app-pub-7038054430257806/9227831362"
-
-        // PRODUCTION: Uncomment these and comment above for production release
-        // private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-7038054430257806/5551158856"
-        // const val BANNER_AD_UNIT_ID = "ca-app-pub-7038054430257806/1559108807"
-        // private const val REWARDED_AD_UNIT_ID = "YOUR_REWARDED_AD_UNIT_ID" // Replace with actual ID
-        main
+        // private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712"
+        // const val BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/6300978111"
+        // private const val REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917"
 
         // Flashcard click frequency
         private const val FLASHCARD_CLICK_FREQUENCY = 10 // Show ad every 10 clicks (10, 20, 30, etc.)
