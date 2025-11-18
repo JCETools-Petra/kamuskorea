@@ -1,409 +1,190 @@
 package com.webtech.kamuskorea.ui.screens.assessment
 
-
-
 import androidx.compose.foundation.Canvas
-
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
-
 import androidx.compose.foundation.layout.*
-
 import androidx.compose.foundation.shape.RoundedCornerShape
-
 import androidx.compose.material.icons.Icons
-
-// Hapus import ImageVector yang tidak terpakai (seperti Icons.Default.Quiz)
-
 import androidx.compose.material.icons.filled.*
-
 import androidx.compose.material3.*
-
 import androidx.compose.runtime.*
-
 import androidx.compose.ui.Alignment
-
 import androidx.compose.ui.Modifier
-
 import androidx.compose.ui.graphics.Brush
-
 import androidx.compose.ui.graphics.Color
-
-import androidx.compose.ui.graphics.vector.ImageVector
-
 import androidx.compose.ui.text.font.FontWeight
-
 import androidx.compose.ui.unit.dp
-
-// TAMBAHKAN IMPORT INI untuk mengakses resource drawable Anda
-
 import androidx.compose.ui.res.painterResource
-
 import com.webtech.kamuskorea.ads.LargeBannerAdView
-
-// Anda mungkin perlu memastikan R di-import untuk mengakses drawable
-
 import com.webtech.kamuskorea.R
 
-
-
 /**
-
  * Screen utama untuk memilih jenis assessment (Quiz atau Ujian)
-
  */
-
 @Composable
-
 fun AssessmentMainScreen(
-
     onNavigateToQuiz: () -> Unit,
-
     onNavigateToExam: () -> Unit,
-
     onNavigateToHistory: () -> Unit,
-
     isPremium: Boolean = false
-
 ) {
-
     Column(
-
         modifier = Modifier
-
             .fillMaxSize()
-
             .padding(16.dp),
-
         verticalArrangement = Arrangement.spacedBy(16.dp)
-
     ) {
-
         // Header
-
         Text(
-
             "Latihan & Ujian",
-
             style = MaterialTheme.typography.headlineMedium,
-
             fontWeight = FontWeight.Bold
-
         )
-
-
 
         Text(
-
             "Uji kemampuan bahasa Korea Anda",
-
             style = MaterialTheme.typography.bodyLarge,
-
             color = MaterialTheme.colorScheme.onSurfaceVariant
-
         )
-
-
 
         Spacer(modifier = Modifier.height(8.dp))
 
-
-
-        // Quiz Card - GANTI ICON DI SINI
-
+        // Quiz Card
         AssessmentTypeCard(
-
             title = "Quiz",
-
             description = "Latihan singkat dengan soal pilihan ganda",
-
-            // GANTI DENGAN ID RESOURCE GAMBAR KUSTOM ANDA
-
-            // Pastikan file R.drawable.ic_quiz_baru ada di folder drawable!
-
             iconResId = R.drawable.ic_quiz_baru,
-
             gradient = listOf(Color(0xFF667EEA), Color(0xFF764BA2)),
-
             onClick = onNavigateToQuiz
-
         )
 
-
-
-        // Exam Card (UBT) - GANTI ICON DI SINI
-
+        // Exam Card (UBT)
         AssessmentTypeCard(
-
             title = "UBT",
-
             description = "Ujian lengkap dengan berbagai jenis soal",
-
-            // GANTI DENGAN ID RESOURCE GAMBAR KUSTOM ANDA
-
-            // Pastikan file R.drawable.ic_ubt_baru ada di folder drawable!
-
             iconResId = R.drawable.ic_ubt_baru,
-
             gradient = listOf(Color(0xFFF093FB), Color(0xFFF5576C)),
-
             onClick = onNavigateToExam
-
         )
 
-
-
-        // History Card - KITA GUNAKAN R.drawable.ic_history.
-
-        // Anda bisa menggantinya jika punya ikon riwayat kustom.
-
-        // NOTE: Karena `AssessmentTypeCard` sekarang hanya menerima Int,
-
-        // Anda harus membuat drawable kustom baru bernama `ic_history`
-
-        // atau menggunakan salah satu ikon yang sudah ada di project Anda.
-
-        // Saya ganti ke `R.drawable.ic_default_profile` sebagai placeholder yang pasti ada di project Anda,
-
-        // tetapi sebaiknya Anda buat ikon kustom untuk History juga.
-
+        // History Card
         AssessmentTypeCard(
-
             title = "Riwayat",
-
             description = "Lihat hasil ujian dan quiz sebelumnya",
-
-            iconResId = R.drawable.ic_default_profile, // <-- Placeholder, GANTI ini
-
+            iconResId = R.drawable.ic_default_profile,
             gradient = listOf(Color(0xFF4FACFE), Color(0xFF00F2FE)),
-
             onClick = onNavigateToHistory
-
         )
-
-
 
         Spacer(modifier = Modifier.weight(1f))
 
-
-
-        // Info Card (Tidak ada perubahan ikon karena menggunakan Material Icons di sini)
-
+        // Info Card
         Card(
-
             modifier = Modifier.fillMaxWidth(),
-
             colors = CardDefaults.cardColors(
-
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
-
             )
-
         ) {
-
             Row(
-
                 modifier = Modifier.padding(16.dp),
-
                 verticalAlignment = Alignment.CenterVertically
-
             ) {
-
                 Icon(
-
                     Icons.Default.Info,
-
                     contentDescription = null,
-
                     tint = MaterialTheme.colorScheme.primary
-
                 )
-
                 Spacer(modifier = Modifier.width(12.dp))
-
                 Column {
-
                     Text(
-
                         "Tips",
-
                         style = MaterialTheme.typography.titleSmall,
-
                         fontWeight = FontWeight.Bold
-
                     )
-
                     Text(
-
                         "Latihan teratur dengan quiz untuk hasil ujian yang lebih baik!",
-
                         style = MaterialTheme.typography.bodySmall
-
                     )
-
                 }
-
             }
-
         }
-
-
 
         // Large Banner Ad di bagian bawah
-
         if (!isPremium) {
-
             Spacer(modifier = Modifier.height(8.dp))
-
             LargeBannerAdView(
-
                 modifier = Modifier.fillMaxWidth()
-
             )
-
         }
-
     }
-
 }
 
-
-
 @Composable
-
 fun AssessmentTypeCard(
-
     title: String,
-
     description: String,
-
-    iconResId: Int, // <-- UBAH TIPE PARAMETER MENJADI INT (Resource ID)
-
+    iconResId: Int,
     gradient: List<Color>,
-
     onClick: () -> Unit
-
 ) {
-
     Card(
-
         modifier = Modifier
-
             .fillMaxWidth()
-
             .height(120.dp)
-
             .clickable(onClick = onClick),
-
         shape = RoundedCornerShape(16.dp),
-
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-
     ) {
-
         Box(
-
             modifier = Modifier.fillMaxSize()
-
         ) {
-
             // Gradient background
-
-            androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
-
+            Canvas(modifier = Modifier.fillMaxSize()) {
                 drawRect(
-
                     brush = Brush.horizontalGradient(gradient)
-
                 )
-
             }
 
-
-
             Row(
-
                 modifier = Modifier
-
                     .fillMaxSize()
-
                     .padding(20.dp),
-
                 verticalAlignment = Alignment.CenterVertically
-
             ) {
-
-                // Icon
-
+                // Icon/Image Box
                 Surface(
-
                     shape = RoundedCornerShape(12.dp),
-
                     color = Color.White.copy(alpha = 0.2f),
-
-                    modifier = Modifier.size(64.dp)
-
+                    modifier = Modifier.size(80.dp)
                 ) {
-
                     Box(contentAlignment = Alignment.Center) {
-
-                        Icon(
-
-                            // PERUBAHAN UTAMA DI SINI: Menggunakan painterResource
-
+                        Image(
                             painter = painterResource(id = iconResId),
-
                             contentDescription = null,
-
-                            tint = Color.White,
-
-                            modifier = Modifier.size(32.dp)
-
+                            modifier = Modifier.size(56.dp)
                         )
-
                     }
-
                 }
-
-
 
                 Spacer(modifier = Modifier.width(20.dp))
 
-
-
                 // Content
-
                 Column {
-
                     Text(
-
                         text = title,
-
                         style = MaterialTheme.typography.headlineSmall,
-
                         fontWeight = FontWeight.Bold,
-
                         color = Color.White
-
                     )
-
                     Spacer(modifier = Modifier.height(4.dp))
-
                     Text(
-
                         text = description,
-
                         style = MaterialTheme.typography.bodyMedium,
-
                         color = Color.White.copy(alpha = 0.9f)
-
                     )
-
                 }
-
             }
-
         }
-
     }
-
 }

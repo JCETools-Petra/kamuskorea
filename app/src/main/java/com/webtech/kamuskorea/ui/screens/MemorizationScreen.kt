@@ -440,34 +440,55 @@ fun FlashCard(
             modifier = Modifier.fillMaxSize()
         ) {
             if (!isFlipped) {
-                // Front side - Indonesian meaning (TANPA ICON)
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(12.dp)
-                        .graphicsLayer { alpha = animateFront },
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
+                // Front side - Indonesian meaning (DENGAN TOMBOL FAVOURITE)
+                Box(
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    Text(
-                        text = vocabulary.indonesianMeaning ?: "",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 3
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        "Tap untuk lihat Korea",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        textAlign = TextAlign.Center,
-                        fontSize = 10.sp
-                    )
+                    // Konten utama
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(12.dp)
+                            .graphicsLayer { alpha = animateFront },
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = vocabulary.indonesianMeaning ?: "",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 3
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "Tap untuk lihat Korea",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            textAlign = TextAlign.Center,
+                            fontSize = 10.sp
+                        )
+                    }
+
+                    // Tombol Favourite di pojok kanan atas
+                    IconButton(
+                        onClick = onToggleFavorite,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = if (isFavorite) "Hapus dari favorit" else "Tambah ke favorit",
+                            tint = if (isFavorite) Color.Red else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             } else {
-                // Back side - Korean word (TANPA ICON)
+                // Back side - Korean word
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
