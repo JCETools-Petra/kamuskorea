@@ -21,7 +21,9 @@ class KamusKoreaApp : MultiDexApplication() {
 
         // Inisialisasi Google AdMob
         MobileAds.initialize(this) { initializationStatus ->
-            Log.d("AdMob", "✅ AdMob initialized: ${initializationStatus.adapterStatusMap}")
+            if (BuildConfig.DEBUG) {
+                Log.d("AdMob", "✅ AdMob initialized: ${initializationStatus.adapterStatusMap}")
+            }
         }
 
         // Setup test devices untuk development (opsional, untuk testing)
@@ -71,38 +73,13 @@ class KamusKoreaApp : MultiDexApplication() {
             Log.d("AppCheck", "════════════════════════════════════════════════")
 
         } else {
-            // RELEASE BUILD
-            // PILIH SALAH SATU:
-
-            // OPSI A: Tetap gunakan Debug Provider (untuk testing release build)
-            firebaseAppCheck.installAppCheckProviderFactory(
-                DebugAppCheckProviderFactory.getInstance()
-            )
-            Log.d("AppCheck", "⚠️ Using DEBUG Provider (Release Build for Testing)")
-
-            // Log debug token untuk registrasi di Firebase Console
-            Log.d("AppCheck", "════════════════════════════════════════════════")
-            Log.d("AppCheck", "📋 FIREBASE APP CHECK DEBUG TOKEN:")
-            Log.d("AppCheck", "════════════════════════════════════════════════")
-            Log.d("AppCheck", "")
-            Log.d("AppCheck", "Cari log dengan tag 'DebugAppCheckProvider' di Logcat")
-            Log.d("AppCheck", "Atau filter dengan: tag:DebugAppCheckProvider")
-            Log.d("AppCheck", "")
-            Log.d("AppCheck", "Token akan terlihat seperti:")
-            Log.d("AppCheck", "DebugAppCheckProvider: Enter this debug secret into the allow list in")
-            Log.d("AppCheck", "the Firebase Console for your project: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX")
-            Log.d("AppCheck", "")
-            Log.d("AppCheck", "Kemudian daftarkan token tersebut di:")
-            Log.d("AppCheck", "Firebase Console → App Check → Apps → Debug tokens")
-            Log.d("AppCheck", "════════════════════════════════════════════════")
-
-            // OPSI B: Gunakan Play Integrity (uncomment saat deploy ke Play Store)
-            /*
+            // RELEASE BUILD - Use Play Integrity for Production
             firebaseAppCheck.installAppCheckProviderFactory(
                 PlayIntegrityAppCheckProviderFactory.getInstance()
             )
-            Log.d("AppCheck", "✅ Using PLAY INTEGRITY Provider (Production)")
-            */
+            if (BuildConfig.DEBUG) {
+                Log.d("AppCheck", "✅ Using PLAY INTEGRITY Provider (Production)")
+            }
         }
     }
 }

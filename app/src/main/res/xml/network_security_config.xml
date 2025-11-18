@@ -9,23 +9,6 @@
 
     <!--
     ===========================================
-    OPSI 1: DEVELOPMENT dengan HTTP (Uncomment jika perlu)
-    ===========================================
-    Gunakan ini HANYA untuk development jika server masih menggunakan HTTP.
-    JANGAN gunakan di production!
-    -->
-
-    <!-- UNCOMMENT SECTION DI BAWAH JIKA MENGGUNAKAN HTTP -->
-    <!--
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">webtechsolution.my.id</domain>
-        <domain includeSubdomains="true">10.0.2.2</domain>
-        <domain includeSubdomains="true">localhost</domain>
-    </domain-config>
-    -->
-
-    <!--
-    ===========================================
     OPSI 2: PRODUCTION dengan HTTPS (RECOMMENDED)
     ===========================================
     Default config di bawah sudah aman untuk production dengan HTTPS.
