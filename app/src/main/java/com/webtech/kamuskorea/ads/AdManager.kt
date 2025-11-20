@@ -14,6 +14,7 @@ import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
+import com.webtech.kamuskorea.analytics.AnalyticsTracker
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,7 +29,9 @@ import javax.inject.Singleton
  * - Auto preloading for better performance
  */
 @Singleton
-class AdManager @Inject constructor() {
+class AdManager @Inject constructor(
+    private val analyticsTracker: AnalyticsTracker
+) {
 
     companion object {
         private const val TAG = "AdManager"
@@ -151,6 +154,7 @@ class AdManager @Inject constructor() {
             object : InterstitialAdLoadCallback() {
                 override fun onAdFailedToLoad(adError: LoadAdError) {
                     Log.e(TAG, "❌ Ad failed to load: ${adError.message}")
+                    analyticsTracker.logAdFailed("interstitial", "preload", adError.message)
                     interstitialAd = null
                     isLoadingAd = false
                 }
@@ -282,6 +286,7 @@ class AdManager @Inject constructor() {
 
             override fun onAdFailedToShowFullScreenContent(adError: AdError) {
                 Log.e(TAG, "❌ Ad failed to show: ${adError.message} (source: $source)")
+                analyticsTracker.logAdFailed("interstitial", source, adError.message)
                 interstitialAd = null
                 loadInterstitialAd(activity)
                 onAdDismissed()
@@ -293,10 +298,12 @@ class AdManager @Inject constructor() {
 
             override fun onAdClicked() {
                 Log.d(TAG, "👆 Ad clicked (source: $source)")
+                analyticsTracker.logAdClicked("interstitial", source)
             }
 
             override fun onAdImpression() {
                 Log.d(TAG, "👁️ Ad impression recorded (source: $source)")
+                analyticsTracker.logAdImpression("interstitial", source, false)
             }
         }
 
@@ -348,6 +355,7 @@ class AdManager @Inject constructor() {
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
                     Log.e(TAG, "❌ Rewarded ad failed to load: ${loadAdError.message}")
+                    analyticsTracker.logAdFailed("rewarded", "preload", loadAdError.message)
                     rewardedAd = null
                     isLoadingRewardedAd = false
                 }
@@ -379,6 +387,7 @@ class AdManager @Inject constructor() {
 
                     override fun onAdFailedToShowFullScreenContent(adError: AdError) {
                         Log.e(TAG, "❌ Rewarded ad failed to show: ${adError.message}")
+                        analyticsTracker.logAdFailed("rewarded", "FLASHCARD_CLICK", adError.message)
                         rewardedAd = null
                         loadRewardedAd(activity) // Preload next ad
                         onAdDismissed()
@@ -387,10 +396,19 @@ class AdManager @Inject constructor() {
                     override fun onAdShowedFullScreenContent() {
                         Log.d(TAG, "📺 Rewarded ad shown successfully")
                     }
+
+                    override fun onAdImpression() {
+                        analyticsTracker.logAdImpression("rewarded", "FLASHCARD_CLICK", false)
+                    }
+
+                    override fun onAdClicked() {
+                        analyticsTracker.logAdClicked("rewarded", "FLASHCARD_CLICK")
+                    }
                 }
 
                 rewardedAd?.show(activity, OnUserEarnedRewardListener { reward ->
                     Log.d(TAG, "💰 User earned reward: ${reward.amount} ${reward.type}")
+                    analyticsTracker.logRewardedAdEarned("FLASHCARD_CLICK", reward.amount)
                 })
             } else {
                 Log.d(TAG, "⚠️ Rewarded ad not ready, loading now")
