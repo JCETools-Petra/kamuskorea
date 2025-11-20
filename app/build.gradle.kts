@@ -24,10 +24,21 @@ android {
         multiDexEnabled = true
     }
 
+    signingConfigs {
+        create("release") {
+            // IMPORTANT: Update these values or use environment variables
+            storeFile = file("../kamuskorea-release.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "your-keystore-password"
+            keyAlias = "kamuskorea"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "your-key-password"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
