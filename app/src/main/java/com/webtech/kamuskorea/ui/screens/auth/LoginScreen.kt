@@ -74,11 +74,29 @@ fun LoginScreen(
                     Log.e("LoginScreen", "Status code: ${e.statusCode}")
                     Log.e("LoginScreen", "Status message: ${e.message}")
 
-                    when (e.statusCode) {
-                        10 -> Log.e("LoginScreen", "Developer Error: Check SHA-1 certificate fingerprint in Firebase Console")
-                        12500 -> Log.e("LoginScreen", "Sign in currently unavailable")
-                        12501 -> Log.e("LoginScreen", "User cancelled or closed the sign-in flow")
-                        else -> Log.e("LoginScreen", "Unknown error code: ${e.statusCode}")
+                    // User-friendly error messages
+                    val errorMessage = when (e.statusCode) {
+                        10 -> {
+                            Log.e("LoginScreen", "Developer Error: Check SHA-1 certificate fingerprint in Firebase Console")
+                            "Konfigurasi Google Sign-In bermasalah. Silakan hubungi developer atau coba login dengan email."
+                        }
+                        12500 -> {
+                            Log.e("LoginScreen", "Sign in currently unavailable")
+                            "Layanan Google Sign-In tidak tersedia saat ini. Silakan coba lagi nanti atau gunakan login email."
+                        }
+                        12501 -> {
+                            Log.e("LoginScreen", "User cancelled or closed the sign-in flow")
+                            null // Don't show error if user cancelled intentionally
+                        }
+                        else -> {
+                            Log.e("LoginScreen", "Unknown error code: ${e.statusCode}")
+                            "Login Google gagal. Silakan coba lagi atau gunakan login email. (Error code: ${e.statusCode})"
+                        }
+                    }
+
+                    // Pass error to ViewModel to display to user
+                    errorMessage?.let {
+                        authViewModel.setGoogleSignInError(it)
                     }
                 }
             }

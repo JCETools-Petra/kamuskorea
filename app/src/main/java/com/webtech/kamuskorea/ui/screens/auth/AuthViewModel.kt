@@ -15,6 +15,7 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
+import com.webtech.kamuskorea.analytics.AnalyticsTracker
 import com.webtech.kamuskorea.data.network.ApiService
 import com.webtech.kamuskorea.data.network.ForgotPasswordRequest
 import com.webtech.kamuskorea.data.network.UserSyncRequest
@@ -30,7 +31,8 @@ import javax.inject.Inject
 class AuthViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val analyticsTracker: AnalyticsTracker
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
@@ -56,6 +58,10 @@ class AuthViewModel @Inject constructor(
                 _authState.value = AuthState.Loading
                 val authResult = auth.signInWithEmailAndPassword(email, password).await()
                 authResult.user?.let {
+                    // Track successful login
+                    analyticsTracker.logLogin("email")
+                    analyticsTracker.setUserId(it.uid)
+
                     // Sinkronkan data pengguna ke MySQL saat login
                     syncUserToMySQL(it, "password")
                 }
@@ -108,6 +114,10 @@ class AuthViewModel @Inject constructor(
                 user?.updateProfile(profileUpdates)?.await()
 
                 if (user != null) {
+                    // Track successful sign up
+                    analyticsTracker.logSignUp("email")
+                    analyticsTracker.setUserId(user.uid)
+
                     // Sinkronkan ke MySQL
                     syncUserToMySQL(user, "password", name)
 
@@ -163,6 +173,14 @@ class AuthViewModel @Inject constructor(
 
                 if (user != null) {
                     val isNewUser = authResult.additionalUserInfo?.isNewUser == true
+
+                    // Track analytics
+                    if (isNewUser) {
+                        analyticsTracker.logSignUp("google")
+                    } else {
+                        analyticsTracker.logLogin("google")
+                    }
+                    analyticsTracker.setUserId(user.uid)
 
                     // Sinkronkan ke MySQL
                     syncUserToMySQL(user, "google")
@@ -370,5 +388,14 @@ class AuthViewModel @Inject constructor(
 
     fun resetResetPasswordState() {
         _resetPasswordState.value = ResetPasswordState.Initial
+    }
+
+    /**
+     * Set Google Sign-In error from LoginScreen
+     * Used for better error handling with user-friendly messages
+     */
+    fun setGoogleSignInError(errorMessage: String) {
+        _authState.value = AuthState.Error(errorMessage)
+        Log.e(TAG, "Google Sign-In Error: $errorMessage")
     }
 }
