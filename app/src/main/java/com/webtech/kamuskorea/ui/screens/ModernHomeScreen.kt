@@ -27,6 +27,7 @@ import androidx.navigation.NavController
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.webtech.kamuskorea.ui.navigation.Screen
+import com.webtech.kamuskorea.ads.BannerAdView
 import kotlinx.coroutines.delay
 
 data class MenuCard(
@@ -238,6 +239,24 @@ fun ModernHomeScreen(
                         StatItem("Quiz Selesai", statistics.quizCompletedCount.toString(), Icons.Default.CheckCircleOutline)
                         StatItem("Hari Streak", statistics.streakDays.toString(), Icons.Default.LocalFireDepartment)
                     }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // ✅ PHASE 1: Banner Ad at bottom (high revenue from high traffic)
+        if (!isPremium) {
+            AnimatedVisibility(
+                visible = showContent,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { 50 })
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    BannerAdView(modifier = Modifier.fillMaxWidth())
                 }
             }
         }

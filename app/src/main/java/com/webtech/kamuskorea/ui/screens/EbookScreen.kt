@@ -32,7 +32,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.webtech.kamuskorea.data.Ebook
 import com.webtech.kamuskorea.ui.screens.ebook.EbookViewModel
-import com.webtech.kamuskorea.ads.BannerAdView
+import com.webtech.kamuskorea.ads.LargeBannerAdView
 
 @Composable
 fun EbookScreen(
@@ -86,9 +86,9 @@ fun EbookScreen(
             }
         }
 
-        // Banner Ad di bagian bawah (hanya untuk non-premium user)
+        // ✅ PHASE 2: Large Banner Ad di bagian bawah (higher CPM than standard)
         if (!isPremium) {
-            BannerAdView(
+            LargeBannerAdView(
                 modifier = Modifier.fillMaxWidth()
             )
         }
