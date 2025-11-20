@@ -97,9 +97,6 @@ dependencies {
     // Coil
     implementation("io.coil-kt:coil-compose:2.6.0")
 
-    // Splash Screen
-    implementation("androidx.core:core-splashscreen:1.0.1")
-
     // PDF Handling
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     implementation("com.github.mhiew:android-pdf-viewer:3.2.0-beta.1")
