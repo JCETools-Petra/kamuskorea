@@ -136,7 +136,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.2.0")
 
     // Google AdMob
-    implementation("com.google.android.gms:play-services-ads:23.0.0")
+    implementation("com.google.android.gms:play-services-ads:23.5.0")
 
     // Hilt
     implementation("com.google.dagger:hilt-android:2.51.1")
