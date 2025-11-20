@@ -155,3 +155,26 @@ dependencies {
 hilt {
     enableAggregatingTask = true
 }
+
+// Task untuk mendapatkan SHA-1 fingerprint
+tasks.register("getDebugSha1") {
+    doLast {
+        val debugKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
+        if (debugKeystore.exists()) {
+            exec {
+                commandLine(
+                    "keytool",
+                    "-list",
+                    "-v",
+                    "-keystore", debugKeystore.absolutePath,
+                    "-alias", "androiddebugkey",
+                    "-storepass", "android",
+                    "-keypass", "android"
+                )
+            }
+        } else {
+            println("Debug keystore not found at: ${debugKeystore.absolutePath}")
+            println("Build the app first to generate debug.keystore")
+        }
+    }
+}
