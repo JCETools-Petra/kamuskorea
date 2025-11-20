@@ -43,22 +43,26 @@ class AdManager @Inject constructor() {
         // const val BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/6300978111"
         // private const val REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917"
 
-        // Flashcard click frequency
-        private const val FLASHCARD_CLICK_FREQUENCY = 10 // Show ad every 10 clicks (10, 20, 30, etc.)
+        // Flashcard click frequency - OPTIMIZED
+        private const val FLASHCARD_CLICK_FREQUENCY = 6 // Show ad every 6 clicks (more frequent, better revenue)
 
-        // ✅ AD PLACEMENT STRATEGY:
+        // ✅ AD PLACEMENT STRATEGY - REVENUE OPTIMIZED:
         // - Show ad BEFORE opening PDF/quiz (user expects it)
-        // - No ad on session start (annoying)
-        // - No ad on quiz completion (already shown at start)
-        private const val PDF_OPEN_FREQUENCY = 1          // Show ad EVERY PDF open
-        private const val QUIZ_START_FREQUENCY = 1        // Show ad EVERY quiz/exam start
-        private const val QUIZ_COMPLETE_FREQUENCY = 999   // Disabled (already shown at start)
-        private const val SESSION_START_FREQUENCY = 999   // Disabled (annoying on first login)
+        // - Show ad AFTER quiz completion (natural break point)
+        // - No ad on session start (annoying on first login)
+        private const val PDF_OPEN_FREQUENCY = 1          // Show ad EVERY PDF open (as requested)
+        private const val QUIZ_START_FREQUENCY = 1        // Show ad EVERY quiz/exam start (as requested)
+        private const val QUIZ_COMPLETE_FREQUENCY = 2     // Show ad every 2nd quiz completion (NEW - revenue boost)
+        private const val SESSION_START_FREQUENCY = 999   // Disabled (annoying)
         private const val NAVIGATION_FREQUENCY = 999      // Disabled
 
-        // ✅ RATE LIMITING: Allow frequent ads for important actions
-        private const val MAX_INTERSTITIAL_PER_HOUR = 30  // Allow many ads per hour
-        private const val MIN_INTERVAL_SECONDS = 3        // Only 3 seconds between ads
+        // ✅ PHASE 3: Advanced placements
+        private const val CHAPTER_COMPLETE_FREQUENCY = 1  // Show ad after completing vocabulary chapter
+        private const val DICTIONARY_SEARCH_FREQUENCY = 15 // Show ad every 15 dictionary searches
+
+        // ✅ RATE LIMITING: Optimized for better revenue
+        private const val MAX_INTERSTITIAL_PER_HOUR = 40  // Increased from 30 (Phase 2)
+        private const val MIN_INTERVAL_SECONDS = 3        // Keep 3 seconds minimum
     }
 
     // Ad instances
@@ -74,6 +78,10 @@ class AdManager @Inject constructor() {
     private var sessionStartCounter = 0
     private var navigationCounter = 0
     private var flashcardClickCounter = 0
+
+    // ✅ PHASE 3: Advanced counters
+    private var chapterCompleteCounter = 0
+    private var dictionarySearchCounter = 0
 
     // ✅ Rate limiting tracking
     private var lastAdShownTime = 0L
@@ -405,6 +413,40 @@ class AdManager @Inject constructor() {
     }
 
     /**
+     * PHASE 3: Show interstitial ad after completing vocabulary chapter
+     */
+    fun showInterstitialOnChapterComplete(
+        activity: Activity,
+        onAdDismissed: () -> Unit
+    ) {
+        chapterCompleteCounter++
+        Log.d(TAG, "📚 Chapter complete counter: $chapterCompleteCounter (show every $CHAPTER_COMPLETE_FREQUENCY)")
+
+        if (chapterCompleteCounter % CHAPTER_COMPLETE_FREQUENCY == 0 && canShowInterstitial()) {
+            showInterstitialInternal(activity, "CHAPTER_COMPLETE", onAdDismissed)
+        } else {
+            onAdDismissed()
+        }
+    }
+
+    /**
+     * PHASE 3: Show interstitial ad after dictionary searches
+     */
+    fun showInterstitialOnDictionarySearch(
+        activity: Activity,
+        onAdDismissed: () -> Unit
+    ) {
+        dictionarySearchCounter++
+        Log.d(TAG, "🔍 Dictionary search counter: $dictionarySearchCounter (show every $DICTIONARY_SEARCH_FREQUENCY)")
+
+        if (dictionarySearchCounter % DICTIONARY_SEARCH_FREQUENCY == 0 && canShowInterstitial()) {
+            showInterstitialInternal(activity, "DICTIONARY_SEARCH", onAdDismissed)
+        } else {
+            onAdDismissed()
+        }
+    }
+
+    /**
      * Reset all counters (useful for testing)
      */
     fun resetAllCounters() {
@@ -414,6 +456,8 @@ class AdManager @Inject constructor() {
         sessionStartCounter = 0
         navigationCounter = 0
         flashcardClickCounter = 0
+        chapterCompleteCounter = 0
+        dictionarySearchCounter = 0
         interstitialCountThisHour = 0
         Log.d(TAG, "🔄 All counters reset")
     }
@@ -429,6 +473,8 @@ class AdManager @Inject constructor() {
             Sessions: $sessionStartCounter
             Navigations: $navigationCounter
             Flashcard Clicks: $flashcardClickCounter
+            Chapter Completions: $chapterCompleteCounter
+            Dictionary Searches: $dictionarySearchCounter
             Ads This Hour: $interstitialCountThisHour/$MAX_INTERSTITIAL_PER_HOUR
             Interstitial Ready: ${interstitialAd != null}
             Rewarded Ad Ready: ${rewardedAd != null}
