@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -21,13 +22,22 @@ fun AnimatedSplashScreen(
 ) {
     var startAnimation by remember { mutableStateOf(false) }
 
-    // Fade in animation for the splash image
+    // Fade in animation
     val alphaAnim = animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
         animationSpec = tween(
             durationMillis = 1500,
             easing = FastOutSlowInEasing
-        )
+        ), label = "alpha"
+    )
+
+    // Scale/Zoom animation for a more dynamic effect
+    val scaleAnim = animateFloatAsState(
+        targetValue = if (startAnimation) 1f else 0.85f,
+        animationSpec = tween(
+            durationMillis = 1500,
+            easing = FastOutSlowInEasing
+        ), label = "scale"
     )
 
     LaunchedEffect(key1 = true) {
@@ -42,14 +52,13 @@ fun AnimatedSplashScreen(
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
-        // Full screen splash image with fade in effect
-        // TODO: Replace R.drawable.ic_splash_logo with R.drawable.splash_screen
-        // after adding splash_screen.png to app/src/main/res/drawable/
+        // Full screen splash image with fade in and zoom effect
         Image(
-            painter = painterResource(id = R.drawable.ic_splash_logo),
+            painter = painterResource(id = R.drawable.splash_screen),
             contentDescription = "Splash Screen",
             modifier = Modifier
-                .size(200.dp)
+                .fillMaxSize()
+                .scale(scaleAnim.value)
                 .alpha(alphaAnim.value),
             contentScale = ContentScale.Fit
         )
