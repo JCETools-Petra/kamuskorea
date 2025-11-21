@@ -40,7 +40,7 @@
 
         <!-- Firebase Cloud Messaging Service -->
         <service
-            android:name=".notification.KamusKoreaFirebaseMessagingService"
+            android:name=".notifications.KamusMessagingService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
@@ -50,7 +50,7 @@
         <!-- Default notification channel for FCM -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="kamus_korea_notifications" />
+            android:value="announcements" />
 
         <!-- AdMob App ID -->
         <!-- IMPORTANT: Ganti dengan AdMob App ID Anda sendiri setelah mendaftar di https://admob.google.com -->

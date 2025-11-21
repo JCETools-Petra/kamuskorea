@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.webtech.kamuskorea.data.local.FavoriteVocabularyDao
 import com.webtech.kamuskorea.data.local.FavoriteWordDao
+import com.webtech.kamuskorea.notifications.AppNotificationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,10 +37,16 @@ class HomeViewModel @Inject constructor(
     private val favoriteWordDao: FavoriteWordDao,
     private val favoriteVocabularyDao: FavoriteVocabularyDao,
     private val dataStore: DataStore<Preferences>,
+    private val appNotificationManager: AppNotificationManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val TAG = "HomeViewModel"
+
+    // Track previous milestone values to detect when milestones are reached
+    private var previousStreak = 0
+    private var previousQuizCount = 0
+    private var previousFavoritesCount = 0
 
     companion object {
         val QUIZ_COMPLETED_COUNT_KEY = intPreferencesKey("quiz_completed_count")
@@ -97,6 +104,56 @@ class HomeViewModel @Inject constructor(
     init {
         Log.d(TAG, "HomeViewModel initialized")
         updateStreak()
+        observeMilestones()
+    }
+
+    /**
+     * Observe statistics changes and trigger milestone notifications
+     */
+    private fun observeMilestones() {
+        viewModelScope.launch {
+            statistics.collect { stats ->
+                checkAndTriggerMilestones(stats)
+            }
+        }
+    }
+
+    /**
+     * Check if any milestone is reached and trigger notification
+     */
+    private fun checkAndTriggerMilestones(stats: LearningStatistics) {
+        // Check streak milestones
+        if (stats.streakDays != previousStreak) {
+            when (stats.streakDays) {
+                7 -> {
+                    Log.d(TAG, "🎉 Milestone reached: 7-day streak!")
+                    appNotificationManager.showSevenDayStreakMilestone()
+                }
+                30 -> {
+                    Log.d(TAG, "🎉 Milestone reached: 30-day streak!")
+                    appNotificationManager.showThirtyDayStreakMilestone()
+                }
+                100 -> {
+                    Log.d(TAG, "🎉 Milestone reached: 100-day streak!")
+                    appNotificationManager.showHundredDayStreakMilestone()
+                }
+            }
+            previousStreak = stats.streakDays
+        }
+
+        // Check quiz completion milestones
+        if (stats.quizCompletedCount != previousQuizCount && stats.quizCompletedCount == 50) {
+            Log.d(TAG, "🎉 Milestone reached: 50 quizzes completed!")
+            appNotificationManager.showFiftyQuizzesCompletedMilestone()
+            previousQuizCount = stats.quizCompletedCount
+        }
+
+        // Check favorites milestones
+        if (stats.savedWordsCount != previousFavoritesCount && stats.savedWordsCount == 100) {
+            Log.d(TAG, "🎉 Milestone reached: 100 words saved!")
+            appNotificationManager.showHundredWordsSavedMilestone()
+            previousFavoritesCount = stats.savedWordsCount
+        }
     }
 
     /**
