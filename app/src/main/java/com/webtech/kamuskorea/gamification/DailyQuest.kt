@@ -16,6 +16,7 @@ data class DailyQuest(
     val id: String,
     val title: String,
     val description: String,
+    val guide: String, // Guide/explanation on how to complete the quest
     val type: QuestType,
     val targetProgress: Int,
     val xpReward: Int,
@@ -59,8 +60,9 @@ object DailyQuests {
 
     val SEARCH_3_WORDS = DailyQuest(
         id = "daily_search_3",
-        title = "Jelajahi Kamus",
-        description = "Cari 3 kata di kamus",
+        title = "", // Will be set by localization
+        description = "",
+        guide = "",
         type = QuestType.SEARCH_WORDS,
         targetProgress = 3,
         xpReward = 20,
@@ -69,8 +71,9 @@ object DailyQuests {
 
     val COMPLETE_1_QUIZ = DailyQuest(
         id = "daily_quiz_1",
-        title = "Uji Pemahaman",
-        description = "Selesaikan 1 quiz",
+        title = "",
+        description = "",
+        guide = "",
         type = QuestType.COMPLETE_QUIZ,
         targetProgress = 1,
         xpReward = 30,
@@ -79,8 +82,9 @@ object DailyQuests {
 
     val SAVE_2_FAVORITES = DailyQuest(
         id = "daily_favorite_2",
-        title = "Kumpulkan Kosa Kata",
-        description = "Simpan 2 kata ke favorit",
+        title = "",
+        description = "",
+        guide = "",
         type = QuestType.SAVE_FAVORITES,
         targetProgress = 2,
         xpReward = 15,
@@ -89,8 +93,9 @@ object DailyQuests {
 
     val MAINTAIN_STREAK = DailyQuest(
         id = "daily_streak",
-        title = "Konsisten Belajar",
-        description = "Buka aplikasi hari ini",
+        title = "",
+        description = "",
+        guide = "",
         type = QuestType.STUDY_STREAK,
         targetProgress = 1,
         xpReward = 10,
