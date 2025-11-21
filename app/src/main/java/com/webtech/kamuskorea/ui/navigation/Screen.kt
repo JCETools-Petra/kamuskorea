@@ -18,4 +18,5 @@ sealed class Screen(val route: String) {
     object PdfViewer : Screen("pdf_viewer_screen")
     object PremiumLock : Screen("premium_lock")
     object Onboarding : Screen("onboarding_screen")
+    object Leaderboard : Screen("leaderboard")
 }
