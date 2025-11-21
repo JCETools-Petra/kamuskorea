@@ -156,6 +156,7 @@ class GamificationRepository @Inject constructor(
         val today = getStartOfDay(System.currentTimeMillis())
 
         var xpAwarded = false
+        var newTotalXp = 0
 
         dataStore.edit { preferences ->
             val lastDate = preferences[DAILY_FAVORITE_DATE_KEY] ?: 0L
@@ -172,7 +173,7 @@ class GamificationRepository @Inject constructor(
             if (currentCount < DAILY_FAVORITE_XP_LIMIT) {
                 // Award XP
                 val currentXp = preferences[SettingsDataStore.USER_XP_KEY] ?: 0
-                val newTotalXp = currentXp + XpRewards.WORD_FAVORITED
+                newTotalXp = currentXp + XpRewards.WORD_FAVORITED
                 val newLevel = LevelSystem.calculateLevel(newTotalXp)
 
                 preferences[SettingsDataStore.USER_XP_KEY] = newTotalXp
@@ -185,22 +186,22 @@ class GamificationRepository @Inject constructor(
                 xpAwarded = true
 
                 Log.d(TAG, "✅ Awarded ${XpRewards.WORD_FAVORITED} XP for favorite (${currentCount + 1}/$DAILY_FAVORITE_XP_LIMIT today)")
-
-                // Emit XP earned event
-                _gamificationEvents.emit(
-                    GamificationEvent.XpEarned(
-                        XpRewards.WORD_FAVORITED,
-                        "word_favorited",
-                        newTotalXp
-                    )
-                )
             } else {
                 Log.d(TAG, "⚠️ Daily favorite XP limit reached ($DAILY_FAVORITE_XP_LIMIT/$DAILY_FAVORITE_XP_LIMIT)")
             }
         }
 
-        // Check for achievement unlocks after awarding XP
+        // Emit XP earned event AFTER edit block to avoid suspend call inside transaction
         if (xpAwarded) {
+            _gamificationEvents.emit(
+                GamificationEvent.XpEarned(
+                    XpRewards.WORD_FAVORITED,
+                    "word_favorited",
+                    newTotalXp
+                )
+            )
+
+            // Check for achievement unlocks after awarding XP
             checkAchievementUnlocks()
         }
 
