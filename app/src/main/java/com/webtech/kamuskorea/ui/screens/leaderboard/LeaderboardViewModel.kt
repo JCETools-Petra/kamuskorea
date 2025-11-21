@@ -33,7 +33,28 @@ class LeaderboardViewModel @Inject constructor(
     val gamificationState = gamificationRepository.gamificationState
 
     init {
-        loadLeaderboard()
+        // Sync XP to server first, then load leaderboard
+        syncAndLoadLeaderboard()
+    }
+
+    private fun syncAndLoadLeaderboard() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+
+            try {
+                // Step 1: Sync local XP to server
+                Log.d(TAG, "🔄 Syncing local XP to server before loading leaderboard...")
+                gamificationRepository.syncToServer()
+                Log.d(TAG, "✅ XP synced successfully")
+
+                // Step 2: Load leaderboard from server
+                loadLeaderboard()
+            } catch (e: Exception) {
+                Log.e(TAG, "⚠️ Sync failed, loading leaderboard anyway", e)
+                // Even if sync fails, still load leaderboard
+                loadLeaderboard()
+            }
+        }
     }
 
     fun loadLeaderboard(limit: Int = 100) {
@@ -51,6 +72,12 @@ class LeaderboardViewModel @Inject constructor(
                         // Find current user in leaderboard
                         val currentUserEntry = leaderboard.find {
                             it.userId == gamificationRepository.getCurrentUserId()
+                        }
+
+                        if (currentUserEntry != null) {
+                            Log.d(TAG, "👤 Current user found in leaderboard: Rank #${currentUserEntry.rank}, XP ${currentUserEntry.totalXp}")
+                        } else {
+                            Log.w(TAG, "⚠️ Current user NOT found in leaderboard")
                         }
 
                         _uiState.value = _uiState.value.copy(
@@ -78,7 +105,7 @@ class LeaderboardViewModel @Inject constructor(
     }
 
     fun refresh() {
-        loadLeaderboard()
+        syncAndLoadLeaderboard()
     }
 
     fun clearError() {
