@@ -5,9 +5,13 @@ import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import com.google.firebase.auth.FirebaseAuth
 import com.webtech.kamuskorea.analytics.AnalyticsTracker
 import com.webtech.kamuskorea.data.network.ApiService
+import com.webtech.kamuskorea.data.local.FavoriteWordDao
+import com.webtech.kamuskorea.data.local.FavoriteVocabularyDao
 import com.webtech.kamuskorea.notifications.AppNotificationManager
 import com.webtech.kamuskorea.ui.datastore.SettingsDataStore
 import com.webtech.kamuskorea.ui.datastore.dataStore
@@ -36,7 +40,9 @@ class GamificationRepository @Inject constructor(
     private val apiService: ApiService,
     private val firebaseAuth: FirebaseAuth,
     private val analyticsTracker: AnalyticsTracker,
-    private val notificationManager: AppNotificationManager
+    private val notificationManager: AppNotificationManager,
+    private val favoriteWordDao: FavoriteWordDao,
+    private val favoriteVocabularyDao: FavoriteVocabularyDao
 ) {
 
     private val dataStore: DataStore<Preferences> = context.dataStore
@@ -44,6 +50,11 @@ class GamificationRepository @Inject constructor(
     companion object {
         private const val TAG = "GamificationRepository"
         private const val SYNC_INTERVAL_MS = 15 * 60 * 1000L // 15 minutes
+        private const val DAILY_FAVORITE_XP_LIMIT = 10
+
+        // Keys for daily favorite tracking
+        private val DAILY_FAVORITE_COUNT_KEY = intPreferencesKey("daily_favorite_count")
+        private val DAILY_FAVORITE_DATE_KEY = longPreferencesKey("daily_favorite_date")
     }
 
     // ========== EVENT FLOW ==========
@@ -135,6 +146,79 @@ class GamificationRepository @Inject constructor(
 
         // Check for achievement unlocks
         checkAchievementUnlocks()
+    }
+
+    /**
+     * Add XP for favoriting a word (limited to 10 per day)
+     * Returns true if XP was awarded, false if daily limit reached
+     */
+    suspend fun addXpForFavorite(): Boolean {
+        val today = getStartOfDay(System.currentTimeMillis())
+
+        var xpAwarded = false
+
+        dataStore.edit { preferences ->
+            val lastDate = preferences[DAILY_FAVORITE_DATE_KEY] ?: 0L
+            val lastDateDay = getStartOfDay(lastDate)
+
+            // Reset count if it's a new day
+            val currentCount = if (lastDateDay < today) {
+                0
+            } else {
+                preferences[DAILY_FAVORITE_COUNT_KEY] ?: 0
+            }
+
+            // Check if under daily limit
+            if (currentCount < DAILY_FAVORITE_XP_LIMIT) {
+                // Award XP
+                val currentXp = preferences[SettingsDataStore.USER_XP_KEY] ?: 0
+                val newTotalXp = currentXp + XpRewards.WORD_FAVORITED
+                val newLevel = LevelSystem.calculateLevel(newTotalXp)
+
+                preferences[SettingsDataStore.USER_XP_KEY] = newTotalXp
+                preferences[SettingsDataStore.USER_LEVEL_KEY] = newLevel
+
+                // Update daily count
+                preferences[DAILY_FAVORITE_COUNT_KEY] = currentCount + 1
+                preferences[DAILY_FAVORITE_DATE_KEY] = today
+
+                xpAwarded = true
+
+                Log.d(TAG, "✅ Awarded ${XpRewards.WORD_FAVORITED} XP for favorite (${currentCount + 1}/$DAILY_FAVORITE_XP_LIMIT today)")
+
+                // Emit XP earned event
+                _gamificationEvents.emit(
+                    GamificationEvent.XpEarned(
+                        XpRewards.WORD_FAVORITED,
+                        "word_favorited",
+                        newTotalXp
+                    )
+                )
+            } else {
+                Log.d(TAG, "⚠️ Daily favorite XP limit reached ($DAILY_FAVORITE_XP_LIMIT/$DAILY_FAVORITE_XP_LIMIT)")
+            }
+        }
+
+        // Check for achievement unlocks after awarding XP
+        if (xpAwarded) {
+            checkAchievementUnlocks()
+        }
+
+        return xpAwarded
+    }
+
+    /**
+     * Get the start of the day in milliseconds
+     */
+    private fun getStartOfDay(timeMillis: Long): Long {
+        val calendar = java.util.Calendar.getInstance().apply {
+            timeInMillis = timeMillis
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        return calendar.timeInMillis
     }
 
     /**
@@ -232,8 +316,13 @@ class GamificationRepository @Inject constructor(
     }
 
     private suspend fun checkVocabAchievement(count: Int): Boolean {
-        // TODO: Implement based on favorites count
-        return false
+        // Count total favorites from both dictionary and hafalan
+        val wordFavorites = favoriteWordDao.getAllFavorites().first()
+        val vocabFavorites = favoriteVocabularyDao.getAllFavorites().first()
+        val totalFavorites = wordFavorites.size + vocabFavorites.size
+
+        Log.d(TAG, "checkVocabAchievement($count): Total favorites = $totalFavorites")
+        return totalFavorites >= count
     }
 
     // ========== CLOUD SYNC ==========
