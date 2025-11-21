@@ -11,6 +11,9 @@ import androidx.lifecycle.viewModelScope
 import com.webtech.kamuskorea.data.assessment.*
 import com.webtech.kamuskorea.data.media.MediaPreloader
 import com.webtech.kamuskorea.data.network.ApiService
+import com.webtech.kamuskorea.analytics.AnalyticsTracker
+import com.webtech.kamuskorea.gamification.GamificationRepository
+import com.webtech.kamuskorea.gamification.XpRewards
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +28,9 @@ import javax.inject.Inject
 class AssessmentViewModel @Inject constructor(
     private val apiService: ApiService,
     private val dataStore: DataStore<Preferences>,
-    private val mediaPreloader: MediaPreloader
+    private val mediaPreloader: MediaPreloader,
+    private val analyticsTracker: AnalyticsTracker,
+    private val gamificationRepository: GamificationRepository
 ) : ViewModel() {
 
     companion object {
@@ -258,6 +263,10 @@ class AssessmentViewModel @Inject constructor(
 
                     // Update learning statistics
                     updateStatisticsOnQuizComplete()
+
+                    // Award XP for quiz completion
+                    gamificationRepository.addXp(XpRewards.QUIZ_COMPLETED, "quiz_completed")
+                    Log.d("AssessmentVM", "⭐ Awarded ${XpRewards.QUIZ_COMPLETED} XP for quiz completion")
                 } else {
                     val errorBody = response.errorBody()?.string() ?: "Unknown error"
                     val errorMsg = "Gagal submit jawaban: ${response.code()} - $errorBody"

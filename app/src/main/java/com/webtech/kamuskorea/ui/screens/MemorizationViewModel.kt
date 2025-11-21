@@ -8,6 +8,9 @@ import com.webtech.kamuskorea.data.local.ChapterInfo
 import com.webtech.kamuskorea.data.local.Vocabulary
 import com.webtech.kamuskorea.data.local.FavoriteVocabulary
 import com.webtech.kamuskorea.data.local.FavoriteVocabularyDao
+import com.webtech.kamuskorea.analytics.AnalyticsTracker
+import com.webtech.kamuskorea.gamification.GamificationRepository
+import com.webtech.kamuskorea.gamification.XpRewards
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +24,9 @@ import javax.inject.Inject
 @HiltViewModel
 class MemorizationViewModel @Inject constructor(
     private val vocabularyRepository: VocabularyRepository,
-    private val favoriteVocabularyDao: FavoriteVocabularyDao
+    private val favoriteVocabularyDao: FavoriteVocabularyDao,
+    private val analyticsTracker: AnalyticsTracker,
+    private val gamificationRepository: GamificationRepository
 ) : ViewModel() {
 
     private val TAG = "MemorizationViewModel"
@@ -114,6 +119,10 @@ class MemorizationViewModel @Inject constructor(
                 )
                 favoriteVocabularyDao.addFavorite(favoriteVocabulary)
                 Log.d(TAG, "Added to favorites: ${vocabulary.koreanWord}")
+
+                // Award XP for favoriting vocabulary
+                gamificationRepository.addXp(XpRewards.WORD_FAVORITED, "vocabulary_favorited")
+                Log.d(TAG, "⭐ Awarded ${XpRewards.WORD_FAVORITED} XP for favoriting vocabulary")
             }
         }
     }
@@ -125,6 +134,21 @@ class MemorizationViewModel @Inject constructor(
         viewModelScope.launch {
             favoriteVocabularyDao.removeFavorite(vocabularyId)
             Log.d(TAG, "Removed favorite vocabulary by ID: $vocabularyId")
+        }
+    }
+
+    /**
+     * Track when a flashcard is flipped and award XP
+     * Call this from UI when user flips a flashcard
+     */
+    fun onFlashcardFlipped(chapterNumber: Int) {
+        viewModelScope.launch {
+            // Track analytics
+            analyticsTracker.logFlashcardFlipped(chapterNumber)
+
+            // Award XP
+            gamificationRepository.addXp(XpRewards.FLASHCARD_FLIPPED, "flashcard_flipped")
+            Log.d(TAG, "⭐ Awarded ${XpRewards.FLASHCARD_FLIPPED} XP for flipping flashcard")
         }
     }
 }

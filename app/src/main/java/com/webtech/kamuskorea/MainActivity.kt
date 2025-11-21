@@ -58,7 +58,10 @@ import com.webtech.kamuskorea.ads.AdManager
 import com.webtech.kamuskorea.notification.NotificationManager
 import com.webtech.kamuskorea.notifications.NotificationChannels
 import com.webtech.kamuskorea.notifications.NotificationScheduler
+import com.webtech.kamuskorea.gamification.XpSyncWorker
 import com.webtech.kamuskorea.ui.screens.onboarding.OnboardingScreen
+import androidx.work.*
+import java.util.concurrent.TimeUnit
 import com.webtech.kamuskorea.ui.screens.profile.ProfileScreen
 import com.webtech.kamuskorea.ui.screens.settings.ModernSettingsScreen
 import com.webtech.kamuskorea.ui.screens.settings.SettingsViewModel
@@ -133,6 +136,10 @@ class MainActivity : ComponentActivity() {
         // Schedule daily notifications (learning reminder & streak check)
         Log.d("MainActivity", "⏰ Scheduling daily notifications...")
         notificationScheduler.scheduleAllNotifications()
+
+        // Schedule XP sync to server (every 15 minutes)
+        Log.d("MainActivity", "🎮 Scheduling XP background sync...")
+        scheduleXpSync()
 
         // Subscribe ke FCM topic untuk menerima broadcast notifications
         Log.d("MainActivity", "🔔 Subscribing to push notifications...")
@@ -236,6 +243,34 @@ class MainActivity : ComponentActivity() {
             "Coral" -> if (useDarkTheme) CoralDarkColorScheme else CoralLightColorScheme
             else -> if (useDarkTheme) DarkColorScheme else LightColorScheme
         }
+    }
+
+    /**
+     * Schedule XP sync worker (every 15 minutes)
+     */
+    private fun scheduleXpSync() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .setRequiresBatteryNotLow(false)
+            .build()
+
+        val xpSyncRequest = PeriodicWorkRequestBuilder<XpSyncWorker>(
+            repeatInterval = 15,
+            repeatIntervalTimeUnit = TimeUnit.MINUTES
+        )
+            .setConstraints(constraints)
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                10,
+                TimeUnit.SECONDS
+            )
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            XpSyncWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            xpSyncRequest
+        )
     }
 
     override fun onResume() {

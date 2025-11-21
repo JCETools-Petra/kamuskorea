@@ -33,5 +33,12 @@ class SettingsDataStore {
         val LAST_STUDY_DATE_KEY = stringPreferencesKey("last_study_date") // Format: "yyyy-MM-dd"
         val CURRENT_STREAK_KEY = intPreferencesKey("current_streak")
         val LONGEST_STREAK_KEY = intPreferencesKey("longest_streak")
+
+        // ========== GAMIFICATION ==========
+        val USER_XP_KEY = intPreferencesKey("user_xp")
+        val USER_LEVEL_KEY = intPreferencesKey("user_level")
+        val ACHIEVEMENTS_UNLOCKED_KEY = stringSetPreferencesKey("achievements_unlocked") // Set<String> of achievement IDs
+        val LAST_XP_SYNC_KEY = longPreferencesKey("last_xp_sync") // Timestamp in millis
+        val LEADERBOARD_RANK_KEY = intPreferencesKey("leaderboard_rank")
     }
 }
