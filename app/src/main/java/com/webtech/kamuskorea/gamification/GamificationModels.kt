@@ -11,7 +11,8 @@ import com.google.gson.annotations.SerializedName
 data class SyncXpRequest(
     @SerializedName("total_xp") val totalXp: Int,
     @SerializedName("current_level") val currentLevel: Int,
-    @SerializedName("achievements_unlocked") val achievementsUnlocked: List<String>
+    @SerializedName("achievements_unlocked") val achievementsUnlocked: List<String>,
+    @SerializedName("username") val username: String? = null
 )
 
 data class AddXpRequest(
@@ -90,4 +91,13 @@ data class GamificationState(
             currentLevel = newLevel
         )
     }
+}
+
+/**
+ * Events emitted by the gamification system
+ */
+sealed class GamificationEvent {
+    data class XpEarned(val amount: Int, val source: String, val totalXp: Int) : GamificationEvent()
+    data class LevelUp(val newLevel: Int, val totalXp: Int) : GamificationEvent()
+    data class AchievementUnlocked(val achievement: Achievement) : GamificationEvent()
 }

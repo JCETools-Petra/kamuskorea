@@ -71,6 +71,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.webtech.kamuskorea.ui.screens.dictionary.SimpleDictionaryScreen
+import com.webtech.kamuskorea.gamification.GamificationRepository
+import com.webtech.kamuskorea.ui.components.GamificationEventHandler
+import com.webtech.kamuskorea.ui.components.LevelUpDialog
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -357,6 +360,31 @@ fun MainApp(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    // Gamification event handler - use HomeViewModel to access gamification events
+    val homeViewModel: HomeViewModel = hiltViewModel()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Level up dialog state
+    var showLevelUpDialog by remember { mutableStateOf(false) }
+    var levelUpValue by remember { mutableIntStateOf(1) }
+
+    // Handle gamification events (XP, level ups, achievements)
+    GamificationEventHandler(
+        gamificationEvents = homeViewModel.gamificationEvents,
+        snackbarHostState = snackbarHostState,
+        onLevelUp = { newLevel ->
+            levelUpValue = newLevel
+            showLevelUpDialog = true
+        }
+    )
+
+    // Level up celebration dialog
+    LevelUpDialog(
+        isVisible = showLevelUpDialog,
+        newLevel = levelUpValue,
+        onDismiss = { showLevelUpDialog = false }
+    )
+
     LaunchedEffect(currentRoute) {
         currentTitle = when {
             currentRoute == Screen.Home.route -> strings.home
@@ -501,7 +529,8 @@ fun MainApp(
                         }
                     )
                 }
-            }
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) }
         ) { innerPadding ->
             NavHost(
                 navController = navController,
@@ -723,6 +752,12 @@ fun MainApp(
                 }
                 composable(Screen.Leaderboard.route) {
                     com.webtech.kamuskorea.ui.screens.leaderboard.LeaderboardScreen(
+                        viewModel = hiltViewModel(),
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+                composable(Screen.Achievements.route) {
+                    com.webtech.kamuskorea.ui.screens.achievements.AchievementsScreen(
                         viewModel = hiltViewModel(),
                         onNavigateBack = { navController.popBackStack() }
                     )

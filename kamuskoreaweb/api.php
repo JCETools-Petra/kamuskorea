@@ -945,11 +945,15 @@ elseif ($routes[0] === 'gamification' && $routes[1] === 'sync-xp' && $requestMet
     $currentLevel = $input['current_level'] ?? 1;
     $achievementsUnlocked = $input['achievements_unlocked'] ?? [];
 
-    // Get username from users table
-    $stmt = $pdo->prepare("SELECT name FROM users WHERE firebase_uid = ?");
-    $stmt->execute([$uid]);
-    $user = $stmt->fetch();
-    $username = $user['name'] ?? 'Anonymous';
+    // Get username from request body first, then users table
+    if (!empty($input['username'])) {
+        $username = $input['username'];
+    } else {
+        $stmt = $pdo->prepare("SELECT name FROM users WHERE firebase_uid = ?");
+        $stmt->execute([$uid]);
+        $user = $stmt->fetch();
+        $username = $user['name'] ?? 'Anonymous';
+    }
 
     // Convert achievements array to JSON string
     $achievementsJson = json_encode($achievementsUnlocked);

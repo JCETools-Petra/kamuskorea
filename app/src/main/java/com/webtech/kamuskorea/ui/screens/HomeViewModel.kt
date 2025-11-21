@@ -13,6 +13,7 @@ import com.webtech.kamuskorea.data.local.FavoriteVocabularyDao
 import com.webtech.kamuskorea.data.local.FavoriteWordDao
 import com.webtech.kamuskorea.notifications.AppNotificationManager
 import com.webtech.kamuskorea.gamification.GamificationRepository
+import com.webtech.kamuskorea.gamification.DailyQuestRepository
 import com.webtech.kamuskorea.gamification.XpRewards
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -41,6 +42,7 @@ class HomeViewModel @Inject constructor(
     private val dataStore: DataStore<Preferences>,
     private val appNotificationManager: AppNotificationManager,
     private val gamificationRepository: GamificationRepository,
+    private val dailyQuestRepository: DailyQuestRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -108,11 +110,27 @@ class HomeViewModel @Inject constructor(
     // Gamification state
     val gamificationState = gamificationRepository.gamificationState
 
+    // Gamification events (XP earned, level up, achievements)
+    val gamificationEvents = gamificationRepository.gamificationEvents
+
+    // Daily quest state
+    val dailyQuestState = dailyQuestRepository.dailyQuestState.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = com.webtech.kamuskorea.gamification.DailyQuestState(
+            date = "",
+            quests = emptyList(),
+            progress = emptyMap()
+        )
+    )
+
     init {
         Log.d(TAG, "HomeViewModel initialized")
         updateStreak()
         awardDailyLoginXp()
         observeMilestones()
+        resetDailyQuests()
+        markDailyLogin()
     }
 
     /**
@@ -290,6 +308,32 @@ class HomeViewModel @Inject constructor(
                 }
                 // Only collect once
                 return@collect
+            }
+        }
+    }
+
+    /**
+     * Reset daily quests if needed (called on app open)
+     */
+    private fun resetDailyQuests() {
+        viewModelScope.launch {
+            try {
+                dailyQuestRepository.resetQuestsIfNeeded()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to reset daily quests", e)
+            }
+        }
+    }
+
+    /**
+     * Mark daily login for quest completion
+     */
+    private fun markDailyLogin() {
+        viewModelScope.launch {
+            try {
+                dailyQuestRepository.onDailyLogin()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to mark daily login quest", e)
             }
         }
     }

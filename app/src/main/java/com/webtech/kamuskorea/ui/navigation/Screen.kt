@@ -19,4 +19,5 @@ sealed class Screen(val route: String) {
     object PremiumLock : Screen("premium_lock")
     object Onboarding : Screen("onboarding_screen")
     object Leaderboard : Screen("leaderboard")
+    object Achievements : Screen("achievements")
 }
