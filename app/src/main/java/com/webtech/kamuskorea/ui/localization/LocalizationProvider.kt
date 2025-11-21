@@ -83,7 +83,33 @@ data class AppStrings(
     // Sizes
     val small: String,
     val medium: String,
-    val large: String
+    val large: String,
+
+    // Gamification - XP Notifications
+    val xpFrom: String,
+    val saveFavorite: String,
+    val completeQuiz: String,
+    val dailyLogin: String,
+    val questComplete: String,
+    val levelUp: String,
+    val nowLevel: String,
+
+    // Daily Quest
+    val dailyQuest: String,
+    val questExploreDict: String,
+    val questExploreDesc: String,
+    val questExploreGuide: String,
+    val questCompleteQuiz: String,
+    val questCompleteQuizDesc: String,
+    val questCompleteQuizGuide: String,
+    val questSaveFavorite: String,
+    val questSaveFavoriteDesc: String,
+    val questSaveFavoriteGuide: String,
+    val questDailyLogin: String,
+    val questDailyLoginDesc: String,
+    val questDailyLoginGuide: String,
+    val howToComplete: String,
+    val questReward: String
 )
 
 val LocalStrings = compositionLocalOf { getStrings("id") }
@@ -165,7 +191,33 @@ fun getStrings(languageCode: String): AppStrings {
             // Sizes
             small = "Small",
             medium = "Medium",
-            large = "Large"
+            large = "Large",
+
+            // Gamification - XP Notifications
+            xpFrom = "from",
+            saveFavorite = "saving favorite",
+            completeQuiz = "completing quiz",
+            dailyLogin = "daily login",
+            questComplete = "quest complete",
+            levelUp = "Level Up",
+            nowLevel = "Now Level",
+
+            // Daily Quest
+            dailyQuest = "Daily Quest",
+            questExploreDict = "Explore Dictionary",
+            questExploreDesc = "Search for 3 words in dictionary",
+            questExploreGuide = "Open Dictionary menu, search for any Korean or Indonesian word. Each search counts toward quest progress (3 total).",
+            questCompleteQuiz = "Test Knowledge",
+            questCompleteQuizDesc = "Complete 1 quiz",
+            questCompleteQuizGuide = "Go to Quiz menu, select any quiz or exam, and complete it. Any quiz/exam completion counts toward this quest.",
+            questSaveFavorite = "Collect Vocabulary",
+            questSaveFavoriteDesc = "Save 2 words to favorites",
+            questSaveFavoriteGuide = "Open Dictionary or Memorization menu, tap the star icon (⭐) on any word to save as favorite. Save 2 words to complete quest.",
+            questDailyLogin = "Consistent Learning",
+            questDailyLoginDesc = "Open app today",
+            questDailyLoginGuide = "This quest completes automatically when you open the app. Keep your learning streak going!",
+            howToComplete = "How to Complete",
+            questReward = "Reward"
         )
 
         else -> AppStrings( // Default: Indonesian
@@ -243,7 +295,33 @@ fun getStrings(languageCode: String): AppStrings {
             // Sizes
             small = "Kecil",
             medium = "Sedang",
-            large = "Besar"
+            large = "Besar",
+
+            // Gamification - XP Notifications
+            xpFrom = "dari",
+            saveFavorite = "simpan favorit",
+            completeQuiz = "selesaikan quiz",
+            dailyLogin = "login harian",
+            questComplete = "quest selesai",
+            levelUp = "Naik Level",
+            nowLevel = "Sekarang Level",
+
+            // Daily Quest
+            dailyQuest = "Quest Harian",
+            questExploreDict = "Jelajahi Kamus",
+            questExploreDesc = "Cari 3 kata di kamus",
+            questExploreGuide = "Buka menu Kamus, cari kata apapun dalam bahasa Korea atau Indonesia. Setiap pencarian akan dihitung untuk progress quest (total 3 kata).",
+            questCompleteQuiz = "Uji Pemahaman",
+            questCompleteQuizDesc = "Selesaikan 1 quiz",
+            questCompleteQuizGuide = "Buka menu Latihan, pilih quiz atau ujian apapun, lalu selesaikan. Quiz atau ujian yang diselesaikan akan menghitung quest ini.",
+            questSaveFavorite = "Kumpulkan Kosa Kata",
+            questSaveFavoriteDesc = "Simpan 2 kata ke favorit",
+            questSaveFavoriteGuide = "Buka menu Kamus atau Hafalan, ketuk ikon bintang (⭐) pada kata apapun untuk menyimpan ke favorit. Simpan 2 kata untuk menyelesaikan quest.",
+            questDailyLogin = "Konsisten Belajar",
+            questDailyLoginDesc = "Buka aplikasi hari ini",
+            questDailyLoginGuide = "Quest ini selesai otomatis saat Anda membuka aplikasi. Pertahankan streak belajar Anda!",
+            howToComplete = "Cara Menyelesaikan",
+            questReward = "Hadiah"
         )
     }
 }
