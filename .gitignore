@@ -9,6 +9,11 @@ build/
 
 # Local configuration (SDK path, signing, etc)
 local.properties
+keystore.properties
+
+# Keystore files (NEVER commit these!)
+*.jks
+*.keystore
 
 # Android Studio / IntelliJ
 .idea/
