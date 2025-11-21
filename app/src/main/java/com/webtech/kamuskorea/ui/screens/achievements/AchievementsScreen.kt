@@ -132,6 +132,7 @@ fun AchievementCard(item: AchievementWithStatus) {
         AchievementCategory.STREAK -> Color(0xFFFF9800)
         AchievementCategory.QUIZ -> Color(0xFF2196F3)
         AchievementCategory.VOCABULARY -> Color(0xFFE91E63)
+        AchievementCategory.SOCIAL -> Color(0xFF9C27B0)
     }
 
     Card(
