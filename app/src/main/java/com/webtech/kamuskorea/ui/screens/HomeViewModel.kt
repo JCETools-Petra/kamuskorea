@@ -105,6 +105,9 @@ class HomeViewModel @Inject constructor(
         initialValue = LearningStatistics()
     )
 
+    // Gamification state
+    val gamificationState = gamificationRepository.gamificationState
+
     init {
         Log.d(TAG, "HomeViewModel initialized")
         updateStreak()

@@ -309,4 +309,11 @@ class GamificationRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    /**
+     * Get current user ID
+     */
+    fun getCurrentUserId(): String? {
+        return firebaseAuth.currentUser?.uid
+    }
 }

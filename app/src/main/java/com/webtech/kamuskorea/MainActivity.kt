@@ -721,6 +721,12 @@ fun MainApp(
                 composable(Screen.Profile.route) {
                     ProfileScreen(viewModel = hiltViewModel())
                 }
+                composable(Screen.Leaderboard.route) {
+                    com.webtech.kamuskorea.ui.screens.leaderboard.LeaderboardScreen(
+                        viewModel = hiltViewModel(),
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
                 composable(
                     route = "pdf_viewer/{pdfUrl}/{title}",
                     arguments = listOf(
