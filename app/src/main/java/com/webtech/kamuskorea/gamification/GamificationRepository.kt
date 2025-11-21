@@ -52,7 +52,7 @@ class GamificationRepository @Inject constructor(
         GamificationState(
             totalXp = preferences[SettingsDataStore.USER_XP_KEY] ?: 0,
             currentLevel = preferences[SettingsDataStore.USER_LEVEL_KEY] ?: 1,
-            achievementsUnlocked = preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] ?: emptySet(),
+            achievementsUnlocked = preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] ?: emptySet<String>(),
             leaderboardRank = preferences[SettingsDataStore.LEADERBOARD_RANK_KEY] ?: 0,
             lastSyncTimestamp = preferences[SettingsDataStore.LAST_XP_SYNC_KEY] ?: 0L
         )
@@ -76,7 +76,7 @@ class GamificationRepository @Inject constructor(
      * Observe achievements unlocked
      */
     val achievementsUnlocked: Flow<Set<String>> = dataStore.data.map { preferences ->
-        preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] ?: emptySet()
+        preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] ?: emptySet<String>()
     }
 
     // ========== XP MANAGEMENT ==========
@@ -153,8 +153,8 @@ class GamificationRepository @Inject constructor(
         val achievement = Achievements.getById(achievementId) ?: return
 
         dataStore.edit { preferences ->
-            val current = preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] ?: emptySet()
-            preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] = current + achievementId
+            val current: Set<String> = preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] ?: emptySet()
+            preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] = current.plus(achievementId)
 
             Log.d(TAG, "🏆 Achievement Unlocked: ${achievement.title} (+${achievement.xpReward} XP)")
 
