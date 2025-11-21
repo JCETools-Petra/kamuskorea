@@ -55,6 +55,10 @@ class AnalyticsTracker @Inject constructor(
         const val EVENT_LOGIN = "login"
         const val EVENT_LOGOUT = "logout"
 
+        // Event Names - Notifications
+        const val EVENT_NOTIFICATION_SHOWN = "notification_shown"
+        const val EVENT_NOTIFICATION_CLICKED = "notification_clicked"
+
         // Parameter Names
         const val PARAM_PDF_TITLE = "pdf_title"
         const val PARAM_QUIZ_ID = "quiz_id"
@@ -69,6 +73,8 @@ class AnalyticsTracker @Inject constructor(
         const val PARAM_AD_PLACEMENT = "ad_placement"
         const val PARAM_ERROR_MESSAGE = "error_message"
         const val PARAM_AUTH_METHOD = "method"
+        const val PARAM_NOTIFICATION_TYPE = "notification_type"
+        const val PARAM_NOTIFICATION_SOURCE = "notification_source"
     }
 
     /**
@@ -305,5 +311,28 @@ class AnalyticsTracker @Inject constructor(
     fun setUserId(userId: String) {
         firebaseAnalytics.setUserId(userId)
         Log.d(TAG, "👤 User ID Set: $userId")
+    }
+
+    /**
+     * Track notification shown
+     */
+    fun logNotificationShown(notificationType: String, source: String) {
+        val bundle = Bundle().apply {
+            putString(PARAM_NOTIFICATION_TYPE, notificationType) // "daily_reminder", "streak_saver", "milestone", etc.
+            putString(PARAM_NOTIFICATION_SOURCE, source) // "scheduled", "fcm", "milestone_trigger"
+        }
+        firebaseAnalytics.logEvent(EVENT_NOTIFICATION_SHOWN, bundle)
+        Log.d(TAG, "🔔 Notification Shown: $notificationType (source: $source)")
+    }
+
+    /**
+     * Track notification clicked
+     */
+    fun logNotificationClicked(notificationType: String) {
+        val bundle = Bundle().apply {
+            putString(PARAM_NOTIFICATION_TYPE, notificationType)
+        }
+        firebaseAnalytics.logEvent(EVENT_NOTIFICATION_CLICKED, bundle)
+        Log.d(TAG, "👆 Notification Clicked: $notificationType")
     }
 }

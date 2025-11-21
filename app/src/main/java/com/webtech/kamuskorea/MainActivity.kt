@@ -56,6 +56,8 @@ import com.webtech.kamuskorea.ui.screens.dictionary.KamusSyncViewModel
 import com.webtech.kamuskorea.ui.screens.ebook.PdfViewerScreen
 import com.webtech.kamuskorea.ads.AdManager
 import com.webtech.kamuskorea.notification.NotificationManager
+import com.webtech.kamuskorea.notifications.NotificationChannels
+import com.webtech.kamuskorea.notifications.NotificationScheduler
 import com.webtech.kamuskorea.ui.screens.onboarding.OnboardingScreen
 import com.webtech.kamuskorea.ui.screens.profile.ProfileScreen
 import com.webtech.kamuskorea.ui.screens.settings.ModernSettingsScreen
@@ -82,6 +84,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var notificationManager: NotificationManager
 
+    @Inject
+    lateinit var notificationScheduler: NotificationScheduler
+
     private val kamusSyncViewModel: KamusSyncViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
 
@@ -107,6 +112,10 @@ class MainActivity : ComponentActivity() {
         Log.d("MainActivity", "🎯 Preloading ads...")
         adManager.preloadAd(this)
 
+        // Create notification channels (required for Android 8.0+)
+        Log.d("MainActivity", "📱 Creating notification channels...")
+        NotificationChannels.createNotificationChannels(this)
+
         // Request notification permission untuk Android 13+ (API 33+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
@@ -120,6 +129,10 @@ class MainActivity : ComponentActivity() {
                 Log.d("MainActivity", "✅ Notification permission already granted")
             }
         }
+
+        // Schedule daily notifications (learning reminder & streak check)
+        Log.d("MainActivity", "⏰ Scheduling daily notifications...")
+        notificationScheduler.scheduleAllNotifications()
 
         // Subscribe ke FCM topic untuk menerima broadcast notifications
         Log.d("MainActivity", "🔔 Subscribing to push notifications...")

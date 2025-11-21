@@ -28,5 +28,10 @@ class SettingsDataStore {
 
         // ========== DATABASE VERSION ==========
         val KAMUS_DB_VERSION_KEY = intPreferencesKey("kamus_db_version")
+
+        // ========== STREAK TRACKING ==========
+        val LAST_STUDY_DATE_KEY = stringPreferencesKey("last_study_date") // Format: "yyyy-MM-dd"
+        val CURRENT_STREAK_KEY = intPreferencesKey("current_streak")
+        val LONGEST_STREAK_KEY = intPreferencesKey("longest_streak")
     }
 }
