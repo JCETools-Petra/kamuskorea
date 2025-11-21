@@ -931,6 +931,270 @@ elseif ($routes[0] === 'results' && $requestMethod === 'GET') {
     sendResponse($formattedResults);
 }
 
+// ========== GAMIFICATION ROUTES ==========
+
+elseif ($routes[0] === 'gamification' && $routes[1] === 'sync-xp' && $requestMethod === 'POST') {
+    /**
+     * POST /gamification/sync-xp
+     * Sync user XP, level, and achievements from app to server
+     */
+    $uid = requireAuth();
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    $totalXp = $input['total_xp'] ?? 0;
+    $currentLevel = $input['current_level'] ?? 1;
+    $achievementsUnlocked = $input['achievements_unlocked'] ?? [];
+
+    // Get username from users table
+    $stmt = $pdo->prepare("SELECT name FROM users WHERE firebase_uid = ?");
+    $stmt->execute([$uid]);
+    $user = $stmt->fetch();
+    $username = $user['name'] ?? 'Anonymous';
+
+    // Convert achievements array to JSON string
+    $achievementsJson = json_encode($achievementsUnlocked);
+
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO user_gamification (user_id, username, total_xp, current_level, achievements_unlocked, last_xp_sync)
+            VALUES (?, ?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE
+                username = VALUES(username),
+                total_xp = VALUES(total_xp),
+                current_level = VALUES(current_level),
+                achievements_unlocked = VALUES(achievements_unlocked),
+                last_xp_sync = NOW(),
+                updated_at = NOW()
+        ");
+
+        $stmt->execute([$uid, $username, $totalXp, $currentLevel, $achievementsJson]);
+
+        // Get user's rank after sync
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) + 1 as rank
+            FROM user_gamification
+            WHERE total_xp > (SELECT total_xp FROM user_gamification WHERE user_id = ?)
+        ");
+        $stmt->execute([$uid]);
+        $rankData = $stmt->fetch();
+        $leaderboardRank = $rankData['rank'] ?? 0;
+
+        sendResponse([
+            'success' => true,
+            'message' => 'XP synced successfully',
+            'leaderboard_rank' => (int)$leaderboardRank
+        ]);
+
+    } catch (PDOException $e) {
+        error_log("XP sync error: " . $e->getMessage());
+        sendResponse([
+            'success' => false,
+            'message' => 'Failed to sync XP'
+        ], 500);
+    }
+}
+
+elseif ($routes[0] === 'gamification' && $routes[1] === 'leaderboard' && $requestMethod === 'GET') {
+    /**
+     * GET /gamification/leaderboard?limit=100
+     * Get leaderboard top users
+     */
+    $limit = isset($_GET['limit']) ? min((int)$_GET['limit'], 500) : 100;
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT
+                user_id,
+                username,
+                total_xp,
+                current_level,
+                achievements_unlocked,
+                @rank := @rank + 1 AS rank
+            FROM user_gamification, (SELECT @rank := 0) r
+            ORDER BY total_xp DESC, updated_at ASC
+            LIMIT ?
+        ");
+        $stmt->execute([$limit]);
+        $leaderboard = $stmt->fetchAll();
+
+        $result = array_map(function($user) {
+            $achievements = json_decode($user['achievements_unlocked'], true) ?? [];
+            return [
+                'rank' => (int)$user['rank'],
+                'user_id' => $user['user_id'],
+                'username' => $user['username'] ?: 'Anonymous',
+                'total_xp' => (int)$user['total_xp'],
+                'level' => (int)$user['current_level'],
+                'achievement_count' => count($achievements)
+            ];
+        }, $leaderboard);
+
+        sendResponse([
+            'success' => true,
+            'data' => $result
+        ]);
+
+    } catch (PDOException $e) {
+        error_log("Leaderboard query error: " . $e->getMessage());
+        sendResponse([
+            'success' => false,
+            'message' => 'Failed to fetch leaderboard'
+        ], 500);
+    }
+}
+
+elseif ($routes[0] === 'gamification' && $routes[1] === 'user-rank' && isset($routes[2]) && $requestMethod === 'GET') {
+    /**
+     * GET /gamification/user-rank/{user_id}
+     * Get specific user's rank and stats
+     */
+    $targetUserId = $routes[2];
+
+    try {
+        // Get user's data
+        $stmt = $pdo->prepare("
+            SELECT user_id, username, total_xp, current_level, achievements_unlocked
+            FROM user_gamification
+            WHERE user_id = ?
+        ");
+        $stmt->execute([$targetUserId]);
+        $user = $stmt->fetch();
+
+        if (!$user) {
+            sendResponse([
+                'success' => false,
+                'message' => 'User not found in leaderboard'
+            ], 404);
+        }
+
+        // Get user's rank
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) + 1 as rank
+            FROM user_gamification
+            WHERE total_xp > ?
+        ");
+        $stmt->execute([$user['total_xp']]);
+        $rankData = $stmt->fetch();
+        $rank = $rankData['rank'] ?? 0;
+
+        // Get total users
+        $stmt = $pdo->query("SELECT COUNT(*) as total FROM user_gamification");
+        $totalData = $stmt->fetch();
+        $totalUsers = $totalData['total'] ?? 0;
+
+        // Calculate percentile
+        $percentile = $totalUsers > 0 ? round((1 - (($rank - 1) / $totalUsers)) * 100, 1) : 0;
+
+        $achievements = json_decode($user['achievements_unlocked'], true) ?? [];
+
+        sendResponse([
+            'success' => true,
+            'rank' => (int)$rank,
+            'total_users' => (int)$totalUsers,
+            'percentile' => $percentile,
+            'username' => $user['username'] ?: 'Anonymous',
+            'total_xp' => (int)$user['total_xp'],
+            'level' => (int)$user['current_level'],
+            'achievements_unlocked' => $achievements,
+            'achievement_count' => count($achievements)
+        ]);
+
+    } catch (PDOException $e) {
+        error_log("User rank query error: " . $e->getMessage());
+        sendResponse([
+            'success' => false,
+            'message' => 'Failed to fetch user rank'
+        ], 500);
+    }
+}
+
+elseif ($routes[0] === 'gamification' && $routes[1] === 'add-xp' && $requestMethod === 'POST') {
+    /**
+     * POST /gamification/add-xp
+     * Add XP to user (with server-side validation)
+     * Optional: Gunakan ini jika ingin validasi XP di server
+     */
+    $uid = requireAuth();
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    $xpAmount = $input['xp_amount'] ?? 0;
+    $xpSource = $input['source'] ?? 'unknown';
+    $metadata = $input['metadata'] ?? [];
+
+    // Anti-cheat: Validate XP amount
+    $maxXpPerAction = [
+        'quiz_completed' => 100,
+        'pdf_opened' => 10,
+        'word_favorited' => 5,
+        'flashcard_flipped' => 3,
+        'daily_login' => 20
+    ];
+
+    $maxAllowed = $maxXpPerAction[$xpSource] ?? 50;
+
+    if ($xpAmount > $maxAllowed) {
+        error_log("Suspicious XP amount: $xpAmount for source $xpSource by user $uid");
+        sendResponse([
+            'success' => false,
+            'message' => 'Invalid XP amount'
+        ], 400);
+    }
+
+    try {
+        // Get current user gamification data
+        $stmt = $pdo->prepare("SELECT total_xp, current_level FROM user_gamification WHERE user_id = ?");
+        $stmt->execute([$uid]);
+        $userGamif = $stmt->fetch();
+
+        if (!$userGamif) {
+            // Initialize user gamification
+            $stmt = $pdo->prepare("
+                INSERT INTO user_gamification (user_id, total_xp, current_level)
+                VALUES (?, ?, 1)
+            ");
+            $stmt->execute([$uid, $xpAmount]);
+            $newTotalXp = $xpAmount;
+            $newLevel = 1;
+        } else {
+            // Update XP
+            $newTotalXp = $userGamif['total_xp'] + $xpAmount;
+            $newLevel = floor($newTotalXp / 100) + 1; // Level up setiap 100 XP
+
+            $stmt = $pdo->prepare("
+                UPDATE user_gamification
+                SET total_xp = ?, current_level = ?, updated_at = NOW()
+                WHERE user_id = ?
+            ");
+            $stmt->execute([$newTotalXp, $newLevel, $uid]);
+        }
+
+        // Log XP history (optional)
+        $metadataJson = json_encode($metadata);
+        $stmt = $pdo->prepare("
+            INSERT INTO xp_history (user_id, xp_amount, xp_source, metadata)
+            VALUES (?, ?, ?, ?)
+        ");
+        $stmt->execute([$uid, $xpAmount, $xpSource, $metadataJson]);
+
+        $levelUp = isset($userGamif['current_level']) && $newLevel > $userGamif['current_level'];
+
+        sendResponse([
+            'success' => true,
+            'new_total_xp' => (int)$newTotalXp,
+            'new_level' => (int)$newLevel,
+            'level_up' => $levelUp,
+            'xp_earned' => (int)$xpAmount
+        ]);
+
+    } catch (PDOException $e) {
+        error_log("Add XP error: " . $e->getMessage());
+        sendResponse([
+            'success' => false,
+            'message' => 'Failed to add XP'
+        ], 500);
+    }
+}
+
 // ========== 404 NOT FOUND ==========
 else {
     error_log("404 Not Found: " . $uri);
@@ -952,7 +1216,11 @@ else {
             'GET /assessments',
             'GET /assessments/{id}/questions',
             'POST /assessments/{id}/submit',
-            'GET /results'
+            'GET /results',
+            'POST /gamification/sync-xp',
+            'GET /gamification/leaderboard',
+            'GET /gamification/user-rank/{user_id}',
+            'POST /gamification/add-xp'
         ],
         'app_env' => APP_ENV
     ], 404);
