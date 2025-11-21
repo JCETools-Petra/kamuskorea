@@ -9,6 +9,7 @@ import com.webtech.kamuskorea.data.local.FavoriteWord
 import com.webtech.kamuskorea.data.local.FavoriteWordDao
 import com.webtech.kamuskorea.analytics.AnalyticsTracker
 import com.webtech.kamuskorea.gamification.GamificationRepository
+import com.webtech.kamuskorea.gamification.DailyQuestRepository
 import com.webtech.kamuskorea.gamification.XpRewards
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
@@ -27,7 +28,8 @@ class DictionaryViewModel @Inject constructor(
     private val wordDao: WordDao,
     private val favoriteWordDao: FavoriteWordDao,
     private val analyticsTracker: AnalyticsTracker,
-    private val gamificationRepository: GamificationRepository
+    private val gamificationRepository: GamificationRepository,
+    private val dailyQuestRepository: DailyQuestRepository
 ) : ViewModel() {
 
     private val TAG = "DictionaryViewModel"
@@ -145,10 +147,17 @@ class DictionaryViewModel @Inject constructor(
                 favoriteWordDao.addFavorite(favoriteWord)
                 Log.d(TAG, "Added to favorites: ${word.koreanWord}")
 
-                // Track favorite and award XP
+                // Track favorite and award XP (limited to first 10 per day)
                 analyticsTracker.logWordFavorited(word.koreanWord, word.indonesianTranslation)
-                gamificationRepository.addXp(XpRewards.WORD_FAVORITED, "word_favorited")
-                Log.d(TAG, "⭐ Awarded ${XpRewards.WORD_FAVORITED} XP for favoriting word")
+                val xpAwarded = gamificationRepository.addXpForFavorite()
+                if (xpAwarded) {
+                    Log.d(TAG, "⭐ Awarded ${XpRewards.WORD_FAVORITED} XP for favoriting word")
+                } else {
+                    Log.d(TAG, "⚠️ Daily favorite XP limit reached (10/day)")
+                }
+
+                // Track daily quest progress
+                dailyQuestRepository.onFavoriteSaved()
             }
         }
     }
