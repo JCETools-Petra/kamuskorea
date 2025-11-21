@@ -29,6 +29,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.webtech.kamuskorea.ui.navigation.Screen
 import com.webtech.kamuskorea.ads.BannerAdView
 import com.webtech.kamuskorea.gamification.LevelSystem
+import com.webtech.kamuskorea.ui.components.DailyQuestCard
 import kotlinx.coroutines.delay
 
 data class MenuCard(
@@ -52,6 +53,7 @@ fun ModernHomeScreen(
     // Collect statistics from ViewModel
     val statistics by homeViewModel.statistics.collectAsState()
     val gamificationState by homeViewModel.gamificationState.collectAsState(initial = null)
+    val dailyQuestState by homeViewModel.dailyQuestState.collectAsState()
 
     LaunchedEffect(Unit) {
         delay(100)
@@ -192,6 +194,23 @@ fun ModernHomeScreen(
                     onClickLeaderboard = {
                         navController.navigate("leaderboard")
                     },
+                    onClickAchievements = {
+                        navController.navigate(Screen.Achievements.route)
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Daily Quest Card
+        if (dailyQuestState.quests.isNotEmpty()) {
+            AnimatedVisibility(
+                visible = showContent,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { 30 })
+            ) {
+                DailyQuestCard(
+                    questState = dailyQuestState,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
@@ -415,6 +434,7 @@ fun XpLevelCard(
     currentLevel: Int,
     rank: Int,
     onClickLeaderboard: () -> Unit,
+    onClickAchievements: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -538,30 +558,67 @@ fun XpLevelCard(
                 )
             }
 
-            // Leaderboard button
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                modifier = Modifier.fillMaxWidth()
+            // Action buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                // Leaderboard button
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Icon(
-                        Icons.Default.Leaderboard,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Lihat Leaderboard",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Row(
+                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Leaderboard,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "Leaderboard",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                // Achievements button
+                onClickAchievements?.let { onClick ->
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(onClick = onClick)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.EmojiEvents,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "Pencapaian",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
+                    }
                 }
             }
         }

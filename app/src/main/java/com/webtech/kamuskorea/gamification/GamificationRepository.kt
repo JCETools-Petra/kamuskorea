@@ -13,6 +13,9 @@ import com.webtech.kamuskorea.ui.datastore.SettingsDataStore
 import com.webtech.kamuskorea.ui.datastore.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -42,6 +45,14 @@ class GamificationRepository @Inject constructor(
         private const val TAG = "GamificationRepository"
         private const val SYNC_INTERVAL_MS = 15 * 60 * 1000L // 15 minutes
     }
+
+    // ========== EVENT FLOW ==========
+
+    private val _gamificationEvents = MutableSharedFlow<GamificationEvent>(
+        replay = 0,
+        extraBufferCapacity = 10
+    )
+    val gamificationEvents: SharedFlow<GamificationEvent> = _gamificationEvents.asSharedFlow()
 
     // ========== STATE FLOWS ==========
 
@@ -88,12 +99,16 @@ class GamificationRepository @Inject constructor(
     suspend fun addXp(amount: Int, source: String) {
         if (amount <= 0) return
 
+        var newTotalXp = 0
+        var leveledUp = false
+        var newLevel = 1
+
         dataStore.edit { preferences ->
             val currentXp = preferences[SettingsDataStore.USER_XP_KEY] ?: 0
-            val newTotalXp = currentXp + amount
+            newTotalXp = currentXp + amount
 
             val oldLevel = preferences[SettingsDataStore.USER_LEVEL_KEY] ?: 1
-            val newLevel = LevelSystem.calculateLevel(newTotalXp)
+            newLevel = LevelSystem.calculateLevel(newTotalXp)
 
             preferences[SettingsDataStore.USER_XP_KEY] = newTotalXp
             preferences[SettingsDataStore.USER_LEVEL_KEY] = newLevel
@@ -105,10 +120,17 @@ class GamificationRepository @Inject constructor(
 
             // Check for level up
             if (newLevel > oldLevel) {
+                leveledUp = true
                 Log.d(TAG, "🎉 Level Up! $oldLevel → $newLevel")
                 analyticsTracker.logLevelUp(newLevel)
-                // TODO: Show level up notification/dialog
             }
+        }
+
+        // Emit events after transaction completes
+        _gamificationEvents.emit(GamificationEvent.XpEarned(amount, source, newTotalXp))
+
+        if (leveledUp) {
+            _gamificationEvents.emit(GamificationEvent.LevelUp(newLevel, newTotalXp))
         }
 
         // Check for achievement unlocks
@@ -167,6 +189,9 @@ class GamificationRepository @Inject constructor(
             preferences[SettingsDataStore.USER_LEVEL_KEY] = newLevel
         }
 
+        // Emit achievement unlocked event
+        _gamificationEvents.emit(GamificationEvent.AchievementUnlocked(achievement))
+
         // Track analytics
         analyticsTracker.logAchievementUnlocked(achievementId, achievement.title)
 
@@ -219,18 +244,27 @@ class GamificationRepository @Inject constructor(
      */
     suspend fun syncToServer(): Result<Int> {
         return try {
-            val uid = firebaseAuth.currentUser?.uid
+            val currentUser = firebaseAuth.currentUser
+            val uid = currentUser?.uid
             if (uid == null) {
                 Log.e(TAG, "Cannot sync: User not authenticated")
                 return Result.failure(Exception("User not authenticated"))
             }
+
+            // Get username from Firebase Auth
+            val username = currentUser.displayName
+                ?: currentUser.email?.substringBefore("@")
+                ?: "User"
+
+            Log.d(TAG, "🔄 Syncing XP for user: $username (UID: $uid)")
 
             val state = gamificationState.first()
 
             val request = SyncXpRequest(
                 totalXp = state.totalXp,
                 currentLevel = state.currentLevel,
-                achievementsUnlocked = state.achievementsUnlocked.toList()
+                achievementsUnlocked = state.achievementsUnlocked.toList(),
+                username = username
             )
 
             val response = apiService.syncXp(request)
