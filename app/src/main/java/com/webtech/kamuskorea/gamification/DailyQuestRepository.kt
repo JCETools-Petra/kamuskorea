@@ -121,6 +121,9 @@ class DailyQuestRepository @Inject constructor(
         val newProgress = (currentProgress.currentProgress + increment).coerceAtMost(quest.targetProgress)
         val isCompleted = newProgress >= quest.targetProgress
 
+        // Track if quest just completed (to award XP after edit block)
+        var questJustCompleted = false
+
         dataStore.edit { preferences ->
             preferences[DAILY_QUEST_DATE_KEY] = getTodayDate()
             preferences[questProgressKey(questId)] = newProgress
@@ -128,11 +131,14 @@ class DailyQuestRepository @Inject constructor(
 
             if (isCompleted && !currentProgress.isCompleted) {
                 preferences[questCompletedAtKey(questId)] = System.currentTimeMillis()
+                questJustCompleted = true
                 Log.d(TAG, "✅ Quest completed: ${quest.title} (+${quest.xpReward} XP)")
-
-                // Award XP for completing quest
-                gamificationRepository.addXp(quest.xpReward, "Quest: ${quest.title}")
             }
+        }
+
+        // Award XP AFTER edit block to avoid nested DataStore update
+        if (questJustCompleted) {
+            gamificationRepository.addXp(quest.xpReward, "Quest: ${quest.title}")
         }
     }
 
