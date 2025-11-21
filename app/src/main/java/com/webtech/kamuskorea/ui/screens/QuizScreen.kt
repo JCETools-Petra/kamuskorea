@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 // 1. Definisikan struktur data untuk setiap pertanyaan kuis
 data class QuizQuestion(
@@ -41,7 +42,11 @@ val sampleQuestions = listOf(
 )
 
 @Composable
-fun QuizScreen(isPremium: Boolean, onNavigateToProfile: () -> Unit) {
+fun QuizScreen(
+    isPremium: Boolean,
+    onNavigateToProfile: () -> Unit,
+    viewModel: QuizViewModel = hiltViewModel()
+) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -49,7 +54,7 @@ fun QuizScreen(isPremium: Boolean, onNavigateToProfile: () -> Unit) {
     ) {
         if (isPremium) {
             // Jika pengguna premium, tampilkan konten kuis yang fungsional
-            QuizContent()
+            QuizContent(viewModel = viewModel)
         } else {
             // Jika bukan, tampilkan pesan untuk upgrade
             Text(
@@ -66,7 +71,7 @@ fun QuizScreen(isPremium: Boolean, onNavigateToProfile: () -> Unit) {
 }
 
 @Composable
-fun QuizContent() {
+fun QuizContent(viewModel: QuizViewModel) {
     // 2. State untuk mengelola logika kuis
     var currentQuestionIndex by remember { mutableStateOf(0) }
     var selectedAnswerIndex by remember { mutableStateOf<Int?>(null) }
@@ -162,7 +167,9 @@ fun QuizContent() {
                             selectedAnswerIndex = null
                             isAnswerChecked = false
                         } else {
+                            // Quiz selesai - track quest dan award XP
                             isQuizFinished = true
+                            viewModel.onQuizCompleted(score, sampleQuestions.size)
                         }
                     } else {
                         // Jika belum, periksa jawaban yang dipilih
