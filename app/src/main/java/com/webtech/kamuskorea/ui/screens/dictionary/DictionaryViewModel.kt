@@ -62,9 +62,17 @@ class DictionaryViewModel @Inject constructor(
 
     val words: StateFlow<List<Word>> = searchQuery
         .debounce(300L)
-        .onEach {
+        .onEach { query ->
             _isLoading.value = true
-            Log.d(TAG, "Search query changed: '$it'")
+            Log.d(TAG, "Search query changed: '$query'")
+
+            // Track search for daily quest (only for non-blank queries)
+            if (query.trim().isNotEmpty()) {
+                viewModelScope.launch {
+                    dailyQuestRepository.onWordSearched()
+                    Log.d(TAG, "📝 Tracked search for daily quest: '$query'")
+                }
+            }
         }
         .flatMapLatest { query ->
             if (query.isBlank()) {
