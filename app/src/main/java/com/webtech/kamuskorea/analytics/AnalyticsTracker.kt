@@ -59,6 +59,11 @@ class AnalyticsTracker @Inject constructor(
         const val EVENT_NOTIFICATION_SHOWN = "notification_shown"
         const val EVENT_NOTIFICATION_CLICKED = "notification_clicked"
 
+        // Event Names - Gamification
+        const val EVENT_XP_EARNED = "xp_earned"
+        const val EVENT_LEVEL_UP = "level_up"
+        const val EVENT_ACHIEVEMENT_UNLOCKED = "achievement_unlocked"
+
         // Parameter Names
         const val PARAM_PDF_TITLE = "pdf_title"
         const val PARAM_QUIZ_ID = "quiz_id"
@@ -75,6 +80,11 @@ class AnalyticsTracker @Inject constructor(
         const val PARAM_AUTH_METHOD = "method"
         const val PARAM_NOTIFICATION_TYPE = "notification_type"
         const val PARAM_NOTIFICATION_SOURCE = "notification_source"
+        const val PARAM_XP_AMOUNT = "xp_amount"
+        const val PARAM_XP_SOURCE = "xp_source"
+        const val PARAM_NEW_LEVEL = "new_level"
+        const val PARAM_ACHIEVEMENT_ID = "achievement_id"
+        const val PARAM_ACHIEVEMENT_TITLE = "achievement_title"
     }
 
     /**
@@ -334,5 +344,40 @@ class AnalyticsTracker @Inject constructor(
         }
         firebaseAnalytics.logEvent(EVENT_NOTIFICATION_CLICKED, bundle)
         Log.d(TAG, "👆 Notification Clicked: $notificationType")
+    }
+
+    /**
+     * Track XP earned
+     */
+    fun logXpEarned(amount: Int, source: String) {
+        val bundle = Bundle().apply {
+            putInt(PARAM_XP_AMOUNT, amount)
+            putString(PARAM_XP_SOURCE, source)
+        }
+        firebaseAnalytics.logEvent(EVENT_XP_EARNED, bundle)
+        Log.d(TAG, "⭐ XP Earned: +$amount from $source")
+    }
+
+    /**
+     * Track level up
+     */
+    fun logLevelUp(newLevel: Int) {
+        val bundle = Bundle().apply {
+            putInt(PARAM_NEW_LEVEL, newLevel)
+        }
+        firebaseAnalytics.logEvent(EVENT_LEVEL_UP, bundle)
+        Log.d(TAG, "🎉 Level Up: $newLevel")
+    }
+
+    /**
+     * Track achievement unlocked
+     */
+    fun logAchievementUnlocked(achievementId: String, achievementTitle: String) {
+        val bundle = Bundle().apply {
+            putString(PARAM_ACHIEVEMENT_ID, achievementId)
+            putString(PARAM_ACHIEVEMENT_TITLE, achievementTitle)
+        }
+        firebaseAnalytics.logEvent(EVENT_ACHIEVEMENT_UNLOCKED, bundle)
+        Log.d(TAG, "🏆 Achievement Unlocked: $achievementTitle")
     }
 }

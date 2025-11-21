@@ -7,6 +7,9 @@ import com.webtech.kamuskorea.data.local.Word
 import com.webtech.kamuskorea.data.local.WordDao
 import com.webtech.kamuskorea.data.local.FavoriteWord
 import com.webtech.kamuskorea.data.local.FavoriteWordDao
+import com.webtech.kamuskorea.analytics.AnalyticsTracker
+import com.webtech.kamuskorea.gamification.GamificationRepository
+import com.webtech.kamuskorea.gamification.XpRewards
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
@@ -22,7 +25,9 @@ enum class DisplayLanguage {
 @HiltViewModel
 class DictionaryViewModel @Inject constructor(
     private val wordDao: WordDao,
-    private val favoriteWordDao: FavoriteWordDao
+    private val favoriteWordDao: FavoriteWordDao,
+    private val analyticsTracker: AnalyticsTracker,
+    private val gamificationRepository: GamificationRepository
 ) : ViewModel() {
 
     private val TAG = "DictionaryViewModel"
@@ -127,6 +132,9 @@ class DictionaryViewModel @Inject constructor(
             if (isFav) {
                 favoriteWordDao.removeFavorite(word.id)
                 Log.d(TAG, "Removed from favorites: ${word.koreanWord}")
+
+                // Track unfavorite
+                analyticsTracker.logWordUnfavorited(word.koreanWord)
             } else {
                 val favoriteWord = FavoriteWord(
                     wordId = word.id,
@@ -136,6 +144,11 @@ class DictionaryViewModel @Inject constructor(
                 )
                 favoriteWordDao.addFavorite(favoriteWord)
                 Log.d(TAG, "Added to favorites: ${word.koreanWord}")
+
+                // Track favorite and award XP
+                analyticsTracker.logWordFavorited(word.koreanWord, word.indonesianTranslation)
+                gamificationRepository.addXp(XpRewards.WORD_FAVORITED, "word_favorited")
+                Log.d(TAG, "⭐ Awarded ${XpRewards.WORD_FAVORITED} XP for favoriting word")
             }
         }
     }

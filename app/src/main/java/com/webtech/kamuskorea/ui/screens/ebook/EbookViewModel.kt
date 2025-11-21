@@ -8,6 +8,9 @@ import androidx.lifecycle.viewModelScope
 // import kotlinx.coroutines.tasks.await
 import com.webtech.kamuskorea.data.Ebook
 import com.webtech.kamuskorea.data.network.ApiService
+import com.webtech.kamuskorea.analytics.AnalyticsTracker
+import com.webtech.kamuskorea.gamification.GamificationRepository
+import com.webtech.kamuskorea.gamification.XpRewards
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +20,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class EbookViewModel @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val analyticsTracker: AnalyticsTracker,
+    private val gamificationRepository: GamificationRepository
 ) : ViewModel() {
 
     private val _ebooks = MutableStateFlow<List<Ebook>>(emptyList())
@@ -73,6 +78,21 @@ class EbookViewModel @Inject constructor(
             } finally {
                 _isLoading.value = false
             }
+        }
+    }
+
+    /**
+     * Track when a PDF is opened and award XP
+     * Call this from UI when user opens a PDF
+     */
+    fun onPdfOpened(pdfTitle: String, isPremium: Boolean) {
+        viewModelScope.launch {
+            // Track analytics
+            analyticsTracker.logPdfOpened(pdfTitle, isPremium)
+
+            // Award XP
+            gamificationRepository.addXp(XpRewards.PDF_OPENED, "pdf_opened")
+            Log.d("EbookViewModel", "⭐ Awarded ${XpRewards.PDF_OPENED} XP for opening PDF: $pdfTitle")
         }
     }
 }

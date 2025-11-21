@@ -12,6 +12,8 @@ import androidx.lifecycle.viewModelScope
 import com.webtech.kamuskorea.data.local.FavoriteVocabularyDao
 import com.webtech.kamuskorea.data.local.FavoriteWordDao
 import com.webtech.kamuskorea.notifications.AppNotificationManager
+import com.webtech.kamuskorea.gamification.GamificationRepository
+import com.webtech.kamuskorea.gamification.XpRewards
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +40,7 @@ class HomeViewModel @Inject constructor(
     private val favoriteVocabularyDao: FavoriteVocabularyDao,
     private val dataStore: DataStore<Preferences>,
     private val appNotificationManager: AppNotificationManager,
+    private val gamificationRepository: GamificationRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -52,6 +55,7 @@ class HomeViewModel @Inject constructor(
         val QUIZ_COMPLETED_COUNT_KEY = intPreferencesKey("quiz_completed_count")
         val LAST_ACTIVITY_DATE_KEY = longPreferencesKey("last_activity_date")
         val STREAK_DAYS_KEY = intPreferencesKey("streak_days")
+        val LAST_DAILY_LOGIN_XP_KEY = longPreferencesKey("last_daily_login_xp")
     }
 
     // Combined favorites count (dictionary + hafalan)
@@ -104,6 +108,7 @@ class HomeViewModel @Inject constructor(
     init {
         Log.d(TAG, "HomeViewModel initialized")
         updateStreak()
+        awardDailyLoginXp()
         observeMilestones()
     }
 
@@ -252,6 +257,37 @@ class HomeViewModel @Inject constructor(
                 preferences[LAST_ACTIVITY_DATE_KEY] = 0L
             }
             Log.d(TAG, "Statistics reset")
+        }
+    }
+
+    /**
+     * Award daily login XP (once per day)
+     * Called on app open
+     */
+    private fun awardDailyLoginXp() {
+        viewModelScope.launch {
+            val today = getStartOfDay(System.currentTimeMillis())
+
+            dataStore.data.map { preferences ->
+                preferences[LAST_DAILY_LOGIN_XP_KEY] ?: 0L
+            }.collect { lastLoginXpDate ->
+                val lastLoginDay = if (lastLoginXpDate > 0) getStartOfDay(lastLoginXpDate) else 0L
+
+                // Award XP if this is the first login of the day
+                if (lastLoginDay < today) {
+                    gamificationRepository.addXp(XpRewards.DAILY_LOGIN, "daily_login")
+                    Log.d(TAG, "⭐ Awarded ${XpRewards.DAILY_LOGIN} XP for daily login")
+
+                    // Update last login XP date
+                    dataStore.edit { preferences ->
+                        preferences[LAST_DAILY_LOGIN_XP_KEY] = today
+                    }
+                } else {
+                    Log.d(TAG, "Daily login XP already awarded today")
+                }
+                // Only collect once
+                return@collect
+            }
         }
     }
 }

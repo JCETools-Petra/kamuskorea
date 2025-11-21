@@ -1,6 +1,7 @@
 package com.webtech.kamuskorea.data.network
 
 import com.webtech.kamuskorea.data.assessment.*
+import com.webtech.kamuskorea.gamification.*
 import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.*
@@ -78,4 +79,18 @@ interface ApiService {
 
     @GET("api.php/auth/verify-reset-token")
     suspend fun verifyResetToken(@Query("token") token: String): Response<VerifyTokenResponse>
+
+    // ========== GAMIFICATION ENDPOINTS ==========
+
+    @POST("api.php/gamification/sync-xp")
+    suspend fun syncXp(@Body request: SyncXpRequest): Response<SyncXpResponse>
+
+    @GET("api.php/gamification/leaderboard")
+    suspend fun getLeaderboard(@Query("limit") limit: Int = 100): Response<LeaderboardResponse>
+
+    @GET("api.php/gamification/user-rank/{user_id}")
+    suspend fun getUserRank(@Path("user_id") userId: String): Response<UserRankResponse>
+
+    @POST("api.php/gamification/add-xp")
+    suspend fun addXp(@Body request: AddXpRequest): Response<AddXpResponse>
 }
