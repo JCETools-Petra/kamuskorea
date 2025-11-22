@@ -70,11 +70,7 @@ class AuthViewModel @Inject constructor(
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
                 Log.e(TAG, "Sign in failed", e)
-                val errorMessage = when (e) {
-                    is FirebaseAuthInvalidCredentialsException -> "Login failed. Please check your email and password."
-                    is IOException -> "Login failed. Please check your internet connection."
-                    else -> "Login failed. Please try again."
-                }
+                val errorMessage = getAppCheckFriendlyErrorMessage(e)
                 _authState.value = AuthState.Error(errorMessage)
             }
         }
@@ -140,11 +136,14 @@ class AuthViewModel @Inject constructor(
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
                 Log.e(TAG, "Sign up failed", e)
+
+                // Prioritas: cek error spesifik Firebase Auth dulu, baru cek App Check
                 val errorMessage = when (e) {
-                    is FirebaseAuthUserCollisionException -> "Registration failed. This email is already in use."
-                    is FirebaseAuthWeakPasswordException -> "Password is too weak. Please use at least 6 characters."
-                    is IOException -> "Registration failed. Please check your internet connection."
-                    else -> "Registration Failed. Please try again."
+                    is FirebaseAuthUserCollisionException ->
+                        "Registration failed. This email is already in use."
+                    is FirebaseAuthWeakPasswordException ->
+                        "Password is too weak. Please use at least 6 characters."
+                    else -> getAppCheckFriendlyErrorMessage(e)
                 }
                 _authState.value = AuthState.Error(errorMessage)
             }
@@ -223,7 +222,8 @@ class AuthViewModel @Inject constructor(
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
                 Log.e(TAG, "Google sign in failed", e)
-                _authState.value = AuthState.Error(e.message ?: "Google Sign-In Failed. Please try again.")
+                val errorMessage = getAppCheckFriendlyErrorMessage(e)
+                _authState.value = AuthState.Error(errorMessage)
             }
         }
     }
@@ -415,5 +415,81 @@ class AuthViewModel @Inject constructor(
     fun setGoogleSignInError(errorMessage: String) {
         _authState.value = AuthState.Error(errorMessage)
         Log.e(TAG, "Google Sign-In Error: $errorMessage")
+    }
+
+    /**
+     * Menganalisa error dan memberikan pesan yang user-friendly,
+     * khususnya untuk error yang terkait dengan Firebase App Check.
+     */
+    private fun getAppCheckFriendlyErrorMessage(exception: Exception): String {
+        val errorMessage = exception.message ?: ""
+        val exceptionType = exception.javaClass.simpleName
+
+        Log.e(TAG, "=== ERROR ANALYSIS ===")
+        Log.e(TAG, "Exception Type: $exceptionType")
+        Log.e(TAG, "Error Message: $errorMessage")
+        Log.e(TAG, "Full Exception: ", exception)
+
+        // Deteksi App Check errors berdasarkan berbagai pattern
+        val isAppCheckError = errorMessage.contains("app check", ignoreCase = true) ||
+                errorMessage.contains("appcheck", ignoreCase = true) ||
+                errorMessage.contains("PERMISSION_DENIED", ignoreCase = true) ||
+                errorMessage.contains("Requests are blocked", ignoreCase = true) ||
+                errorMessage.contains("too many attempts", ignoreCase = true) ||
+                errorMessage.contains("quota", ignoreCase = true) ||
+                errorMessage.contains("UNAUTHENTICATED", ignoreCase = true)
+
+        return when {
+            // App Check related errors
+            isAppCheckError -> {
+                Log.e(TAG, "🔴 APP CHECK ERROR DETECTED!")
+                Log.e(TAG, "════════════════════════════════════════════════")
+                Log.e(TAG, "SOLUSI CEPAT:")
+                Log.e(TAG, "1. Buka Firebase Console:")
+                Log.e(TAG, "   https://console.firebase.google.com/project/kamus-korea-apps-dcf09/appcheck")
+                Log.e(TAG, "")
+                Log.e(TAG, "2. Klik tab 'APIs'")
+                Log.e(TAG, "")
+                Log.e(TAG, "3. Ubah semua service dari 'Enforced' ke 'Permissive'")
+                Log.e(TAG, "")
+                Log.e(TAG, "4. Restart aplikasi dan coba lagi")
+                Log.e(TAG, "════════════════════════════════════════════════")
+
+                when {
+                    errorMessage.contains("too many attempts", ignoreCase = true) ->
+                        "App Check: Terlalu banyak percobaan. Ubah App Check ke mode 'Permissive' di Firebase Console, atau tunggu 1 jam."
+
+                    errorMessage.contains("PERMISSION_DENIED", ignoreCase = true) ||
+                    errorMessage.contains("Requests are blocked", ignoreCase = true) ->
+                        "App Check sedang memblokir request. Ubah ke mode 'Permissive' di Firebase Console untuk development."
+
+                    errorMessage.contains("UNAUTHENTICATED", ignoreCase = true) ->
+                        "App Check: Token tidak valid. Daftarkan debug token atau ubah ke mode 'Permissive' di Firebase Console."
+
+                    else ->
+                        "Terjadi masalah dengan App Check. Ubah ke mode 'Permissive' di Firebase Console untuk melanjutkan development."
+                }
+            }
+
+            // Network errors
+            exception is IOException ->
+                "Tidak dapat terhubung ke server. Periksa koneksi internet Anda."
+
+            // Firebase Auth specific errors
+            exception is FirebaseAuthInvalidCredentialsException ->
+                "Login gagal. Periksa email dan password Anda."
+
+            exception is FirebaseAuthUserCollisionException ->
+                "Email ini sudah terdaftar. Gunakan email lain atau login."
+
+            // Generic error
+            else -> {
+                if (errorMessage.isNotBlank()) {
+                    "Login gagal: $errorMessage"
+                } else {
+                    "Google Sign-In gagal. Silakan coba lagi."
+                }
+            }
+        }
     }
 }

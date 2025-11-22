@@ -13,14 +13,93 @@ Firebase App Check token is invalid
 
 Error ini terjadi karena:
 
-1. **Debug token belum didaftarkan** di Firebase Console
-2. **Debug token salah** - token yang didaftarkan tidak sesuai dengan yang di-generate aplikasi
-3. **Token belum aktif** - baru didaftarkan dan belum propagate
-4. **Terlalu banyak request** - aplikasi mencoba request token terlalu banyak kali
+1. **App Check dalam mode "Enforced"** - memblokir semua request tanpa token yang valid
+2. **Debug token belum didaftarkan** di Firebase Console (jika mode Enforced)
+3. **Debug token salah** - token yang didaftarkan tidak sesuai dengan yang di-generate aplikasi
+4. **Token belum aktif** - baru didaftarkan dan belum propagate
+5. **Terlalu banyak request** - aplikasi mencoba request token terlalu banyak kali
+
+## 🎯 QUICK DECISION: Opsi Mana Yang Harus Dipilih?
+
+| Situasi | Pilih Opsi | Alasan |
+|---------|-----------|--------|
+| **Development/Testing** | **OPSI 1: Permissive Mode** | ✅ Tercepat, tidak perlu debug token |
+| **Banyak device/emulator** | **OPSI 1: Permissive Mode** | ✅ Tidak perlu daftar token untuk tiap device |
+| **Simulasi production** | OPSI 2: Debug Token | Untuk test dengan security penuh |
+| **Production/Release** | ❌ Jangan ubah App Check | Tetap gunakan Enforced mode + Play Integrity |
+
+**REKOMENDASI: Gunakan OPSI 1 (Permissive Mode) untuk development!**
 
 ## ✅ SOLUSI LENGKAP
 
-### STEP 1: Dapatkan Debug Token dari Logcat
+### 🔧 OPSI 1: PERMISSIVE MODE (TERCEPAT & DIREKOMENDASIKAN UNTUK DEVELOPMENT)
+
+**Ini adalah solusi tercepat tanpa perlu register debug token!**
+
+#### Apa itu Permissive Mode?
+
+Permissive Mode memungkinkan semua request ke Firebase (Auth, Firestore, dll) **tanpa memerlukan App Check token yang valid**. Request yang tidak terverifikasi akan tetap diizinkan, tapi akan dicatat (logged) di Firebase Console.
+
+**PENTING:**
+- ✅ **Direkomendasikan untuk DEVELOPMENT/TESTING**
+- ⚠️ **JANGAN digunakan untuk PRODUCTION** (gunakan Enforced mode untuk production)
+
+#### Langkah-langkah:
+
+1. **Buka Firebase Console:**
+   ```
+   https://console.firebase.google.com/project/kamus-korea-apps-dcf09/appcheck
+   ```
+
+2. **Klik tab "APIs"** (bukan "Apps")
+
+3. **Untuk setiap service yang digunakan:**
+
+   Kamu akan melihat daftar services seperti:
+   - Firebase Authentication
+   - Cloud Firestore
+   - Cloud Storage
+   - dll.
+
+4. **Ubah mode dari "Enforced" ke "Permissive":**
+
+   Untuk setiap service:
+   - Klik service (misal: Firebase Authentication)
+   - Klik icon **Settings (⚙️)** di sebelah kanan
+   - Ubah dari **"Enforced"** menjadi **"Permissive"**
+   - Klik **"Save"**
+
+   ```
+   Firebase Authentication
+   ├─ Enforcement: Enforced ❌  →  Permissive ✅
+   └─ [Settings ⚙️]
+   ```
+
+5. **Ulangi untuk semua services** yang digunakan (minimal Firebase Authentication)
+
+6. **Restart aplikasi** dan test Google Sign-In
+
+7. **SELESAI!** Google Sign-In seharusnya langsung berfungsi tanpa perlu debug token! 🎉
+
+#### Kapan menggunakan Permissive Mode?
+
+✅ **GUNAKAN saat:**
+- Development/testing lokal
+- Debugging authentication issues
+- Testing di emulator atau physical device
+- Tidak ingin repot manage debug tokens untuk banyak device
+
+❌ **JANGAN GUNAKAN saat:**
+- Aplikasi sudah di production/release
+- Ingin security yang maksimal saat testing
+
+---
+
+### 🔑 OPSI 2: DEBUG TOKEN (Jika Tetap Ingin Gunakan Enforced Mode)
+
+Jika kamu tetap ingin menggunakan **Enforced Mode** untuk testing (untuk simulasi production behavior), ikuti langkah berikut:
+
+#### STEP 1: Dapatkan Debug Token dari Logcat
 
 #### A. Jalankan Aplikasi
 
@@ -296,7 +375,23 @@ Pastikan semua langkah sudah dilakukan:
 
 ## 🔄 QUICK FIX - Langkah Cepat
 
-Jika ingin solusi cepat:
+### Solusi Tercepat (RECOMMENDED):
+
+**Gunakan Permissive Mode:**
+
+1. Buka: https://console.firebase.google.com/project/kamus-korea-apps-dcf09/appcheck
+2. Klik tab **"APIs"**
+3. Untuk **Firebase Authentication**:
+   - Klik **Settings (⚙️)**
+   - Ubah **"Enforced"** → **"Permissive"**
+   - Klik **"Save"**
+4. Restart aplikasi
+5. Test Google Sign-In
+6. **DONE!** ✅
+
+---
+
+### Solusi Alternatif (Jika Ingin Gunakan Debug Token):
 
 ```bash
 # 1. Clean project
@@ -314,8 +409,8 @@ adb uninstall com.webtech.kamuskorea
 # 5. Copy token yang muncul
 
 # 6. Buka Firebase Console
-# https://console.firebase.google.com/
-# App Check → Apps → com.webtech.kamuskorea → Add debug token
+# https://console.firebase.google.com/project/kamus-korea-apps-dcf09/appcheck
+# App Check → Apps → com.webtech.kamuskorea → Manage debug tokens
 
 # 7. Paste token dan Add
 
