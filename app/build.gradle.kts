@@ -22,11 +22,17 @@ android {
 
     signingConfigs {
         create("release") {
+            // Use keystore.properties if exists, otherwise use environment variables
             if (keystorePropertiesFile.exists()) {
                 storeFile = file(keystoreProperties.getProperty("storeFile"))
                 storePassword = keystoreProperties.getProperty("storePassword")
                 keyAlias = keystoreProperties.getProperty("keyAlias")
                 keyPassword = keystoreProperties.getProperty("keyPassword")
+            } else {
+                storeFile = file("../kamuskorea-release.jks")
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "your-keystore-password"
+                keyAlias = "kamuskorea"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: "your-key-password"
             }
         }
     }
@@ -45,16 +51,6 @@ android {
         multiDexEnabled = true
     }
 
-    signingConfigs {
-        create("release") {
-            // IMPORTANT: Update these values or use environment variables
-            storeFile = file("../kamuskorea-release.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "your-keystore-password"
-            keyAlias = "kamuskorea"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "your-key-password"
-        }
-    }
-
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -64,10 +60,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Use release signing config if keystore exists
-            if (keystorePropertiesFile.exists()) {
-                signingConfig = signingConfigs.getByName("release")
-            }
         }
         debug {
             isMinifyEnabled = false
