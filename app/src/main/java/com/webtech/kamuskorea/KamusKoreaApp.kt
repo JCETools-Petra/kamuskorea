@@ -44,41 +44,68 @@ class KamusKoreaApp : MultiDexApplication() {
         val firebaseAppCheck = FirebaseAppCheck.getInstance()
 
         // ========================================
-        // FORCE USE DEBUG PROVIDER
+        // CONFIGURE APP CHECK PROVIDER
         // ========================================
-        // SELALU gunakan Debug Provider untuk development
-        // Uncomment baris Play Integrity hanya saat deploy ke Play Store
-
         if (BuildConfig.DEBUG) {
             // DEBUG BUILD - Selalu gunakan Debug Provider
-            firebaseAppCheck.installAppCheckProviderFactory(
-                DebugAppCheckProviderFactory.getInstance()
-            )
-            Log.d("AppCheck", "✅ Using DEBUG Provider (Development)")
+            try {
+                firebaseAppCheck.installAppCheckProviderFactory(
+                    DebugAppCheckProviderFactory.getInstance()
+                )
+                Log.d("AppCheck", "✅ App Check Debug Provider initialized")
+                Log.d("AppCheck", "════════════════════════════════════════════════")
+                Log.d("AppCheck", "📋 FIREBASE APP CHECK DEBUG TOKEN SETUP:")
+                Log.d("AppCheck", "════════════════════════════════════════════════")
+                Log.d("AppCheck", "")
+                Log.d("AppCheck", "1. CARI debug token di Logcat dengan:")
+                Log.d("AppCheck", "   • Tag: DebugAppCheckProvider")
+                Log.d("AppCheck", "   • Filter: tag:DebugAppCheckProvider")
+                Log.d("AppCheck", "")
+                Log.d("AppCheck", "2. Token format seperti ini:")
+                Log.d("AppCheck", "   DebugAppCheckProvider: Enter this debug secret")
+                Log.d("AppCheck", "   into the allow list in the Firebase Console")
+                Log.d("AppCheck", "   for your project: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX")
+                Log.d("AppCheck", "")
+                Log.d("AppCheck", "3. COPY token tersebut (XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX)")
+                Log.d("AppCheck", "")
+                Log.d("AppCheck", "4. DAFTARKAN token di Firebase Console:")
+                Log.d("AppCheck", "   • Buka: https://console.firebase.google.com/")
+                Log.d("AppCheck", "   • Pilih project: kamus-korea-apps-dcf09")
+                Log.d("AppCheck", "   • Menu: App Check → Apps")
+                Log.d("AppCheck", "   • Pilih app: com.webtech.kamuskorea")
+                Log.d("AppCheck", "   • Klik: Debug tokens → Add debug token")
+                Log.d("AppCheck", "   • Paste token dan klik Add")
+                Log.d("AppCheck", "")
+                Log.d("AppCheck", "5. TUNGGU ~1-2 menit untuk token aktif")
+                Log.d("AppCheck", "")
+                Log.d("AppCheck", "6. RESTART aplikasi")
+                Log.d("AppCheck", "")
+                Log.d("AppCheck", "════════════════════════════════════════════════")
 
-            // Log debug token untuk registrasi di Firebase Console
-            Log.d("AppCheck", "════════════════════════════════════════════════")
-            Log.d("AppCheck", "📋 FIREBASE APP CHECK DEBUG TOKEN:")
-            Log.d("AppCheck", "════════════════════════════════════════════════")
-            Log.d("AppCheck", "")
-            Log.d("AppCheck", "Cari log dengan tag 'DebugAppCheckProvider' di Logcat")
-            Log.d("AppCheck", "Atau filter dengan: tag:DebugAppCheckProvider")
-            Log.d("AppCheck", "")
-            Log.d("AppCheck", "Token akan terlihat seperti:")
-            Log.d("AppCheck", "DebugAppCheckProvider: Enter this debug secret into the allow list in")
-            Log.d("AppCheck", "the Firebase Console for your project: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX")
-            Log.d("AppCheck", "")
-            Log.d("AppCheck", "Kemudian daftarkan token tersebut di:")
-            Log.d("AppCheck", "Firebase Console → App Check → Apps → Debug tokens")
-            Log.d("AppCheck", "════════════════════════════════════════════════")
+                // Force generate token untuk memastikan debug token muncul di log
+                firebaseAppCheck.getAppCheckToken(false).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        Log.d("AppCheck", "✅ App Check token berhasil di-generate")
+                    } else {
+                        Log.e("AppCheck", "❌ App Check token gagal di-generate: ${task.exception?.message}")
+                        Log.e("AppCheck", "⚠️ PASTIKAN debug token sudah didaftarkan di Firebase Console!")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("AppCheck", "❌ Error initializing App Check Debug Provider: ${e.message}")
+                e.printStackTrace()
+            }
 
         } else {
             // RELEASE BUILD - Use Play Integrity for Production
-            firebaseAppCheck.installAppCheckProviderFactory(
-                PlayIntegrityAppCheckProviderFactory.getInstance()
-            )
-            if (BuildConfig.DEBUG) {
-                Log.d("AppCheck", "✅ Using PLAY INTEGRITY Provider (Production)")
+            try {
+                firebaseAppCheck.installAppCheckProviderFactory(
+                    PlayIntegrityAppCheckProviderFactory.getInstance()
+                )
+                Log.d("AppCheck", "✅ App Check Play Integrity Provider initialized")
+            } catch (e: Exception) {
+                Log.e("AppCheck", "❌ Error initializing App Check Play Integrity Provider: ${e.message}")
+                e.printStackTrace()
             }
         }
     }
