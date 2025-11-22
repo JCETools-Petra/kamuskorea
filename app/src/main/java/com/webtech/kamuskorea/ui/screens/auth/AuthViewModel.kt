@@ -155,11 +155,19 @@ class AuthViewModel @Inject constructor(
      * Membuat Intent untuk Google Sign-In.
      */
     fun getGoogleSignInIntent(context: Context): Intent {
+        Log.d(TAG, "=== GOOGLE SIGN IN CONFIGURATION ===")
+        Log.d(TAG, "Web Client ID: $WEB_CLIENT_ID")
+        Log.d(TAG, "Package Name: ${context.packageName}")
+
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(WEB_CLIENT_ID)
             .requestEmail()
             .build()
-        return GoogleSignIn.getClient(context, gso).signInIntent
+
+        val signInClient = GoogleSignIn.getClient(context, gso)
+        Log.d(TAG, "Google Sign-In Client created successfully")
+
+        return signInClient.signInIntent
     }
 
     /**
@@ -168,9 +176,17 @@ class AuthViewModel @Inject constructor(
     fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
             try {
+                Log.d(TAG, "=== GOOGLE SIGN IN WITH TOKEN ===")
+                Log.d(TAG, "ID Token length: ${idToken.length}")
+                Log.d(TAG, "ID Token preview: ${idToken.take(50)}...")
+
                 _authState.value = AuthState.Loading
                 val credential = GoogleAuthProvider.getCredential(idToken, null)
+                Log.d(TAG, "Google credential created successfully")
+
                 val authResult = auth.signInWithCredential(credential).await()
+                Log.d(TAG, "Firebase authentication successful")
+
                 val user = authResult.user
 
                 if (user != null) {

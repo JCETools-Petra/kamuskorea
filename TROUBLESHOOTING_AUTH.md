@@ -1,5 +1,7 @@
 # 🔧 Troubleshooting Autentikasi - Play Console Closed Testing
 
+> **📌 UPDATE:** Jika SHA fingerprints sudah ditambahkan tapi masih error, baca: **[TROUBLESHOOTING_SHA_ISSUES.md](./TROUBLESHOOTING_SHA_ISSUES.md)**
+
 ## ❌ MASALAH
 
 Setelah upload AAB ke Play Console (closed testing):
