@@ -450,24 +450,25 @@ class AuthViewModel @Inject constructor(
                 Log.e(TAG, "")
                 Log.e(TAG, "2. Klik tab 'APIs'")
                 Log.e(TAG, "")
-                Log.e(TAG, "3. Ubah semua service dari 'Enforced' ke 'Permissive'")
+                Log.e(TAG, "3. Ubah Authentication dari 'Enforced' ke 'Monitoring'")
+                Log.e(TAG, "   (Jika ada tombol 'Enforce', berarti sudah Monitoring ✅)")
                 Log.e(TAG, "")
                 Log.e(TAG, "4. Restart aplikasi dan coba lagi")
                 Log.e(TAG, "════════════════════════════════════════════════")
 
                 when {
                     errorMessage.contains("too many attempts", ignoreCase = true) ->
-                        "App Check: Terlalu banyak percobaan. Ubah App Check ke mode 'Permissive' di Firebase Console, atau tunggu 1 jam."
+                        "App Check: Terlalu banyak percobaan. Ubah App Check ke mode 'Monitoring' di Firebase Console, atau tunggu 1 jam."
 
                     errorMessage.contains("PERMISSION_DENIED", ignoreCase = true) ||
                     errorMessage.contains("Requests are blocked", ignoreCase = true) ->
-                        "App Check sedang memblokir request. Ubah ke mode 'Permissive' di Firebase Console untuk development."
+                        "App Check sedang memblokir request. Ubah ke mode 'Monitoring' di Firebase Console untuk development."
 
                     errorMessage.contains("UNAUTHENTICATED", ignoreCase = true) ->
-                        "App Check: Token tidak valid. Daftarkan debug token atau ubah ke mode 'Permissive' di Firebase Console."
+                        "App Check: Token tidak valid. Daftarkan debug token atau ubah ke mode 'Monitoring' di Firebase Console."
 
                     else ->
-                        "Terjadi masalah dengan App Check. Ubah ke mode 'Permissive' di Firebase Console untuk melanjutkan development."
+                        "Terjadi masalah dengan App Check. Ubah ke mode 'Monitoring' di Firebase Console untuk melanjutkan development."
                 }
             }
 

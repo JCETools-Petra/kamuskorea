@@ -23,26 +23,28 @@ Error ini terjadi karena:
 
 | Situasi | Pilih Opsi | Alasan |
 |---------|-----------|--------|
-| **Development/Testing** | **OPSI 1: Permissive Mode** | ✅ Tercepat, tidak perlu debug token |
-| **Banyak device/emulator** | **OPSI 1: Permissive Mode** | ✅ Tidak perlu daftar token untuk tiap device |
+| **Development/Testing** | **OPSI 1: Monitoring Mode** | ✅ Tercepat, tidak perlu debug token |
+| **Banyak device/emulator** | **OPSI 1: Monitoring Mode** | ✅ Tidak perlu daftar token untuk tiap device |
 | **Simulasi production** | OPSI 2: Debug Token | Untuk test dengan security penuh |
 | **Production/Release** | ❌ Jangan ubah App Check | Tetap gunakan Enforced mode + Play Integrity |
 
-**REKOMENDASI: Gunakan OPSI 1 (Permissive Mode) untuk development!**
+**REKOMENDASI: Gunakan OPSI 1 (Monitoring Mode) untuk development!**
 
 ## ✅ SOLUSI LENGKAP
 
-### 🔧 OPSI 1: PERMISSIVE MODE (TERCEPAT & DIREKOMENDASIKAN UNTUK DEVELOPMENT)
+### 🔧 OPSI 1: MONITORING MODE (TERCEPAT & DIREKOMENDASIKAN UNTUK DEVELOPMENT)
 
 **Ini adalah solusi tercepat tanpa perlu register debug token!**
 
-#### Apa itu Permissive Mode?
+#### Apa itu Monitoring Mode?
 
-Permissive Mode memungkinkan semua request ke Firebase (Auth, Firestore, dll) **tanpa memerlukan App Check token yang valid**. Request yang tidak terverifikasi akan tetap diizinkan, tapi akan dicatat (logged) di Firebase Console.
+Monitoring Mode memungkinkan semua request ke Firebase (Auth, Firestore, dll) **tanpa memerlukan App Check token yang valid**. Request yang tidak terverifikasi akan tetap diizinkan, tapi akan dicatat (logged) di Firebase Console untuk monitoring.
 
 **PENTING:**
 - ✅ **Direkomendasikan untuk DEVELOPMENT/TESTING**
 - ⚠️ **JANGAN digunakan untuk PRODUCTION** (gunakan Enforced mode untuk production)
+
+**CATATAN:** Di Firebase Console versi terbaru, mode ini disebut "Monitoring" (bukan "Permissive"). Keduanya adalah hal yang sama.
 
 #### Langkah-langkah:
 
@@ -61,19 +63,24 @@ Permissive Mode memungkinkan semua request ke Firebase (Auth, Firestore, dll) **
    - Cloud Storage
    - dll.
 
-4. **Ubah mode dari "Enforced" ke "Permissive":**
+4. **Ubah mode dari "Enforced" ke "Monitoring":**
 
    Untuk setiap service:
    - Klik service (misal: Firebase Authentication)
-   - Klik icon **Settings (⚙️)** di sebelah kanan
-   - Ubah dari **"Enforced"** menjadi **"Permissive"**
-   - Klik **"Save"**
+   - Jika status "Enforced", klik icon **Settings (⚙️)** atau tombol menu di sebelah kanan
+   - Pilih **"Monitoring"** (BUKAN "Enforced")
+   - Atau klik tombol **"Close"** jika ada opsi "Enforce" yang muncul (artinya sudah dalam mode Monitoring)
+   - Pastikan status menunjukkan **"Monitoring"** (dengan ikon jam ⏱️)
 
    ```
    Firebase Authentication
-   ├─ Enforcement: Enforced ❌  →  Permissive ✅
-   └─ [Settings ⚙️]
+   ├─ Status: Enforced ❌  →  Monitoring ✅
+   └─ [Tombol: Close / Enforce]
    ```
+
+   **CATATAN PENTING:**
+   - Jika Anda melihat tombol **"Enforce"**, berarti API sudah dalam mode **"Monitoring"** ✅
+   - Jika status menunjukkan **"Enforced"** dengan ikon ✅ hijau, Anda perlu mengubahnya ke **"Monitoring"**
 
 5. **Ulangi untuk semua services** yang digunakan (minimal Firebase Authentication)
 
@@ -81,7 +88,7 @@ Permissive Mode memungkinkan semua request ke Firebase (Auth, Firestore, dll) **
 
 7. **SELESAI!** Google Sign-In seharusnya langsung berfungsi tanpa perlu debug token! 🎉
 
-#### Kapan menggunakan Permissive Mode?
+#### Kapan menggunakan Monitoring Mode?
 
 ✅ **GUNAKAN saat:**
 - Development/testing lokal
@@ -377,14 +384,16 @@ Pastikan semua langkah sudah dilakukan:
 
 ### Solusi Tercepat (RECOMMENDED):
 
-**Gunakan Permissive Mode:**
+**Gunakan Monitoring Mode:**
 
 1. Buka: https://console.firebase.google.com/project/kamus-korea-apps-dcf09/appcheck
 2. Klik tab **"APIs"**
 3. Untuk **Firebase Authentication**:
-   - Klik **Settings (⚙️)**
-   - Ubah **"Enforced"** → **"Permissive"**
-   - Klik **"Save"**
+   - Klik pada **"Authentication"** untuk melihat detail
+   - Periksa status saat ini:
+     - Jika ada tombol **"Enforce"**, berarti sudah dalam mode **"Monitoring"** ✅ (sudah benar!)
+     - Jika status **"Enforced"**, klik **Settings (⚙️)** dan ubah ke **"Monitoring"**
+   - Pastikan status menunjukkan **"Monitoring"** (ikon jam ⏱️)
 4. Restart aplikasi
 5. Test Google Sign-In
 6. **DONE!** ✅
