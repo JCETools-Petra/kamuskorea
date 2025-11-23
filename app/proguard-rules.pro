@@ -77,13 +77,13 @@
 # Data Models
 # ================================
 # Keep all data classes in the data package
--keep class com.webtech.kamuskorea.data.** { *; }
--keepclassmembers class com.webtech.kamuskorea.data.** { *; }
+-keep class com.webtech.learningkorea.data.** { *; }
+-keepclassmembers class com.webtech.learningkorea.data.** { *; }
 
 # Keep all model classes
--keep class com.webtech.kamuskorea.data.model.** { *; }
--keep class com.webtech.kamuskorea.data.network.** { *; }
--keep class com.webtech.kamuskorea.data.local.** { *; }
+-keep class com.webtech.learningkorea.data.model.** { *; }
+-keep class com.webtech.learningkorea.data.network.** { *; }
+-keep class com.webtech.learningkorea.data.local.** { *; }
 
 # ================================
 # Room Database
@@ -143,8 +143,8 @@
 # Keep custom classes
 # ================================
 # Keep all classes in your main package
--keep class com.webtech.kamuskorea.** { *; }
--keepclassmembers class com.webtech.kamuskorea.** { *; }
+-keep class com.webtech.learningkorea.** { *; }
+-keepclassmembers class com.webtech.learningkorea.** { *; }
 
 # ================================
 # Navigation Component
