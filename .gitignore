@@ -65,6 +65,10 @@ firebase-debug.*
 crashlytics.properties
 fabric.properties
 
+# Firebase Service Account (NEVER commit this!)
+firebase-service-account.json
+*service-account*.json
+
 # ================================
 # ENVIRONMENT & SECRET FILES
 # ================================
