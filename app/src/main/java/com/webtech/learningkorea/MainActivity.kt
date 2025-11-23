@@ -751,13 +751,13 @@ fun MainApp(
                     ProfileScreen(viewModel = hiltViewModel())
                 }
                 composable(Screen.Leaderboard.route) {
-                    com.webtech.kamuskorea.ui.screens.leaderboard.LeaderboardScreen(
+                    com.webtech.learningkorea.ui.screens.leaderboard.LeaderboardScreen(
                         viewModel = hiltViewModel(),
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
                 composable(Screen.Achievements.route) {
-                    com.webtech.kamuskorea.ui.screens.achievements.AchievementsScreen(
+                    com.webtech.learningkorea.ui.screens.achievements.AchievementsScreen(
                         viewModel = hiltViewModel(),
                         onNavigateBack = { navController.popBackStack() }
                     )

@@ -306,13 +306,13 @@ class GamificationRepository @Inject constructor(
 
     private suspend fun checkFirstQuizAchievement(): Boolean {
         val preferences = dataStore.data.first()
-        val quizCount = preferences[com.webtech.kamuskorea.ui.screens.HomeViewModel.QUIZ_COMPLETED_COUNT_KEY] ?: 0
+        val quizCount = preferences[com.webtech.learningkorea.ui.screens.HomeViewModel.QUIZ_COMPLETED_COUNT_KEY] ?: 0
         return quizCount >= 1
     }
 
     private suspend fun checkQuizMasterAchievement(count: Int): Boolean {
         val preferences = dataStore.data.first()
-        val quizCount = preferences[com.webtech.kamuskorea.ui.screens.HomeViewModel.QUIZ_COMPLETED_COUNT_KEY] ?: 0
+        val quizCount = preferences[com.webtech.learningkorea.ui.screens.HomeViewModel.QUIZ_COMPLETED_COUNT_KEY] ?: 0
         return quizCount >= count
     }
 
