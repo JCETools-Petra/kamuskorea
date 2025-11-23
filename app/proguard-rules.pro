@@ -169,6 +169,21 @@
 -keepattributes EnclosingMethod
 
 # ================================
+# Firebase Crashlytics
+# ================================
+# Keep custom exceptions for better crash reports
+-keep public class * extends java.lang.Exception {
+    public <init>(...);
+}
+
+# Keep Crashlytics classes
+-keep class com.google.firebase.crashlytics.** { *; }
+-dontwarn com.google.firebase.crashlytics.**
+
+# Keep file names and line numbers for crash reports
+-keepattributes SourceFile,LineNumberTable
+
+# ================================
 # Remove logging in release
 # ================================
 -assumenosideeffects class android.util.Log {
