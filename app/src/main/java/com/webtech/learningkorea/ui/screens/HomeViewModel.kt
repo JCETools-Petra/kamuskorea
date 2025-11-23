@@ -117,7 +117,7 @@ class HomeViewModel @Inject constructor(
     val dailyQuestState = dailyQuestRepository.dailyQuestState.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = com.webtech.kamuskorea.gamification.DailyQuestState(
+        initialValue = com.webtech.learningkorea.gamification.DailyQuestState(
             date = "",
             quests = emptyList(),
             progress = emptyMap()

@@ -259,7 +259,7 @@ private fun QuestItem(
 @Composable
 private fun QuestGuideDialog(
     quest: DailyQuest,
-    strings: com.webtech.kamuskorea.ui.localization.AppStrings,
+    strings: com.webtech.learningkorea.ui.localization.AppStrings,
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
@@ -360,7 +360,7 @@ private fun QuestGuideDialog(
  */
 private fun getLocalizedQuest(
     quest: DailyQuest,
-    strings: com.webtech.kamuskorea.ui.localization.AppStrings
+    strings: com.webtech.learningkorea.ui.localization.AppStrings
 ): DailyQuest {
     return when (quest.type) {
         QuestType.SEARCH_WORDS -> quest.copy(

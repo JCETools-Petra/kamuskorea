@@ -72,7 +72,7 @@ fun GamificationEventHandler(
 /**
  * Get display text for XP source
  */
-private fun getSourceDisplay(source: String, strings: com.webtech.kamuskorea.ui.localization.AppStrings): String {
+private fun getSourceDisplay(source: String, strings: com.webtech.learningkorea.ui.localization.AppStrings): String {
     return when {
         source.contains("word_favorited") || source.contains("vocabulary_favorited") -> strings.saveFavorite
         source.contains("quiz") -> strings.completeQuiz

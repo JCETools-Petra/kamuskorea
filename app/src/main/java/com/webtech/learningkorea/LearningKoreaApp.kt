@@ -91,7 +91,7 @@ class LearningKoreaApp : MultiDexApplication() {
                 Log.d("AppCheck", "")
                 Log.d("AppCheck", "3. DAFTARKAN token di Firebase Console:")
                 Log.d("AppCheck", "   • Buka: https://console.firebase.google.com/project/kamus-korea-apps-dcf09/appcheck")
-                Log.d("AppCheck", "   • Menu: Apps → com.webtech.kamuskorea")
+                Log.d("AppCheck", "   • Menu: Apps → com.webtech.learningkorea")
                 Log.d("AppCheck", "   • Klik: 'Manage debug tokens'")
                 Log.d("AppCheck", "   • Klik: 'Add debug token'")
                 Log.d("AppCheck", "   • Paste token dan beri nama (misal: 'My Device')")
