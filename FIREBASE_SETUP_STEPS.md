@@ -49,17 +49,63 @@ Setelah enable Google Sign-In:
 **Yang Perlu Dilakukan:**
 
 #### A. OAuth Consent Screen (Mandatory)
-1. Buka Google Cloud Console: https://console.cloud.google.com/
-2. Pilih project "Learning Korea" (harus sama dengan Firebase)
-3. Menu: APIs & Services → OAuth consent screen
-4. Setup OAuth consent:
-   - User Type: **External**
-   - App name: **Learning Korea**
-   - User support email: **email Anda**
-   - Scopes: Tambahkan `.../auth/userinfo.email`, `.../auth/userinfo.profile`
-   - Developer contact: **email Anda**
-   - Test users: **Tambahkan email Anda** untuk testing
-   - Klik "Save and Continue"
+
+**⚠️ TROUBLESHOOTING:** Jika Anda tidak bisa menemukan "External" type atau "Add test users", baca file **TROUBLESHOOTING_AUTH.md** untuk panduan lengkap!
+
+**Step-by-step setup OAuth Consent Screen:**
+
+1. **Buka Google Cloud Console:** https://console.cloud.google.com/
+
+2. **Pilih project yang BENAR:**
+   - Klik dropdown project di top bar
+   - Pilih project "Learning Korea" atau nama yang SAMA dengan Firebase
+   - ⚠️ JANGAN buat project baru!
+
+3. **Navigasi ke OAuth consent screen:**
+   - Sidebar kiri: **APIs & Services** → **OAuth consent screen**
+
+4. **Jika halaman kosong (belum ada consent screen):**
+   - Klik tombol **"CONFIGURE CONSENT SCREEN"** atau **"CREATE"**
+   - Pilih **User Type: External** (bukan Internal!)
+   - Klik **"CREATE"**
+
+5. **Edit App Information (atau lanjut dari step 4):**
+
+   **Step 1 of 4 - App Information:**
+   ```
+   App name: Learning Korea
+   User support email: [pilih dari dropdown]
+   App logo: (skip untuk testing)
+
+   Developer contact information:
+   Email addresses: [email Anda]
+   ```
+   Klik **"SAVE AND CONTINUE"**
+
+   **Step 2 of 4 - Scopes:**
+   - Klik **"ADD OR REMOVE SCOPES"**
+   - Centang:
+     ☑ `.../auth/userinfo.email`
+     ☑ `.../auth/userinfo.profile`
+     ☑ `openid`
+   - Klik **"UPDATE"**
+   - Klik **"SAVE AND CONTINUE"**
+
+   **Step 3 of 4 - Test users:** ← **INI YANG PALING PENTING!**
+   - Klik **"ADD USERS"**
+   - Masukkan email yang akan Anda gunakan untuk testing
+   - Klik **"ADD"**
+   - ⚠️ **Hanya email yang ditambahkan di sini yang bisa login!**
+   - Klik **"SAVE AND CONTINUE"**
+
+   **Step 4 of 4 - Summary:**
+   - Review semua settings
+   - Klik **"BACK TO DASHBOARD"**
+
+6. **Verifikasi setup berhasil:**
+   - Harus melihat "Publishing status: Testing"
+   - "User type: External"
+   - "Test users: [jumlah] users"
 
 #### B. Cek Auto-Generated OAuth Clients (Optional)
 1. APIs & Services → Credentials
