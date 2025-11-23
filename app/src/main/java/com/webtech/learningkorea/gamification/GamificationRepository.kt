@@ -45,7 +45,19 @@ class GamificationRepository @Inject constructor(
     private val favoriteVocabularyDao: FavoriteVocabularyDao
 ) {
 
-    private val dataStore: DataStore<Preferences> = context.dataStore
+    /**
+     * Get user-specific DataStore
+     * Returns user-specific gamification data storage
+     */
+    private fun getUserDataStore(): DataStore<Preferences> {
+        val userId = firebaseAuth.currentUser?.uid
+        return if (userId != null) {
+            context.getUserDataStore(userId)
+        } else {
+            // Fallback to global datastore if not logged in (shouldn't happen)
+            context.dataStore
+        }
+    }
 
     companion object {
         private const val TAG = "GamificationRepository"
@@ -70,7 +82,7 @@ class GamificationRepository @Inject constructor(
     /**
      * Observe current gamification state
      */
-    val gamificationState: Flow<GamificationState> = dataStore.data.map { preferences ->
+    val gamificationState: Flow<GamificationState> get() = getUserDataStore().data.map { preferences ->
         GamificationState(
             totalXp = preferences[SettingsDataStore.USER_XP_KEY] ?: 0,
             currentLevel = preferences[SettingsDataStore.USER_LEVEL_KEY] ?: 1,
@@ -83,21 +95,21 @@ class GamificationRepository @Inject constructor(
     /**
      * Observe total XP
      */
-    val totalXp: Flow<Int> = dataStore.data.map { preferences ->
+    val totalXp: Flow<Int> get() = getUserDataStore().data.map { preferences ->
         preferences[SettingsDataStore.USER_XP_KEY] ?: 0
     }
 
     /**
      * Observe current level
      */
-    val currentLevel: Flow<Int> = dataStore.data.map { preferences ->
+    val currentLevel: Flow<Int> get() = getUserDataStore().data.map { preferences ->
         preferences[SettingsDataStore.USER_LEVEL_KEY] ?: 1
     }
 
     /**
      * Observe achievements unlocked
      */
-    val achievementsUnlocked: Flow<Set<String>> = dataStore.data.map { preferences ->
+    val achievementsUnlocked: Flow<Set<String>> get() = getUserDataStore().data.map { preferences ->
         preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] ?: emptySet<String>()
     }
 
@@ -114,7 +126,7 @@ class GamificationRepository @Inject constructor(
         var leveledUp = false
         var newLevel = 1
 
-        dataStore.edit { preferences ->
+        getUserDataStore().edit { preferences ->
             val currentXp = preferences[SettingsDataStore.USER_XP_KEY] ?: 0
             newTotalXp = currentXp + amount
 
@@ -158,7 +170,7 @@ class GamificationRepository @Inject constructor(
         var xpAwarded = false
         var newTotalXp = 0
 
-        dataStore.edit { preferences ->
+        getUserDataStore().edit { preferences ->
             val lastDate = preferences[DAILY_FAVORITE_DATE_KEY] ?: 0L
             val lastDateDay = getStartOfDay(lastDate)
 
@@ -259,7 +271,7 @@ class GamificationRepository @Inject constructor(
     private suspend fun unlockAchievement(achievementId: String) {
         val achievement = Achievements.getById(achievementId) ?: return
 
-        dataStore.edit { preferences ->
+        getUserDataStore().edit { preferences ->
             val current: Set<String> = preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] ?: emptySet()
             preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] = current.plus(achievementId)
 
@@ -299,19 +311,19 @@ class GamificationRepository @Inject constructor(
     }
 
     private suspend fun checkStreakAchievement(days: Int): Boolean {
-        val preferences = dataStore.data.first()
+        val preferences = getUserDataStore().data.first()
         val currentStreak = preferences[SettingsDataStore.CURRENT_STREAK_KEY] ?: 0
         return currentStreak >= days
     }
 
     private suspend fun checkFirstQuizAchievement(): Boolean {
-        val preferences = dataStore.data.first()
+        val preferences = getUserDataStore().data.first()
         val quizCount = preferences[com.webtech.learningkorea.ui.screens.HomeViewModel.QUIZ_COMPLETED_COUNT_KEY] ?: 0
         return quizCount >= 1
     }
 
     private suspend fun checkQuizMasterAchievement(count: Int): Boolean {
-        val preferences = dataStore.data.first()
+        val preferences = getUserDataStore().data.first()
         val quizCount = preferences[com.webtech.learningkorea.ui.screens.HomeViewModel.QUIZ_COMPLETED_COUNT_KEY] ?: 0
         return quizCount >= count
     }
@@ -363,7 +375,7 @@ class GamificationRepository @Inject constructor(
                 val rank = response.body()?.leaderboardRank ?: 0
 
                 // Update last sync timestamp and rank
-                dataStore.edit { preferences ->
+                getUserDataStore().edit { preferences ->
                     preferences[SettingsDataStore.LAST_XP_SYNC_KEY] = System.currentTimeMillis()
                     preferences[SettingsDataStore.LEADERBOARD_RANK_KEY] = rank
                 }
@@ -384,7 +396,7 @@ class GamificationRepository @Inject constructor(
      * Check if sync is needed (15 minutes since last sync)
      */
     suspend fun needsSync(): Boolean {
-        val lastSync = dataStore.data.first()[SettingsDataStore.LAST_XP_SYNC_KEY] ?: 0L
+        val lastSync = getUserDataStore().data.first()[SettingsDataStore.LAST_XP_SYNC_KEY] ?: 0L
         val now = System.currentTimeMillis()
         return (now - lastSync) >= SYNC_INTERVAL_MS
     }

@@ -10,7 +10,16 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 
+// Global settings (theme, language, notifications)
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
+/**
+ * Get user-specific DataStore for gamification data
+ * Each user has their own XP, level, achievements, etc.
+ */
+fun Context.getUserDataStore(userId: String): DataStore<Preferences> {
+    return preferencesDataStore(name = "user_${userId}_gamification").getValue(this, Context::dataStore)
+}
 
 class SettingsDataStore {
     companion object {
