@@ -2,6 +2,7 @@ package com.webtech.learningkorea
 
 import android.util.Log
 import androidx.multidex.MultiDexApplication
+import androidx.work.Configuration
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.RequestConfiguration
 import com.google.firebase.FirebaseApp
@@ -9,9 +10,19 @@ import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
+import androidx.hilt.work.HiltWorkerFactory
 
 @HiltAndroidApp
-class LearningKoreaApp : MultiDexApplication() {
+class LearningKoreaApp : MultiDexApplication(), Configuration.Provider {
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 
     override fun onCreate() {
         super.onCreate()
