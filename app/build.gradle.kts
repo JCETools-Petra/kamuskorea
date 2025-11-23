@@ -10,7 +10,7 @@ plugins {
 }
 
 android {
-    namespace = "com.webtech.kamuskorea"
+    namespace = "com.webtech.learningkorea"
     compileSdk = 34
 
     // Load keystore properties
@@ -29,16 +29,16 @@ android {
                 keyAlias = keystoreProperties.getProperty("keyAlias")
                 keyPassword = keystoreProperties.getProperty("keyPassword")
             } else {
-                storeFile = file("../kamuskorea-release.jks")
+                storeFile = file("../learningkorea-release.jks")
                 storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "your-keystore-password"
-                keyAlias = "kamuskorea"
+                keyAlias = "learningkorea"
                 keyPassword = System.getenv("KEY_PASSWORD") ?: "your-key-password"
             }
         }
     }
 
     defaultConfig {
-        applicationId = "com.webtech.kamuskorea"
+        applicationId = "com.webtech.learningkorea"
         minSdk = 24
         targetSdk = 35
         versionCode = 7
