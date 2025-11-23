@@ -20,9 +20,9 @@ fi
 
 echo "📋 Informasi Konfigurasi"
 echo "=================================="
-echo "Package Name: com.webtech.kamuskorea"
-echo "Firebase Project: kamus-korea-apps-dcf09"
-echo "Web Client ID: 237948772817-e1hv2gvso08nbajnpfdmbm73i1etqar1"
+echo "Package Name: com.webtech.learningkorea"
+echo "Firebase Project: learning-korea"
+echo "Web Client ID: 191033536798-1lq8npgrbgevqd0ep9rneaoud6blhtnt"
 echo ""
 
 # Check Debug Keystore
@@ -50,7 +50,7 @@ echo ""
 echo "=================================="
 echo "🔑 2. Release Keystore"
 echo "=================================="
-RELEASE_KEYSTORE="./kamuskorea-release.jks"
+RELEASE_KEYSTORE="./learningkorea-release.jks"
 
 if [ -f "$RELEASE_KEYSTORE" ]; then
     echo -e "${GREEN}✅ Release keystore ditemukan${NC}"
