@@ -46,9 +46,9 @@ class AuthViewModel @Inject constructor(
 
     private companion object {
         const val TAG = "AuthViewModel"
-        // Web Client ID for project: kamus-korea-apps-dcf09
-        // From Google Cloud Console OAuth 2.0 Client IDs
-        const val WEB_CLIENT_ID = "237948772817-e1hv2gvso08nbajnpfdmbm73i1etqar1.apps.googleusercontent.com"
+        // Web Client ID for project: Learning Korea (learning-korea)
+        // From google-services.json → oauth_client → client_type: 3
+        const val WEB_CLIENT_ID = "191033536798-1lq8npgrbgevqd0ep9rneaoud6blhtnt.apps.googleusercontent.com"
     }
 
     /**
@@ -446,7 +446,7 @@ class AuthViewModel @Inject constructor(
                 Log.e(TAG, "════════════════════════════════════════════════")
                 Log.e(TAG, "SOLUSI CEPAT:")
                 Log.e(TAG, "1. Buka Firebase Console:")
-                Log.e(TAG, "   https://console.firebase.google.com/project/kamus-korea-apps-dcf09/appcheck")
+                Log.e(TAG, "   https://console.firebase.google.com/project/learning-korea/appcheck")
                 Log.e(TAG, "")
                 Log.e(TAG, "2. Klik tab 'APIs'")
                 Log.e(TAG, "")

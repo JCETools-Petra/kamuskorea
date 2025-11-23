@@ -62,7 +62,7 @@ class LearningKoreaApp : MultiDexApplication() {
                 Log.d("AppCheck", "Cara tercepat untuk development tanpa perlu register debug token:")
                 Log.d("AppCheck", "")
                 Log.d("AppCheck", "1. Buka Firebase Console:")
-                Log.d("AppCheck", "   https://console.firebase.google.com/project/kamus-korea-apps-dcf09/appcheck")
+                Log.d("AppCheck", "   https://console.firebase.google.com/project/learning-korea/appcheck")
                 Log.d("AppCheck", "")
                 Log.d("AppCheck", "2. Klik tab 'APIs'")
                 Log.d("AppCheck", "")
@@ -90,7 +90,7 @@ class LearningKoreaApp : MultiDexApplication() {
                 Log.d("AppCheck", "   'XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX'")
                 Log.d("AppCheck", "")
                 Log.d("AppCheck", "3. DAFTARKAN token di Firebase Console:")
-                Log.d("AppCheck", "   • Buka: https://console.firebase.google.com/project/kamus-korea-apps-dcf09/appcheck")
+                Log.d("AppCheck", "   • Buka: https://console.firebase.google.com/project/learning-korea/appcheck")
                 Log.d("AppCheck", "   • Menu: Apps → com.webtech.learningkorea")
                 Log.d("AppCheck", "   • Klik: 'Manage debug tokens'")
                 Log.d("AppCheck", "   • Klik: 'Add debug token'")
@@ -132,7 +132,7 @@ class LearningKoreaApp : MultiDexApplication() {
                 Log.e("AppCheck", "")
                 Log.e("AppCheck", "🔴 SOLUSI:")
                 Log.e("AppCheck", "   Ubah App Check ke PERMISSIVE MODE di Firebase Console")
-                Log.e("AppCheck", "   https://console.firebase.google.com/project/kamus-korea-apps-dcf09/appcheck")
+                Log.e("AppCheck", "   https://console.firebase.google.com/project/learning-korea/appcheck")
                 e.printStackTrace()
             }
 
