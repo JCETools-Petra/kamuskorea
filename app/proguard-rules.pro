@@ -74,16 +74,18 @@
 -keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
 
 # ================================
-# Data Models
+# Data Models (SECURITY: Only keep what's needed for serialization)
 # ================================
-# Keep all data classes in the data package
--keep class com.webtech.learningkorea.data.** { *; }
--keepclassmembers class com.webtech.learningkorea.data.** { *; }
+# Keep only network DTOs for Gson/Retrofit (not internal logic classes)
+-keep class com.webtech.learningkorea.data.network.*Request { *; }
+-keep class com.webtech.learningkorea.data.network.*Response { *; }
+-keep class com.webtech.learningkorea.data.network.DataTransferObjects { *; }
 
-# Keep all model classes
--keep class com.webtech.learningkorea.data.model.** { *; }
--keep class com.webtech.learningkorea.data.network.** { *; }
--keep class com.webtech.learningkorea.data.local.** { *; }
+# Keep Room entities (needed for database)
+-keep @androidx.room.Entity class * { *; }
+
+# Let R8 obfuscate ViewModels, Repositories, and internal classes
+# (Do NOT keep entire packages - allow obfuscation for security)
 
 # ================================
 # Room Database
@@ -140,11 +142,13 @@
 }
 
 # ================================
-# Keep custom classes
+# Keep custom classes (SECURITY: Minimal keeps for functionality)
 # ================================
-# Keep all classes in your main package
--keep class com.webtech.learningkorea.** { *; }
--keepclassmembers class com.webtech.learningkorea.** { *; }
+# REMOVED: -keep class com.webtech.learningkorea.** { *; }
+# This was keeping EVERYTHING and defeating ProGuard's purpose!
+
+# Only keep classes that MUST be kept (serialization, reflection, etc.)
+# Let R8 obfuscate and optimize everything else for security
 
 # ================================
 # Navigation Component

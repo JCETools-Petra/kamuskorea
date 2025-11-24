@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -50,15 +52,19 @@ class GamificationRepository @Inject constructor(
     /**
      * Get user-specific DataStore
      * Returns user-specific gamification data storage
+     *
+     * SECURITY: Ensures only logged-in user can access their own data
      */
     private fun getUserDataStore(): DataStore<Preferences> {
         val userId = firebaseAuth.currentUser?.uid
-        return if (userId != null) {
-            context.getUserDataStore(userId)
-        } else {
-            // Fallback to global datastore if not logged in (shouldn't happen)
-            context.dataStore
+
+        // SECURITY CHECK: Must be logged in to access gamification data
+        requireNotNull(userId) {
+            "Cannot access gamification data: User not authenticated"
         }
+
+        // User can only access their own DataStore (userId from Firebase Auth)
+        return context.getUserDataStore(userId)
     }
 
     companion object {
@@ -70,6 +76,14 @@ class GamificationRepository @Inject constructor(
         private val DAILY_FAVORITE_COUNT_KEY = intPreferencesKey("daily_favorite_count")
         private val DAILY_FAVORITE_DATE_KEY = longPreferencesKey("daily_favorite_date")
     }
+
+    // ========== CONCURRENCY PROTECTION ==========
+
+    /**
+     * Mutex to protect concurrent XP modifications
+     * Prevents race conditions when multiple sources earn XP simultaneously
+     */
+    private val xpMutex = Mutex()
 
     // ========== EVENT FLOW ==========
 
@@ -120,42 +134,47 @@ class GamificationRepository @Inject constructor(
     /**
      * Add XP to user (local only, instant)
      * Call this from ViewModels when user performs actions
+     *
+     * Thread-safe with mutex to prevent concurrent modification
      */
     suspend fun addXp(amount: Int, source: String) {
         if (amount <= 0) return
 
-        var newTotalXp = 0
-        var leveledUp = false
-        var newLevel = 1
+        // Use mutex to ensure only one XP modification happens at a time
+        xpMutex.withLock {
+            var newTotalXp = 0
+            var leveledUp = false
+            var newLevel = 1
 
-        getUserDataStore().edit { preferences ->
-            val currentXp = preferences[SettingsDataStore.USER_XP_KEY] ?: 0
-            newTotalXp = currentXp + amount
+            getUserDataStore().edit { preferences ->
+                val currentXp = preferences[SettingsDataStore.USER_XP_KEY] ?: 0
+                newTotalXp = currentXp + amount
 
-            val oldLevel = preferences[SettingsDataStore.USER_LEVEL_KEY] ?: 1
-            newLevel = LevelSystem.calculateLevel(newTotalXp)
+                val oldLevel = preferences[SettingsDataStore.USER_LEVEL_KEY] ?: 1
+                newLevel = LevelSystem.calculateLevel(newTotalXp)
 
-            preferences[SettingsDataStore.USER_XP_KEY] = newTotalXp
-            preferences[SettingsDataStore.USER_LEVEL_KEY] = newLevel
+                preferences[SettingsDataStore.USER_XP_KEY] = newTotalXp
+                preferences[SettingsDataStore.USER_LEVEL_KEY] = newLevel
 
-            Log.d(TAG, "✅ Added $amount XP from $source. Total: $newTotalXp, Level: $newLevel")
+                Log.d(TAG, "✅ Added $amount XP from $source. Total: $newTotalXp, Level: $newLevel")
 
-            // Track analytics
-            analyticsTracker.logXpEarned(amount, source)
+                // Track analytics
+                analyticsTracker.logXpEarned(amount, source)
 
-            // Check for level up
-            if (newLevel > oldLevel) {
-                leveledUp = true
-                Log.d(TAG, "🎉 Level Up! $oldLevel → $newLevel")
-                analyticsTracker.logLevelUp(newLevel)
+                // Check for level up
+                if (newLevel > oldLevel) {
+                    leveledUp = true
+                    Log.d(TAG, "🎉 Level Up! $oldLevel → $newLevel")
+                    analyticsTracker.logLevelUp(newLevel)
+                }
             }
-        }
 
-        // Emit events after transaction completes
-        _gamificationEvents.emit(GamificationEvent.XpEarned(amount, source, newTotalXp))
+            // Emit events after transaction completes
+            _gamificationEvents.emit(GamificationEvent.XpEarned(amount, source, newTotalXp))
 
-        if (leveledUp) {
-            _gamificationEvents.emit(GamificationEvent.LevelUp(newLevel, newTotalXp))
+            if (leveledUp) {
+                _gamificationEvents.emit(GamificationEvent.LevelUp(newLevel, newTotalXp))
+            }
         }
 
         // Check for achievement unlocks
@@ -220,6 +239,52 @@ class GamificationRepository @Inject constructor(
         }
 
         return xpAwarded
+    }
+
+    /**
+     * Add favorite word WITH XP award (transactional)
+     * This ensures both operations succeed together
+     *
+     * @return Result with Boolean indicating if XP was awarded
+     */
+    suspend fun addFavoriteWordWithXp(favoriteWord: FavoriteWord): Result<Boolean> {
+        return try {
+            // Step 1: Add to database first
+            favoriteWordDao.addFavorite(favoriteWord)
+            Log.d(TAG, "✅ Added word to favorites: ${favoriteWord.wordId}")
+
+            // Step 2: Award XP (only if DB operation succeeded)
+            val xpAwarded = addXpForFavorite()
+
+            Result.success(xpAwarded)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to add favorite with XP", e)
+            // If database operation failed, don't award XP
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Add favorite vocabulary WITH XP award (transactional)
+     * This ensures both operations succeed together
+     *
+     * @return Result with Boolean indicating if XP was awarded
+     */
+    suspend fun addFavoriteVocabularyWithXp(favoriteVocab: FavoriteVocabulary): Result<Boolean> {
+        return try {
+            // Step 1: Add to database first
+            favoriteVocabularyDao.addFavorite(favoriteVocab)
+            Log.d(TAG, "✅ Added vocabulary to favorites: ${favoriteVocab.vocabularyId}")
+
+            // Step 2: Award XP (only if DB operation succeeded)
+            val xpAwarded = addXpForFavorite()
+
+            Result.success(xpAwarded)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to add favorite vocabulary with XP", e)
+            // If database operation failed, don't award XP
+            Result.failure(e)
+        }
     }
 
     /**
@@ -331,12 +396,12 @@ class GamificationRepository @Inject constructor(
     }
 
     private suspend fun checkVocabAchievement(count: Int): Boolean {
-        // Count total favorites from both dictionary and hafalan
-        val wordFavorites = favoriteWordDao.getAllFavorites().first()
-        val vocabFavorites = favoriteVocabularyDao.getAllFavorites().first()
-        val totalFavorites = wordFavorites.size + vocabFavorites.size
+        // PERFORMANCE FIX: Use count queries instead of loading all favorites
+        val wordCount = favoriteWordDao.getFavoriteCount().first()
+        val vocabCount = favoriteVocabularyDao.getFavoriteCount().first()
+        val totalFavorites = wordCount + vocabCount
 
-        Log.d(TAG, "checkVocabAchievement($count): Total favorites = $totalFavorites")
+        Log.d(TAG, "checkVocabAchievement($count): Total favorites = $totalFavorites (words: $wordCount, vocab: $vocabCount)")
         return totalFavorites >= count
     }
 

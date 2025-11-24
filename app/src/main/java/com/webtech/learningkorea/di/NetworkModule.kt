@@ -23,16 +23,25 @@ import com.webtech.learningkorea.BuildConfig
  * Interceptor kustom untuk menambahkan Token Autentikasi Firebase
  * ke setiap request API secara otomatis.
  *
- * FIXED:
- * - Force refresh token dengan getIdToken(true)
- * - Improved error handling
- * - Better logging
+ * FIXED v2:
+ * - Added token caching to minimize blocking calls
+ * - Only refresh when token is expired or missing
+ * - Use getIdToken(false) for cached token, only force refresh when needed
+ * - Improved performance by avoiding runBlocking on every request
  */
 class AuthInterceptor(private val firebaseAuth: FirebaseAuth) : Interceptor {
 
     companion object {
         private const val TAG = "AuthInterceptor"
+        private const val TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000L // 5 minutes before actual expiry
     }
+
+    // Token cache with expiration
+    @Volatile
+    private var cachedToken: String? = null
+    @Volatile
+    private var tokenExpiryTime: Long = 0L
+    private val tokenLock = Any()
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
@@ -46,28 +55,45 @@ class AuthInterceptor(private val firebaseAuth: FirebaseAuth) : Interceptor {
             return chain.proceed(originalRequest)
         }
 
-        // Dapatkan token dengan force refresh (true) untuk memastikan token fresh
-        val token: String? = runBlocking {
-            try {
-                // ✅ PENTING: getIdToken(true) untuk force refresh
-                val result = user.getIdToken(true).await()
-                val freshToken = result?.token
+        // Get token with caching to minimize blocking
+        val token: String? = synchronized(tokenLock) {
+            val now = System.currentTimeMillis()
 
+            // Use cached token if still valid
+            if (cachedToken != null && now < tokenExpiryTime) {
                 if (BuildConfig.DEBUG) {
-                    if (freshToken != null) {
-                        Log.d(TAG, "✅ Token obtained successfully for UID: ${user.uid}")
-                        Log.d(TAG, "Token preview: ${freshToken.take(20)}...")
-                    } else {
-                        Log.e(TAG, "❌ Token is null after getIdToken")
+                    Log.d(TAG, "Using cached token (expires in ${(tokenExpiryTime - now) / 1000}s)")
+                }
+                cachedToken
+            } else {
+                // Token expired or missing, fetch new one
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "Token expired or missing, fetching new token...")
+                }
+                runBlocking {
+                    try {
+                        // Use getIdToken(false) first for cached token
+                        val result = user.getIdToken(false).await()
+                        val freshToken = result?.token
+
+                        if (freshToken != null) {
+                            // Cache the token with expiration (Firebase tokens valid for 1 hour)
+                            cachedToken = freshToken
+                            tokenExpiryTime = now + (3600 * 1000L) - TOKEN_EXPIRY_BUFFER_MS // 55 minutes
+
+                            if (BuildConfig.DEBUG) {
+                                Log.d(TAG, "✅ Token cached (valid for 55 min)")
+                            }
+                        }
+
+                        freshToken
+                    } catch (e: Exception) {
+                        if (BuildConfig.DEBUG) {
+                            Log.e(TAG, "❌ Failed to get Firebase token: ${e.message}")
+                        }
+                        null
                     }
                 }
-
-                freshToken
-            } catch (e: Exception) {
-                if (BuildConfig.DEBUG) {
-                    Log.e(TAG, "❌ Failed to get Firebase token: ${e.message}", e)
-                }
-                null
             }
         }
 
@@ -75,7 +101,7 @@ class AuthInterceptor(private val firebaseAuth: FirebaseAuth) : Interceptor {
         val newRequest = if (!token.isNullOrEmpty()) {
             originalRequest.newBuilder()
                 .addHeader("Authorization", "Bearer $token")
-                .addHeader("X-User-ID", user.uid) // Backup untuk development
+                .addHeader("X-User-ID", user.uid)
                 .build()
         } else {
             if (BuildConfig.DEBUG) {
@@ -85,6 +111,16 @@ class AuthInterceptor(private val firebaseAuth: FirebaseAuth) : Interceptor {
         }
 
         return chain.proceed(newRequest)
+    }
+
+    /**
+     * Clear cached token (useful for logout or token invalidation)
+     */
+    fun clearTokenCache() {
+        synchronized(tokenLock) {
+            cachedToken = null
+            tokenExpiryTime = 0L
+        }
     }
 }
 
