@@ -448,16 +448,22 @@ class GamificationRepository @Inject constructor(
             val currentUser = firebaseAuth.currentUser
             val uid = currentUser?.uid
             if (uid == null) {
-                Log.e(TAG, "Cannot sync: User not authenticated")
+                Log.e(TAG, "❌ Cannot sync: User not authenticated")
                 return Result.failure(Exception("User not authenticated"))
             }
 
             // Get username with improved fallback logic
             val username = getUsernameForSync(currentUser)
 
-            Log.d(TAG, "🔄 Syncing XP for user: $username (UID: $uid)")
-
             val state = gamificationState.first()
+
+            Log.d(TAG, "📊 ========== XP SYNC START ==========")
+            Log.d(TAG, "  User ID (UID): $uid")
+            Log.d(TAG, "  Username: $username")
+            Log.d(TAG, "  Email: ${currentUser.email}")
+            Log.d(TAG, "  Total XP: ${state.totalXp}")
+            Log.d(TAG, "  Level: ${state.currentLevel}")
+            Log.d(TAG, "  Achievements: ${state.achievementsUnlocked.size}")
 
             val request = SyncXpRequest(
                 totalXp = state.totalXp,
@@ -477,11 +483,17 @@ class GamificationRepository @Inject constructor(
                     preferences[SettingsDataStore.LEADERBOARD_RANK_KEY] = rank
                 }
 
-                Log.d(TAG, "✅ Synced to server. Rank: $rank")
+                Log.d(TAG, "✅ Sync successful!")
+                Log.d(TAG, "  Leaderboard Rank: #$rank")
+                Log.d(TAG, "📊 ========== XP SYNC END ==========")
                 Result.success(rank)
             } else {
-                Log.e(TAG, "❌ Sync failed: ${response.errorBody()?.string()}")
-                Result.failure(Exception("Sync failed"))
+                val errorBody = response.errorBody()?.string()
+                Log.e(TAG, "❌ Sync failed!")
+                Log.e(TAG, "  Response code: ${response.code()}")
+                Log.e(TAG, "  Error: $errorBody")
+                Log.e(TAG, "📊 ========== XP SYNC END ==========")
+                Result.failure(Exception("Sync failed: $errorBody"))
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Sync error", e)

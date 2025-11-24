@@ -950,11 +950,15 @@ elseif ($routes[0] === 'gamification' && $routes[1] === 'sync-xp' && $requestMet
     $currentLevel = $input['current_level'] ?? 1;
     $achievementsUnlocked = $input['achievements_unlocked'] ?? [];
 
+    // ENHANCED LOGGING: Track which UID is syncing
+    error_log("📊 XP Sync Request - UID: $uid, XP: $totalXp, Level: $currentLevel");
+
     // Get username: Priority 1) request body, 2) users table, 3) fallback
     $username = null;
 
     if (!empty($input['username'])) {
         $username = trim($input['username']);
+        error_log("  ✓ Username from request: $username");
     }
 
     // If no username in request, fetch from users table
@@ -963,18 +967,32 @@ elseif ($routes[0] === 'gamification' && $routes[1] === 'sync-xp' && $requestMet
         $stmt->execute([$uid]);
         $user = $stmt->fetch();
         $username = !empty($user['name']) ? trim($user['name']) : null;
+        if ($username) {
+            error_log("  ✓ Username from users table: $username");
+        }
     }
 
     // Final fallback if still empty
     if (empty($username)) {
         $username = 'Anonymous';
-        error_log("⚠️ XP Sync: No username found for UID $uid, using 'Anonymous'");
+        error_log("  ⚠️ XP Sync: No username found for UID $uid, using 'Anonymous'");
     }
 
     // Convert achievements array to JSON string
     $achievementsJson = json_encode($achievementsUnlocked);
 
     try {
+        // Check if user already exists in gamification table
+        $checkStmt = $pdo->prepare("SELECT id, user_id, total_xp FROM user_gamification WHERE user_id = ?");
+        $checkStmt->execute([$uid]);
+        $existingUser = $checkStmt->fetch();
+
+        if ($existingUser) {
+            error_log("  📝 UPDATING existing user - ID: {$existingUser['id']}, Old XP: {$existingUser['total_xp']}, New XP: $totalXp");
+        } else {
+            error_log("  ✨ INSERTING new user - UID: $uid, XP: $totalXp");
+        }
+
         $stmt = $pdo->prepare("
             INSERT INTO user_gamification (user_id, username, total_xp, current_level, achievements_unlocked, last_xp_sync)
             VALUES (?, ?, ?, ?, ?, NOW())
@@ -988,6 +1006,10 @@ elseif ($routes[0] === 'gamification' && $routes[1] === 'sync-xp' && $requestMet
         ");
 
         $stmt->execute([$uid, $username, $totalXp, $currentLevel, $achievementsJson]);
+
+        // Get affected rows to verify operation
+        $affectedRows = $stmt->rowCount();
+        error_log("  ✅ Sync completed - Affected rows: $affectedRows");
 
         // Get user's rank after sync
         $stmt = $pdo->prepare("
