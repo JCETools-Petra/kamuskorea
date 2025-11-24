@@ -74,6 +74,7 @@ import com.webtech.learningkorea.ui.screens.dictionary.SimpleDictionaryScreen
 import com.webtech.learningkorea.gamification.GamificationRepository
 import com.webtech.learningkorea.ui.components.GamificationEventHandler
 import com.webtech.learningkorea.ui.components.LevelUpDialog
+import com.webtech.learningkorea.di.AuthInterceptor
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -92,6 +93,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var notificationScheduler: NotificationScheduler
+
+    @Inject
+    lateinit var authInterceptor: AuthInterceptor
 
     private val kamusSyncViewModel: KamusSyncViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
@@ -821,12 +825,20 @@ fun MainApp(
                         TextButton(
                             onClick = {
                                 showLogoutConfirmDialog = false
+
+                                Log.d("MainActivity", "🚪 Logout initiated")
+
+                                // CRITICAL: Clear cached token BEFORE logout
+                                authInterceptor.clearTokenCache()
+                                Log.d("MainActivity", "✅ Token cache cleared")
+
                                 val googleSignInClient = GoogleSignIn.getClient(
                                     application,
                                     GoogleSignInOptions.DEFAULT_SIGN_IN
                                 )
                                 googleSignInClient.signOut().addOnCompleteListener {
                                     firebaseAuth.signOut()
+                                    Log.d("MainActivity", "✅ Logout completed")
                                 }
                             }
                         ) {
