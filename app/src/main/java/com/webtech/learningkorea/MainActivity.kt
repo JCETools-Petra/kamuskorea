@@ -160,7 +160,6 @@ class MainActivity : ComponentActivity() {
             val language by settingsViewModel.language.collectAsState()
 
             var showSplash by remember { mutableStateOf(true) }
-            var showLogoutConfirmDialog by remember { mutableStateOf(false) }
 
             // State untuk melacak status login secara reaktif
             var isLoggedIn by remember { mutableStateOf(firebaseAuth.currentUser != null) }
@@ -346,6 +345,8 @@ fun MainApp(
     activity: ComponentActivity
 ) {
     val strings = LocalStrings.current
+
+    var showLogoutConfirmDialog by remember { mutableStateOf(false) }
 
     val navController = rememberNavController()
 
