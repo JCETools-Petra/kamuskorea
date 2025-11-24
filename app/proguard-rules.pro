@@ -80,6 +80,10 @@
 -keep class com.webtech.learningkorea.data.network.*Request { *; }
 -keep class com.webtech.learningkorea.data.network.*Response { *; }
 -keep class com.webtech.learningkorea.data.network.DataTransferObjects { *; }
+-keep class com.webtech.learningkorea.data.network.*Word { *; }
+
+# Keep assessment data classes (used for Gson serialization)
+-keep class com.webtech.learningkorea.data.assessment.** { *; }
 
 # Keep Room entities (needed for database)
 -keep @androidx.room.Entity class * { *; }
