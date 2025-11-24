@@ -278,7 +278,7 @@ fun ModernSettingsScreen(
                         subtitle = strings.readPrivacyPolicy
                     ),
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://webtechsolution.my.id/kamuskorea/privacy"))
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://webtechsolution.my.id/kamuskorea/privacy.html"))
                         context.startActivity(intent)
                     }
                 )
@@ -290,7 +290,7 @@ fun ModernSettingsScreen(
                         subtitle = strings.readTerms
                     ),
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://webtechsolution.my.id/kamuskorea/terms"))
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://webtechsolution.my.id/kamuskorea/terms.html"))
                         context.startActivity(intent)
                     }
                 )
