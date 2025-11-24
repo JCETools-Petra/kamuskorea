@@ -11,7 +11,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.webtech.learningkorea.analytics.AnalyticsTracker
 import com.webtech.learningkorea.data.network.ApiService
+import com.webtech.learningkorea.data.local.FavoriteWord
 import com.webtech.learningkorea.data.local.FavoriteWordDao
+import com.webtech.learningkorea.data.local.FavoriteVocabulary
 import com.webtech.learningkorea.data.local.FavoriteVocabularyDao
 import com.webtech.learningkorea.notifications.AppNotificationManager
 import com.webtech.learningkorea.ui.datastore.SettingsDataStore
