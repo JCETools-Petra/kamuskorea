@@ -9,16 +9,25 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import java.io.File
 
 // Global settings (theme, language, notifications)
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
+// Cache for user-specific DataStores
+private val userDataStores = mutableMapOf<String, DataStore<Preferences>>()
 
 /**
  * Get user-specific DataStore for gamification data
  * Each user has their own XP, level, achievements, etc.
  */
 fun Context.getUserDataStore(userId: String): DataStore<Preferences> {
-    return preferencesDataStore(name = "user_${userId}_gamification").getValue(this, Context::dataStore)
+    return userDataStores.getOrPut(userId) {
+        PreferenceDataStoreFactory.create {
+            File(filesDir, "datastore/user_${userId}_gamification.preferences_pb")
+        }
+    }
 }
 
 class SettingsDataStore {
