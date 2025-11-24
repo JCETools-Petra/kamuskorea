@@ -44,6 +44,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.webtech.learningkorea.data.UserRepository
+import com.webtech.learningkorea.di.AuthInterceptor
 import com.webtech.learningkorea.ui.localization.LocalizationProvider
 import com.webtech.learningkorea.ui.localization.LocalStrings
 import com.webtech.learningkorea.ui.navigation.Screen
