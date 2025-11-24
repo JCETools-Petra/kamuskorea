@@ -573,21 +573,26 @@ elseif ($routes[0] === 'user' && $routes[1] === 'profile' && $requestMethod === 
 elseif ($routes[0] === 'user' && $routes[1] === 'profile' && $requestMethod === 'PATCH') {
     /**
      * PATCH /user/profile
-     * Update user profile
+     * Update user profile (name and date_of_birth)
+     * FIXED: Use INSERT ON DUPLICATE KEY UPDATE to handle missing users
      */
     $uid = requireAuth();
     $input = json_decode(file_get_contents('php://input'), true);
-    
+
     $name = $input['name'] ?? null;
     $dob = $input['dob'] ?? null;
-    
+
+    // Use INSERT ON DUPLICATE KEY UPDATE to create user if not exists
     $stmt = $pdo->prepare("
-        UPDATE users 
-        SET name = ?, date_of_birth = ?, updated_at = NOW()
-        WHERE firebase_uid = ?
+        INSERT INTO users (firebase_uid, name, date_of_birth, created_at, updated_at)
+        VALUES (?, ?, ?, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+            name = VALUES(name),
+            date_of_birth = VALUES(date_of_birth),
+            updated_at = NOW()
     ");
-    $stmt->execute([$name, $dob, $uid]);
-    
+    $stmt->execute([$uid, $name, $dob]);
+
     sendResponse(['success' => true]);
 }
 
@@ -945,14 +950,25 @@ elseif ($routes[0] === 'gamification' && $routes[1] === 'sync-xp' && $requestMet
     $currentLevel = $input['current_level'] ?? 1;
     $achievementsUnlocked = $input['achievements_unlocked'] ?? [];
 
-    // Get username from request body first, then users table
+    // Get username: Priority 1) request body, 2) users table, 3) fallback
+    $username = null;
+
     if (!empty($input['username'])) {
-        $username = $input['username'];
-    } else {
+        $username = trim($input['username']);
+    }
+
+    // If no username in request, fetch from users table
+    if (empty($username)) {
         $stmt = $pdo->prepare("SELECT name FROM users WHERE firebase_uid = ?");
         $stmt->execute([$uid]);
         $user = $stmt->fetch();
-        $username = $user['name'] ?? 'Anonymous';
+        $username = !empty($user['name']) ? trim($user['name']) : null;
+    }
+
+    // Final fallback if still empty
+    if (empty($username)) {
+        $username = 'Anonymous';
+        error_log("⚠️ XP Sync: No username found for UID $uid, using 'Anonymous'");
     }
 
     // Convert achievements array to JSON string
