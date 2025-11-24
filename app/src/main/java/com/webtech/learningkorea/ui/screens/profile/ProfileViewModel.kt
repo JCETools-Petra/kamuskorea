@@ -11,6 +11,7 @@ import com.webtech.learningkorea.billing.BillingClientWrapper
 import com.webtech.learningkorea.data.UserRepository
 import com.webtech.learningkorea.data.network.ApiService
 import com.webtech.learningkorea.data.network.UserProfileUpdateRequest
+import com.webtech.learningkorea.gamification.GamificationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +31,7 @@ class ProfileViewModel @Inject constructor(
     private val apiService: ApiService,
     private val billingClient: BillingClientWrapper,
     private val userRepository: UserRepository,
+    private val gamificationRepository: GamificationRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -175,6 +177,16 @@ class ProfileViewModel @Inject constructor(
                     }
                     try {
                         auth.currentUser?.updateProfile(profileUpdates)?.await()
+                        Log.d("ProfileViewModel", "✅ Display name updated in Firebase Auth: $nameToSend")
+
+                        // Immediately sync XP to server so leaderboard shows new name
+                        try {
+                            gamificationRepository.syncToServer()
+                            Log.d("ProfileViewModel", "✅ XP synced to server with new username")
+                        } catch (e: Exception) {
+                            Log.w("ProfileViewModel", "⚠️ Failed to sync XP after name change", e)
+                            // Don't fail the whole operation if sync fails
+                        }
                     } catch (e: Exception) {
                         Log.w("ProfileViewModel", "Gagal update display name di Firebase Auth", e)
                     }
