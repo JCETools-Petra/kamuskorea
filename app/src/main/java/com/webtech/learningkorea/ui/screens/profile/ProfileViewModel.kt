@@ -176,8 +176,13 @@ class ProfileViewModel @Inject constructor(
                         displayName = nameToSend
                     }
                     try {
+                        // Update Firebase Auth displayName
                         auth.currentUser?.updateProfile(profileUpdates)?.await()
                         Log.d("ProfileViewModel", "✅ Display name updated in Firebase Auth: $nameToSend")
+
+                        // CRITICAL: Reload user to ensure Firebase has latest data
+                        auth.currentUser?.reload()?.await()
+                        Log.d("ProfileViewModel", "✅ Firebase user reloaded with latest profile")
 
                         // Immediately sync XP to server so leaderboard shows new name
                         try {

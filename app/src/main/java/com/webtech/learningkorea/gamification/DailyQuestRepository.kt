@@ -8,7 +8,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import com.webtech.learningkorea.ui.datastore.dataStore
+import com.google.firebase.auth.FirebaseAuth
+import com.webtech.learningkorea.ui.datastore.getUserDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -20,14 +21,26 @@ import javax.inject.Singleton
 
 /**
  * Repository for managing daily quests
+ * FIXED: Now uses user-specific DataStore for quest progress
  */
 @Singleton
 class DailyQuestRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val gamificationRepository: GamificationRepository
+    private val gamificationRepository: GamificationRepository,
+    private val firebaseAuth: FirebaseAuth
 ) {
 
-    private val dataStore: DataStore<Preferences> = context.dataStore
+    /**
+     * Get user-specific DataStore for quest progress
+     * Each user has their own quest data
+     */
+    private fun getUserDataStore(): DataStore<Preferences> {
+        val userId = firebaseAuth.currentUser?.uid
+        requireNotNull(userId) {
+            "Cannot access quest data: User not authenticated"
+        }
+        return context.getUserDataStore(userId)
+    }
 
     companion object {
         private const val TAG = "DailyQuestRepository"
@@ -59,8 +72,11 @@ class DailyQuestRepository @Inject constructor(
 
     /**
      * Observe daily quest state
+     * Now properly isolated per user
      */
-    val dailyQuestState: Flow<DailyQuestState> = dataStore.data.map { preferences ->
+    val dailyQuestState: Flow<DailyQuestState> = kotlinx.coroutines.flow.flow {
+        val userDataStore = getUserDataStore()
+        userDataStore.data.collect { preferences ->
         val savedDate = preferences[DAILY_QUEST_DATE_KEY] ?: ""
         val todayDate = getTodayDate()
 
@@ -97,12 +113,14 @@ class DailyQuestRepository @Inject constructor(
 
         val allCompleted = progressMap.values.all { it.isCompleted }
 
-        DailyQuestState(
-            date = todayDate,
-            quests = quests,
-            progress = progressMap,
-            allCompleted = allCompleted
-        )
+            val state = DailyQuestState(
+                date = todayDate,
+                quests = quests,
+                progress = progressMap,
+                allCompleted = allCompleted
+            )
+            emit(state)
+        }
     }
 
     /**
@@ -124,7 +142,7 @@ class DailyQuestRepository @Inject constructor(
         // Track if quest just completed (to award XP after edit block)
         var questJustCompleted = false
 
-        dataStore.edit { preferences ->
+        getUserDataStore().edit { preferences ->
             preferences[DAILY_QUEST_DATE_KEY] = getTodayDate()
             preferences[questProgressKey(questId)] = newProgress
             preferences[questCompletedKey(questId)] = isCompleted.toString()
@@ -152,7 +170,7 @@ class DailyQuestRepository @Inject constructor(
         if (state.date != todayDate) {
             Log.d(TAG, "🔄 Resetting daily quests for $todayDate")
 
-            dataStore.edit { preferences ->
+            getUserDataStore().edit { preferences ->
                 preferences[DAILY_QUEST_DATE_KEY] = todayDate
 
                 // Clear all quest progress
