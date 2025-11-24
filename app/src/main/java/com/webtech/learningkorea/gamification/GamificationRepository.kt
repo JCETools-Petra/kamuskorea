@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.webtech.learningkorea.analytics.AnalyticsTracker
 import com.webtech.learningkorea.data.network.ApiService
 import com.webtech.learningkorea.data.local.FavoriteWordDao
@@ -342,6 +343,36 @@ class GamificationRepository @Inject constructor(
     // ========== CLOUD SYNC ==========
 
     /**
+     * Get username for syncing to server
+     * Priority: displayName > email prefix > "User_{uid_prefix}"
+     * NEVER returns null or empty string
+     */
+    private fun getUsernameForSync(user: FirebaseUser): String {
+        // Priority 1: displayName (set during registration or Google Sign-In)
+        val displayName = user.displayName?.trim()
+        if (!displayName.isNullOrBlank() && displayName.length >= 2) {
+            Log.d(TAG, "Using displayName: $displayName")
+            return displayName
+        }
+
+        // Priority 2: Email prefix (everything before @)
+        val email = user.email
+        if (!email.isNullOrBlank()) {
+            val emailPrefix = email.substringBefore("@").trim()
+            if (emailPrefix.isNotBlank() && emailPrefix.length >= 2) {
+                Log.d(TAG, "Using email prefix: $emailPrefix")
+                return emailPrefix
+            }
+        }
+
+        // Priority 3: Fallback to User_{first 8 chars of UID}
+        val uidPrefix = user.uid.take(8)
+        val fallbackName = "User_$uidPrefix"
+        Log.w(TAG, "⚠️ No displayName or email, using fallback: $fallbackName")
+        return fallbackName
+    }
+
+    /**
      * Sync XP, level, and achievements to server
      * Called by XpSyncWorker every 15 minutes
      */
@@ -354,10 +385,8 @@ class GamificationRepository @Inject constructor(
                 return Result.failure(Exception("User not authenticated"))
             }
 
-            // Get username from Firebase Auth
-            val username = currentUser.displayName
-                ?: currentUser.email?.substringBefore("@")
-                ?: "User"
+            // Get username with improved fallback logic
+            val username = getUsernameForSync(currentUser)
 
             Log.d(TAG, "🔄 Syncing XP for user: $username (UID: $uid)")
 
