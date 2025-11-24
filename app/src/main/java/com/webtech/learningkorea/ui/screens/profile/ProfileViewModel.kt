@@ -124,15 +124,25 @@ class ProfileViewModel @Inject constructor(
                     profileData?.let {
                         _displayName.value = it.name ?: auth.currentUser?.displayName ?: ""
                         _dateOfBirth.value = it.dob ?: ""
+                        // FIXED: Use Firebase Auth photoUrl as fallback if backend doesn't return photo URL
                         _profilePictureUrl.value = it.profilePictureUrl
-                        Log.d("ProfileViewModel", "Profil diambil: Nama=${it.name}, DOB=${it.dob}, Foto=${it.profilePictureUrl}")
+                            ?: auth.currentUser?.photoUrl?.toString()
+                        Log.d("ProfileViewModel", "Profil diambil: Nama=${it.name}, DOB=${it.dob}, Foto=${it.profilePictureUrl ?: "fallback to Firebase: ${auth.currentUser?.photoUrl}"}")
                     }
                 } else {
                     val errorBody = response.errorBody()?.string() ?: "Unknown error"
                     Log.e("ProfileViewModel", "Gagal fetch profil API: ${response.code()} - $errorBody")
+                    // FIXED: On API error, keep Firebase Auth data as fallback
+                    if (_profilePictureUrl.value == null) {
+                        _profilePictureUrl.value = auth.currentUser?.photoUrl?.toString()
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Exception saat fetch profil", e)
+                // FIXED: On exception, keep Firebase Auth data as fallback
+                if (_profilePictureUrl.value == null) {
+                    _profilePictureUrl.value = auth.currentUser?.photoUrl?.toString()
+                }
             } finally {
                 _isLoadingProfile.value = false
             }
