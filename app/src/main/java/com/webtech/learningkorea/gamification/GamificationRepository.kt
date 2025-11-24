@@ -15,6 +15,7 @@ import com.webtech.learningkorea.data.local.FavoriteVocabularyDao
 import com.webtech.learningkorea.notifications.AppNotificationManager
 import com.webtech.learningkorea.ui.datastore.SettingsDataStore
 import com.webtech.learningkorea.ui.datastore.dataStore
+import com.webtech.learningkorea.ui.datastore.getUserDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
