@@ -160,6 +160,7 @@ class MainActivity : ComponentActivity() {
             val language by settingsViewModel.language.collectAsState()
 
             var showSplash by remember { mutableStateOf(true) }
+            var showLogoutConfirmDialog by remember { mutableStateOf(false) }
 
             // State untuk melacak status login secara reaktif
             var isLoggedIn by remember { mutableStateOf(firebaseAuth.currentUser != null) }
@@ -495,14 +496,8 @@ fun MainApp(
                     onClick = {
                         scope.launch {
                             drawerState.close()
-                            val googleSignInClient = GoogleSignIn.getClient(
-                                application,
-                                GoogleSignInOptions.DEFAULT_SIGN_IN
-                            )
-                            googleSignInClient.signOut().addOnCompleteListener {
-                                firebaseAuth.signOut()
-                            }
                         }
+                        showLogoutConfirmDialog = true
                     },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
@@ -813,6 +808,36 @@ fun MainApp(
                         }
                     }
                 }
+            }
+
+            // Logout Confirmation Dialog
+            if (showLogoutConfirmDialog) {
+                AlertDialog(
+                    onDismissRequest = { showLogoutConfirmDialog = false },
+                    title = { Text("Konfirmasi Logout") },
+                    text = { Text("Apakah Anda yakin ingin keluar dari aplikasi?") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showLogoutConfirmDialog = false
+                                val googleSignInClient = GoogleSignIn.getClient(
+                                    application,
+                                    GoogleSignInOptions.DEFAULT_SIGN_IN
+                                )
+                                googleSignInClient.signOut().addOnCompleteListener {
+                                    firebaseAuth.signOut()
+                                }
+                            }
+                        ) {
+                            Text("Logout")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showLogoutConfirmDialog = false }) {
+                            Text("Batal")
+                        }
+                    }
+                )
             }
         }
     }

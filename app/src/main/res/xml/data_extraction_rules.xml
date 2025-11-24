@@ -1,19 +1,38 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Data extraction rules for Android 12+ (API 31+)
+   Controls what data can be backed up and transferred during device migration
    See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
 -->
 <data-extraction-rules>
+    <!-- Cloud backup rules (Google Drive) -->
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- Exclude user-specific gamification data -->
+        <exclude domain="datastore" path="user_*_gamification.preferences_pb" />
+
+        <!-- Exclude global settings -->
+        <exclude domain="datastore" path="settings.preferences_pb" />
+
+        <!-- Exclude local database -->
+        <exclude domain="database" path="kamus_korea.db" />
+        <exclude domain="database" path="kamus_korea.db-shm" />
+        <exclude domain="database" path="kamus_korea.db-wal" />
+
+        <!-- Exclude cache -->
+        <exclude domain="file" path="cache/" />
     </cloud-backup>
-    <!--
+
+    <!-- Device-to-device transfer rules -->
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- Exclude user-specific gamification data from device transfer -->
+        <exclude domain="datastore" path="user_*_gamification.preferences_pb" />
+
+        <!-- Exclude database from transfer (user should start fresh) -->
+        <exclude domain="database" path="kamus_korea.db" />
+        <exclude domain="database" path="kamus_korea.db-shm" />
+        <exclude domain="database" path="kamus_korea.db-wal" />
+
+        <!-- Allow settings transfer (optional - can be excluded too) -->
+        <!-- <exclude domain="datastore" path="settings.preferences_pb" /> -->
     </device-transfer>
-    -->
 </data-extraction-rules>
