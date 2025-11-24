@@ -221,7 +221,8 @@ class MainActivity : ComponentActivity() {
                                     isPremium = isPremium,
                                     settingsViewModel = settingsViewModel,
                                     adManager = adManager,
-                                    activity = this@MainActivity
+                                    activity = this@MainActivity,
+                                    authInterceptor = authInterceptor
                                 )
                             } else {
                                 // --- PENGGUNA BELUM LOGIN ---
@@ -346,7 +347,8 @@ fun MainApp(
     isPremium: Boolean,
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     adManager: AdManager,
-    activity: ComponentActivity
+    activity: ComponentActivity,
+    authInterceptor: AuthInterceptor
 ) {
     val strings = LocalStrings.current
 
