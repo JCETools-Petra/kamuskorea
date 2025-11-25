@@ -965,7 +965,8 @@ fun ExitConfirmationDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
-                .wrapContentHeight(),
+                .wrapContentHeight()
+                .heightIn(max = 600.dp), // Add max height constraint
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
@@ -975,6 +976,7 @@ fun ExitConfirmationDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()) // Make scrollable
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {

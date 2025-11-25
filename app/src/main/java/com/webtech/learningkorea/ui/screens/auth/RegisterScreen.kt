@@ -77,6 +77,7 @@ fun RegisterScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .imePadding() // Add IME padding to handle keyboard
                     .padding(horizontal = 24.dp)
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -208,7 +209,8 @@ fun RegisterScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(40.dp))
+                // Extra spacer for keyboard clearance
+                Spacer(modifier = Modifier.height(200.dp))
             }
         }
     }
