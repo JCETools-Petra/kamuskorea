@@ -335,13 +335,13 @@ if ($action === 'list') {
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'A' ? 'correct-answer' : 'bg-light' ?>">
-                                                <strong>A.</strong> <?= htmlspecialchars($q['option_a']) ?>
+                                                <strong>1.</strong> <?= htmlspecialchars($q['option_a']) ?>
                                                 <?php if ($q['correct_answer'] === 'A'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'B' ? 'correct-answer' : 'bg-light' ?>">
-                                                <strong>B.</strong> <?= htmlspecialchars($q['option_b']) ?>
+                                                <strong>2.</strong> <?= htmlspecialchars($q['option_b']) ?>
                                                 <?php if ($q['correct_answer'] === 'B'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
@@ -349,13 +349,13 @@ if ($action === 'list') {
                                         </div>
                                         <div class="col-md-6">
                                             <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'C' ? 'correct-answer' : 'bg-light' ?>">
-                                                <strong>C.</strong> <?= htmlspecialchars($q['option_c']) ?>
+                                                <strong>3.</strong> <?= htmlspecialchars($q['option_c']) ?>
                                                 <?php if ($q['correct_answer'] === 'C'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'D' ? 'correct-answer' : 'bg-light' ?>">
-                                                <strong>D.</strong> <?= htmlspecialchars($q['option_d']) ?>
+                                                <strong>4.</strong> <?= htmlspecialchars($q['option_d']) ?>
                                                 <?php if ($q['correct_answer'] === 'D'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
@@ -492,14 +492,14 @@ if ($action === 'list') {
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <div class="mb-3">
-                                                    <label class="form-label">Pilihan A *</label>
+                                                    <label class="form-label">Pilihan 1 *</label>
                                                     <input type="text" name="option_a" class="form-control" required
                                                            value="<?= htmlspecialchars($editQuestion['option_a'] ?? '') ?>">
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
                                                 <div class="mb-3">
-                                                    <label class="form-label">Pilihan B *</label>
+                                                    <label class="form-label">Pilihan 2 *</label>
                                                     <input type="text" name="option_b" class="form-control" required
                                                            value="<?= htmlspecialchars($editQuestion['option_b'] ?? '') ?>">
                                                 </div>
@@ -508,14 +508,14 @@ if ($action === 'list') {
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <div class="mb-3">
-                                                    <label class="form-label">Pilihan C *</label>
+                                                    <label class="form-label">Pilihan 3 *</label>
                                                     <input type="text" name="option_c" class="form-control" required
                                                            value="<?= htmlspecialchars($editQuestion['option_c'] ?? '') ?>">
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
                                                 <div class="mb-3">
-                                                    <label class="form-label">Pilihan D *</label>
+                                                    <label class="form-label">Pilihan 4 *</label>
                                                     <input type="text" name="option_d" class="form-control" required
                                                            value="<?= htmlspecialchars($editQuestion['option_d'] ?? '') ?>">
                                                 </div>
@@ -529,10 +529,10 @@ if ($action === 'list') {
                                         <div class="mb-3">
                                             <label class="form-label">Jawaban Benar *</label>
                                             <select name="correct_answer" class="form-select" required>
-                                                <option value="A" <?= ($editQuestion['correct_answer'] ?? 'A') === 'A' ? 'selected' : '' ?>>A</option>
-                                                <option value="B" <?= ($editQuestion['correct_answer'] ?? '') === 'B' ? 'selected' : '' ?>>B</option>
-                                                <option value="C" <?= ($editQuestion['correct_answer'] ?? '') === 'C' ? 'selected' : '' ?>>C</option>
-                                                <option value="D" <?= ($editQuestion['correct_answer'] ?? '') === 'D' ? 'selected' : '' ?>>D</option>
+                                                <option value="A" <?= ($editQuestion['correct_answer'] ?? 'A') === 'A' ? 'selected' : '' ?>>1</option>
+                                                <option value="B" <?= ($editQuestion['correct_answer'] ?? '') === 'B' ? 'selected' : '' ?>>2</option>
+                                                <option value="C" <?= ($editQuestion['correct_answer'] ?? '') === 'C' ? 'selected' : '' ?>>3</option>
+                                                <option value="D" <?= ($editQuestion['correct_answer'] ?? '') === 'D' ? 'selected' : '' ?>>4</option>
                                             </select>
                                         </div>
                                     </div>
