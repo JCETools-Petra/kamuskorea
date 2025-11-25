@@ -652,16 +652,29 @@ elseif ($routes[0] === 'ebooks' && $requestMethod === 'GET') {
     
     $stmt = $pdo->query("SELECT * FROM ebooks ORDER BY `order_index` ASC");
     $ebooks = $stmt->fetchAll();
-    
-    $result = array_map(function($ebook) use ($isPremium) {
+
+    $baseUrl = 'https://webtechsolution.my.id/kamuskorea/';
+
+    $result = array_map(function($ebook) use ($isPremium, $baseUrl) {
+        // Convert relative paths to full URLs
+        $coverImageUrl = $ebook['coverImageUrl'];
+        if (!empty($coverImageUrl) && !str_starts_with($coverImageUrl, 'http')) {
+            $coverImageUrl = $baseUrl . $coverImageUrl;
+        }
+
+        $pdfUrl = $ebook['pdfUrl'];
+        if (!empty($pdfUrl) && !str_starts_with($pdfUrl, 'http')) {
+            $pdfUrl = $baseUrl . $pdfUrl;
+        }
+
         return [
             'id' => (int)$ebook['id'],
             'title' => $ebook['title'],
             'description' => $ebook['description'],
-            'coverImageUrl' => $ebook['coverImageUrl'],
+            'coverImageUrl' => $coverImageUrl,
             'order' => (int)$ebook['order_index'],
             'isPremium' => (bool)$ebook['is_premium'],
-            'pdfUrl' => ($ebook['is_premium'] && !$isPremium) ? '' : $ebook['pdfUrl']
+            'pdfUrl' => ($ebook['is_premium'] && !$isPremium) ? '' : $pdfUrl
         ];
     }, $ebooks);
     

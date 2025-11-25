@@ -49,19 +49,19 @@ data class Question(
 ) {
     fun getOptions(): List<Pair<String, String>> {
         val options = mutableListOf<Pair<String, String>>()
-        options.add("A" to optionA)
-        options.add("B" to optionB)
-        optionC?.let { options.add("C" to it) }
-        optionD?.let { options.add("D" to it) }
+        options.add("1" to optionA)
+        options.add("2" to optionB)
+        optionC?.let { options.add("3" to it) }
+        optionD?.let { options.add("4" to it) }
         return options
     }
 
     fun getOptionsAlt(): List<Pair<String, String>> {
         val options = mutableListOf<Pair<String, String>>()
-        options.add("A" to (optionAAlt ?: optionA))
-        options.add("B" to (optionBAlt ?: optionB))
-        optionC?.let { options.add("C" to (optionCAlt ?: it)) }
-        optionD?.let { options.add("D" to (optionDAlt ?: it)) }
+        options.add("1" to (optionAAlt ?: optionA))
+        options.add("2" to (optionBAlt ?: optionB))
+        optionC?.let { options.add("3" to (optionCAlt ?: it)) }
+        optionD?.let { options.add("4" to (optionDAlt ?: it)) }
         return options
     }
 

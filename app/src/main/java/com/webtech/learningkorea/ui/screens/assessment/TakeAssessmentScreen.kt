@@ -1267,13 +1267,6 @@ fun QuestionNumberBubble(
         else -> MaterialTheme.colorScheme.surfaceVariant
     }
 
-    val icon = when (questionType) {
-        "image" -> "🖼️"
-        "audio" -> "🔊"
-        "video" -> "🎥"
-        else -> ""
-    }
-
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = backgroundColor,
@@ -1297,12 +1290,6 @@ fun QuestionNumberBubble(
                     fontSize = 18.sp,
                     color = if (isCurrent) Color.White else MaterialTheme.colorScheme.onSurface
                 )
-                if (icon.isNotEmpty()) {
-                    Text(
-                        text = icon,
-                        fontSize = 14.sp
-                    )
-                }
             }
 
             // Checkmark icon for answered questions - top right corner
