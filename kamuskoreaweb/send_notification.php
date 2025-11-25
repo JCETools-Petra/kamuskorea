@@ -29,7 +29,7 @@ try {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_notification'])) {
     $title = trim($_POST['title'] ?? '');
     $body = trim($_POST['body'] ?? '');
-    $topic = trim($_POST['topic'] ?? 'all');
+    $topic = trim($_POST['topic'] ?? 'all_users');
     $imageUrl = trim($_POST['image_url'] ?? '');
     $data = [];
 
@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_notification']))
                     'priority' => 'high',
                     'notification' => [
                         'sound' => 'default',
-                        'channel_id' => 'kamus_korea_channel'
+                        'channel_id' => 'announcements'
                     ]
                 ])
                 ->withApnsConfig([
@@ -242,7 +242,7 @@ try {
                         <div class="mb-3">
                             <label class="form-label">Target Topic</label>
                             <select name="topic" class="form-select">
-                                <option value="all" selected>🌍 Semua Pengguna (topic: all)</option>
+                                <option value="all_users" selected>🌍 Semua Pengguna (topic: all_users)</option>
                                 <option value="premium">⭐ Premium Users (topic: premium)</option>
                                 <option value="android">🤖 Android Only (topic: android)</option>
                                 <option value="ios">🍎 iOS Only (topic: ios)</option>

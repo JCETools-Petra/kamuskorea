@@ -79,27 +79,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 
     if (empty($error)) {
-        if ($id) {
-            // UPDATE
-            $stmt = $pdo->prepare("
-                UPDATE ebooks
-                SET title = ?, description = ?, coverImageUrl = ?, pdfUrl = ?, order_index = ?, is_premium = ?
-                WHERE id = ?
-            ");
-            $stmt->execute([$title, $description, $coverImageUrl, $pdfUrl, $order_index, $is_premium, $id]);
-            $message = 'E-Book berhasil diupdate!';
-        } else {
-            // CREATE
-            if (empty($pdfUrl)) {
-                $error = 'File PDF harus diupload!';
-            } else {
+        try {
+            if ($id) {
+                // UPDATE
                 $stmt = $pdo->prepare("
-                    INSERT INTO ebooks (title, description, coverImageUrl, pdfUrl, order_index, is_premium, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, NOW())
+                    UPDATE ebooks
+                    SET title = ?, description = ?, coverImageUrl = ?, pdfUrl = ?, order_index = ?, is_premium = ?
+                    WHERE id = ?
                 ");
-                $stmt->execute([$title, $description, $coverImageUrl, $pdfUrl, $order_index, $is_premium]);
-                $message = 'E-Book berhasil ditambahkan!';
+                $success = $stmt->execute([$title, $description, $coverImageUrl, $pdfUrl, $order_index, $is_premium, $id]);
+
+                if ($success) {
+                    $message = 'E-Book berhasil diupdate!';
+                    // Debug: Log the coverImageUrl that was saved
+                    error_log("UPDATE ebook ID $id: coverImageUrl = '$coverImageUrl'");
+                } else {
+                    $error = 'Gagal update database!';
+                }
+            } else {
+                // CREATE
+                if (empty($pdfUrl)) {
+                    $error = 'File PDF harus diupload!';
+                } else {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO ebooks (title, description, coverImageUrl, pdfUrl, order_index, is_premium, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, NOW())
+                    ");
+                    $success = $stmt->execute([$title, $description, $coverImageUrl, $pdfUrl, $order_index, $is_premium]);
+
+                    if ($success) {
+                        $newId = $pdo->lastInsertId();
+                        $message = 'E-Book berhasil ditambahkan!';
+                        // Debug: Log the coverImageUrl that was saved
+                        error_log("INSERT ebook ID $newId: coverImageUrl = '$coverImageUrl'");
+                    } else {
+                        $error = 'Gagal insert ke database!';
+                    }
+                }
             }
+        } catch (PDOException $e) {
+            $error = 'Database error: ' . $e->getMessage();
+            error_log("Ebook save error: " . $e->getMessage());
         }
     }
 }
