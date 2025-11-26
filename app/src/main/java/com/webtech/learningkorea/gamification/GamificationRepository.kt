@@ -134,10 +134,11 @@ class GamificationRepository @Inject constructor(
     // ========== XP MANAGEMENT ==========
 
     /**
-     * Add XP to user (local only, instant)
+     * Add XP to user (local + instant server sync)
      * Call this from ViewModels when user performs actions
      *
      * Thread-safe with mutex to prevent concurrent modification
+     * Automatically syncs to server in real-time
      */
     suspend fun addXp(amount: Int, source: String) {
         if (amount <= 0) return
@@ -178,6 +179,9 @@ class GamificationRepository @Inject constructor(
                 _gamificationEvents.emit(GamificationEvent.LevelUp(newLevel, newTotalXp))
             }
         }
+
+        // ✅ NEW: Instantly sync XP increment to server
+        syncXpIncrementToServer(amount, source)
 
         // Check for achievement unlocks
         checkAchievementUnlocks()
@@ -235,6 +239,9 @@ class GamificationRepository @Inject constructor(
                     newTotalXp
                 )
             )
+
+            // ✅ NEW: Instantly sync XP to server
+            syncXpIncrementToServer(XpRewards.WORD_FAVORITED, "word_favorited")
 
             // Check for achievement unlocks after awarding XP
             checkAchievementUnlocks()
@@ -408,6 +415,61 @@ class GamificationRepository @Inject constructor(
     }
 
     // ========== CLOUD SYNC ==========
+
+    /**
+     * Sync XP increment to server instantly (real-time sync)
+     * Called after every XP gain for immediate synchronization
+     *
+     * This is a lightweight sync that only sends the XP increment,
+     * unlike syncToServer() which syncs the full state
+     *
+     * If sync fails, XP is still saved locally (graceful degradation)
+     */
+    private suspend fun syncXpIncrementToServer(amount: Int, source: String) {
+        try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser == null) {
+                Log.w(TAG, "⚠️ Cannot sync XP: User not authenticated")
+                return
+            }
+
+            Log.d(TAG, "🌐 Syncing +$amount XP from '$source' to server...")
+
+            val request = AddXpRequest(
+                xpAmount = amount,
+                source = source,
+                metadata = mapOf(
+                    "timestamp" to System.currentTimeMillis(),
+                    "platform" to "android"
+                )
+            )
+
+            val response = apiService.addXp(request)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val body = response.body()!!
+                Log.d(TAG, "✅ XP synced to server successfully!")
+                Log.d(TAG, "  Server Total XP: ${body.newTotalXp}")
+                Log.d(TAG, "  Server Level: ${body.newLevel}")
+                if (body.levelUp) {
+                    Log.d(TAG, "  🎉 Level up confirmed by server!")
+                }
+
+                // Update last sync timestamp
+                getUserDataStore().edit { preferences ->
+                    preferences[SettingsDataStore.LAST_XP_SYNC_KEY] = System.currentTimeMillis()
+                }
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Log.e(TAG, "⚠️ XP sync failed (non-critical): ${response.code()} - $errorBody")
+                Log.e(TAG, "  XP is saved locally and will sync later via XpSyncWorker")
+            }
+        } catch (e: Exception) {
+            // Non-critical error - XP is already saved locally
+            Log.e(TAG, "⚠️ XP sync error (non-critical): ${e.message}")
+            Log.d(TAG, "  XP is saved locally and will sync later via XpSyncWorker")
+        }
+    }
 
     /**
      * Get username for syncing to server
