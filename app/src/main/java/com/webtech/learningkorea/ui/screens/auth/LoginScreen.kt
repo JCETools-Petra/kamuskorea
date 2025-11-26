@@ -68,6 +68,7 @@ fun LoginScreen(
                         authViewModel.signInWithGoogle(account.idToken!!)
                     } else {
                         Log.e("LoginScreen", "ID Token is NULL!")
+                        authViewModel.setGoogleSignInError("Gagal mendapatkan token autentikasi dari Google. Silakan coba lagi.")
                     }
                 } catch (e: ApiException) {
                     Log.e("LoginScreen", "Google sign in failed with ApiException")
@@ -77,8 +78,32 @@ fun LoginScreen(
                     // User-friendly error messages
                     val errorMessage = when (e.statusCode) {
                         10 -> {
-                            Log.e("LoginScreen", "Developer Error: Check SHA-1 certificate fingerprint in Firebase Console")
-                            "Konfigurasi Google Sign-In bermasalah. Silakan hubungi developer atau coba login dengan email."
+                            Log.e("LoginScreen", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            Log.e("LoginScreen", "🔴 DEVELOPER ERROR: SHA-1 CERTIFICATE TIDAK TERDAFTAR")
+                            Log.e("LoginScreen", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            Log.e("LoginScreen", "")
+                            Log.e("LoginScreen", "📋 LANGKAH PERBAIKAN:")
+                            Log.e("LoginScreen", "")
+                            Log.e("LoginScreen", "1️⃣ Dapatkan SHA-1 & SHA-256 fingerprint:")
+                            Log.e("LoginScreen", "   Di Android Studio:")
+                            Log.e("LoginScreen", "   View → Tool Windows → Gradle")
+                            Log.e("LoginScreen", "   app → Tasks → android → signingReport")
+                            Log.e("LoginScreen", "   ")
+                            Log.e("LoginScreen", "   Atau jalankan di terminal:")
+                            Log.e("LoginScreen", "   ./gradlew signingReport")
+                            Log.e("LoginScreen", "")
+                            Log.e("LoginScreen", "2️⃣ Tambahkan ke Firebase Console:")
+                            Log.e("LoginScreen", "   https://console.firebase.google.com/project/learning-korea/settings/general")
+                            Log.e("LoginScreen", "   • Scroll ke 'Your apps' → pilih Android app")
+                            Log.e("LoginScreen", "   • Klik 'Add fingerprint'")
+                            Log.e("LoginScreen", "   • Tambahkan SHA-1 DAN SHA-256")
+                            Log.e("LoginScreen", "")
+                            Log.e("LoginScreen", "3️⃣ Download google-services.json yang baru")
+                            Log.e("LoginScreen", "   • Ganti file app/google-services.json")
+                            Log.e("LoginScreen", "   • Clean & rebuild project")
+                            Log.e("LoginScreen", "")
+                            Log.e("LoginScreen", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                            "Konfigurasi Google Sign-In bermasalah. SHA-1 certificate belum terdaftar di Firebase Console. Silakan hubungi developer."
                         }
                         12500 -> {
                             Log.e("LoginScreen", "Sign in currently unavailable")
@@ -101,10 +126,33 @@ fun LoginScreen(
                 }
             }
             Activity.RESULT_CANCELED -> {
-                Log.w("LoginScreen", "User cancelled sign-in")
+                Log.w("LoginScreen", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                Log.w("LoginScreen", "⚠️ RESULT_CANCELED - Kemungkinan SHA-1 tidak terdaftar")
+                Log.w("LoginScreen", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                Log.w("LoginScreen", "")
+                Log.w("LoginScreen", "Jika dialog Google Sign-In tidak muncul sama sekali,")
+                Log.w("LoginScreen", "berarti SHA-1/SHA-256 certificate fingerprint")
+                Log.w("LoginScreen", "belum terdaftar di Firebase Console.")
+                Log.w("LoginScreen", "")
+                Log.w("LoginScreen", "📋 CARA MEMPERBAIKI:")
+                Log.w("LoginScreen", "")
+                Log.w("LoginScreen", "1. Jalankan: ./gradlew signingReport")
+                Log.w("LoginScreen", "2. Salin SHA-1 dan SHA-256 untuk variant 'debug'")
+                Log.w("LoginScreen", "3. Buka Firebase Console:")
+                Log.w("LoginScreen", "   https://console.firebase.google.com/project/learning-korea/settings/general")
+                Log.w("LoginScreen", "4. Tambahkan kedua fingerprint ke Android app")
+                Log.w("LoginScreen", "5. Download google-services.json yang baru")
+                Log.w("LoginScreen", "6. Clean & rebuild project")
+                Log.w("LoginScreen", "")
+                Log.w("LoginScreen", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+                authViewModel.setGoogleSignInError(
+                    "Google Sign-In dibatalkan. Pastikan SHA-1 certificate sudah terdaftar di Firebase Console."
+                )
             }
             else -> {
                 Log.e("LoginScreen", "Unexpected result code: ${result.resultCode}")
+                authViewModel.setGoogleSignInError("Terjadi kesalahan tidak terduga. Silakan coba lagi.")
             }
         }
     }
