@@ -285,10 +285,10 @@ fun TakeAssessmentScreen(
                             .padding(6.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        // LEFT SIDE: Question Content (50% width)
+                        // LEFT SIDE: Question Content (60% width)
                         Card(
                             modifier = Modifier
-                                .weight(0.5f)
+                                .weight(0.6f)
                                 .fillMaxHeight(),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                             shape = RoundedCornerShape(8.dp)
@@ -301,10 +301,10 @@ fun TakeAssessmentScreen(
                             )
                         }
 
-                        // RIGHT SIDE: Answer Options + Navigation (50% width)
+                        // RIGHT SIDE: Answer Options + Navigation (40% width)
                         Column(
                             modifier = Modifier
-                                .weight(0.5f)
+                                .weight(0.4f)
                                 .fillMaxHeight()
                         ) {
                             // Answer Options
