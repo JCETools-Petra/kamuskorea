@@ -12,11 +12,20 @@ $action = $_GET['action'] ?? 'list';
 if ($action === 'delete' && isset($_GET['id'])) {
     $id = (int)$_GET['id'];
     try {
+        // Delete in correct order to avoid foreign key constraint errors
+        // 1. Delete assessment results first (child table)
+        $stmt = $pdo->prepare("DELETE FROM assessment_results WHERE assessment_id = ?");
+        $stmt->execute([$id]);
+
+        // 2. Delete questions (child table)
         $stmt = $pdo->prepare("DELETE FROM questions WHERE assessment_id = ?");
         $stmt->execute([$id]);
+
+        // 3. Finally delete the assessment itself (parent table)
         $stmt = $pdo->prepare("DELETE FROM assessments WHERE id = ? AND type = 'exam'");
         $stmt->execute([$id]);
-        $message = 'Ujian dan semua soalnya berhasil dihapus!';
+
+        $message = 'Ujian, soal, dan hasil ujian berhasil dihapus!';
     } catch (Exception $e) {
         $error = 'Gagal menghapus ujian: ' . $e->getMessage();
     }

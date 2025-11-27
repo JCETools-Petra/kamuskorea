@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_question'])) {
     $option_b = trim($_POST['option_b'] ?? '');
     $option_c = trim($_POST['option_c'] ?? '');
     $option_d = trim($_POST['option_d'] ?? '');
-    $correct_answer = strtoupper($_POST['correct_answer'] ?? 'A');
+    $correct_answer = $_POST['correct_answer'] ?? '1'; // Store as 1,2,3,4 instead of A,B,C,D
     $explanation = trim($_POST['explanation'] ?? '');
     $order_index = (int)($_POST['order_index'] ?? 0);
 
@@ -338,29 +338,29 @@ if ($action === 'list') {
                                     <!-- ✅ Support for long answer options -->
                                     <div class="row">
                                         <div class="col-md-6">
-                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'A' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
+                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] == '1' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
                                                 <strong>1.</strong> <?= nl2br(htmlspecialchars($q['option_a'])) ?>
-                                                <?php if ($q['correct_answer'] === 'A'): ?>
+                                                <?php if ($q['correct_answer'] == '1'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
                                             </div>
-                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'B' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
+                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] == '2' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
                                                 <strong>2.</strong> <?= nl2br(htmlspecialchars($q['option_b'])) ?>
-                                                <?php if ($q['correct_answer'] === 'B'): ?>
+                                                <?php if ($q['correct_answer'] == '2'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
-                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'C' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
+                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] == '3' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
                                                 <strong>3.</strong> <?= nl2br(htmlspecialchars($q['option_c'])) ?>
-                                                <?php if ($q['correct_answer'] === 'C'): ?>
+                                                <?php if ($q['correct_answer'] == '3'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
                                             </div>
-                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'D' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
+                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] == '4' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
                                                 <strong>4.</strong> <?= nl2br(htmlspecialchars($q['option_d'])) ?>
-                                                <?php if ($q['correct_answer'] === 'D'): ?>
+                                                <?php if ($q['correct_answer'] == '4'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
                                             </div>
@@ -536,10 +536,10 @@ if ($action === 'list') {
                                         <div class="mb-3">
                                             <label class="form-label">Jawaban Benar *</label>
                                             <select name="correct_answer" class="form-select" required>
-                                                <option value="A" <?= ($editQuestion['correct_answer'] ?? 'A') === 'A' ? 'selected' : '' ?>>1</option>
-                                                <option value="B" <?= ($editQuestion['correct_answer'] ?? '') === 'B' ? 'selected' : '' ?>>2</option>
-                                                <option value="C" <?= ($editQuestion['correct_answer'] ?? '') === 'C' ? 'selected' : '' ?>>3</option>
-                                                <option value="D" <?= ($editQuestion['correct_answer'] ?? '') === 'D' ? 'selected' : '' ?>>4</option>
+                                                <option value="1" <?= ($editQuestion['correct_answer'] ?? '1') == '1' ? 'selected' : '' ?>>1</option>
+                                                <option value="2" <?= ($editQuestion['correct_answer'] ?? '') == '2' ? 'selected' : '' ?>>2</option>
+                                                <option value="3" <?= ($editQuestion['correct_answer'] ?? '') == '3' ? 'selected' : '' ?>>3</option>
+                                                <option value="4" <?= ($editQuestion['correct_answer'] ?? '') == '4' ? 'selected' : '' ?>>4</option>
                                             </select>
                                         </div>
                                     </div>
