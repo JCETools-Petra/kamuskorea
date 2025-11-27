@@ -288,8 +288,8 @@ fun EnhancedProfileScreen(
             SubscriptionStatusCard(
                 hasActiveSubscription = hasActiveSubscription,
                 productDetails = productDetails,
-                onSubscribeClick = {
-                    activity?.let { viewModel.launchBilling(it) }
+                onSubscribeClick = { offerToken ->
+                    activity?.let { viewModel.launchBilling(it, offerToken) }
                 }
             )
 
@@ -424,7 +424,7 @@ fun ProfileInfoRow(icon: ImageVector, label: String, value: String) {
 fun SubscriptionStatusCard(
     hasActiveSubscription: Boolean,
     productDetails: com.android.billingclient.api.ProductDetails?,
-    onSubscribeClick: () -> Unit
+    onSubscribeClick: (String) -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -484,22 +484,87 @@ fun SubscriptionStatusCard(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 productDetails?.let { details ->
-                    val price = details.subscriptionOfferDetails?.firstOrNull()
-                        ?.pricingPhases?.pricingPhaseList?.firstOrNull()
-                        ?.formattedPrice ?: "N/A"
+                    val offers = details.subscriptionOfferDetails
+                    if (offers != null && offers.isNotEmpty()) {
+                        Text(
+                            "Pilih Paket Langganan:",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
 
-                    Button(
-                        onClick = onSubscribeClick,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Berlangganan $price/bulan")
+                        // Display all subscription offers
+                        offers.forEach { offer ->
+                            val price = offer.pricingPhases.pricingPhaseList.firstOrNull()?.formattedPrice ?: "N/A"
+                            val billingPeriod = offer.pricingPhases.pricingPhaseList.firstOrNull()?.billingPeriod ?: ""
+
+                            // Determine subscription label based on billing period
+                            val (label, savings) = when {
+                                billingPeriod.contains("P1M") -> "Bulanan" to null
+                                billingPeriod.contains("P6M") -> "6 Bulan" to "Hemat 10%"
+                                billingPeriod.contains("P1Y") -> "1 Tahun" to "Hemat 20%"
+                                else -> "Langganan" to null
+                            }
+
+                            SubscriptionOptionButton(
+                                label = label,
+                                price = price,
+                                savings = savings,
+                                onClick = { onSubscribeClick(offer.offerToken) }
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
                 } ?: CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SubscriptionOptionButton(
+    label: String,
+    price: String,
+    savings: String?,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    price,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            if (savings != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    savings,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFFFD700)
                 )
             }
         }

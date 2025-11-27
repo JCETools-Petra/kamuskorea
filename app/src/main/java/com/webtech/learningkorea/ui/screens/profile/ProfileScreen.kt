@@ -27,6 +27,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
@@ -166,8 +167,8 @@ fun ProfileScreen(
             SubscriptionCard(
                 hasActiveSubscription = hasActiveSubscription,
                 productDetails = productDetails,
-                onSubscribeClick = {
-                    activity?.let { act -> viewModel.launchBilling(act) }
+                onSubscribeClick = { offerToken ->
+                    activity?.let { act -> viewModel.launchBilling(act, offerToken) }
                 }
             )
         }
@@ -294,7 +295,7 @@ fun EditProfileCard(
 fun SubscriptionCard(
     hasActiveSubscription: Boolean,
     productDetails: com.android.billingclient.api.ProductDetails?,
-    onSubscribeClick: () -> Unit
+    onSubscribeClick: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -339,12 +340,8 @@ fun SubscriptionCard(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Show subscription offer
+                // Show subscription offers
                 productDetails?.let { details ->
-                    val price = details.subscriptionOfferDetails?.firstOrNull()
-                        ?.pricingPhases?.pricingPhaseList?.firstOrNull()
-                        ?.formattedPrice ?: "N/A"
-
                     Text(
                         text = details.name.ifBlank { "Tingkatkan ke Premium" },
                         style = MaterialTheme.typography.titleMedium,
@@ -355,12 +352,41 @@ fun SubscriptionCard(
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    Button(
-                        onClick = onSubscribeClick,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Text("Berlangganan ($price/bulan)")
+
+                    // Display all subscription offers
+                    val offers = details.subscriptionOfferDetails
+                    if (offers != null && offers.isNotEmpty()) {
+                        offers.forEach { offer ->
+                            val price = offer.pricingPhases.pricingPhaseList.firstOrNull()?.formattedPrice ?: "N/A"
+                            val billingPeriod = offer.pricingPhases.pricingPhaseList.firstOrNull()?.billingPeriod ?: ""
+
+                            // Determine subscription label
+                            val label = when {
+                                billingPeriod.contains("P1M") -> "Bulanan"
+                                billingPeriod.contains("P6M") -> "6 Bulan"
+                                billingPeriod.contains("P1Y") -> "1 Tahun"
+                                else -> "Langganan"
+                            }
+
+                            Button(
+                                onClick = { onSubscribeClick(offer.offerToken) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("$label - $price")
+                                    if (billingPeriod.contains("P6M")) {
+                                        Text("💰 Hemat 10%", fontSize = 12.sp)
+                                    } else if (billingPeriod.contains("P1Y")) {
+                                        Text("💰 Hemat 20%", fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
                 } ?: run {
                     // Show loading

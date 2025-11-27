@@ -24,9 +24,13 @@ class BillingClientWrapper @Inject constructor(
     /**
      * PENTING: Product ID harus sama dengan yang dibuat di Google Play Console
      *
-     * GANTI NILAI DI BAWAH INI DENGAN PRODUCT ID YANG ANDA BUAT!
+     * Base Plan: langganan_bulanan_pro
+     * Subscription Offers:
+     *   - subscription-bulanan (Monthly)
+     *   - subscription6bln (6 months)
+     *   - subscription1thn (Yearly)
      */
-    private val productId: String = "langganan_pro_bulanan" // TODO: Ganti dengan Product ID Anda
+    private val productId: String = "langganan_bulanan_pro"
 
     private val _productDetails = MutableStateFlow<ProductDetails?>(null)
     val productDetails = _productDetails.asStateFlow()
@@ -282,10 +286,16 @@ class BillingClientWrapper @Inject constructor(
         }
     }
 
-    fun launchPurchaseFlow(productDetails: ProductDetails, activity: Activity) {
+    fun launchPurchaseFlow(
+        productDetails: ProductDetails,
+        activity: Activity,
+        selectedOfferToken: String? = null
+    ) {
         Log.d(TAG, "=== LAUNCHING PURCHASE FLOW ===")
 
-        val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
+        // Gunakan offer token yang dipilih user, atau ambil yang pertama sebagai fallback
+        val offerToken = selectedOfferToken
+            ?: productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
 
         if (offerToken == null) {
             Log.e(TAG, "❌ Gagal: Tidak ada offer token!")

@@ -272,10 +272,10 @@ class ProfileViewModel @Inject constructor(
         _updateStatus.value = null
     }
 
-    fun launchBilling(activity: android.app.Activity) {
+    fun launchBilling(activity: android.app.Activity, offerToken: String? = null) {
         val currentProductDetails = productDetails.value
         if (currentProductDetails != null) {
-            billingClient.launchPurchaseFlow(currentProductDetails, activity)
+            billingClient.launchPurchaseFlow(currentProductDetails, activity, offerToken)
         } else {
             Log.e("ProfileViewModel", "Gagal memulai billing: ProductDetails is null.")
             _updateStatus.value = "Gagal: Detail produk langganan tidak ditemukan."
