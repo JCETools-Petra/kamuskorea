@@ -551,6 +551,7 @@ fun QuestionContentLandscape(
         modifier = Modifier
             .fillMaxSize()
             .padding(10.dp)
+            .verticalScroll(rememberScrollState()) // ✅ Enable scrolling for long questions
     ) {
         // Question Number Badge
         Surface(
@@ -566,17 +567,20 @@ fun QuestionContentLandscape(
             )
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Question Text
+        // Question Text - ✅ Optimized for long paragraph/story questions
         Text(
             text = question.questionText,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            lineHeight = 22.sp
+            style = MaterialTheme.typography.bodyLarge, // Changed from titleMedium for better readability
+            fontWeight = FontWeight.Normal, // Changed from Bold to reduce visual fatigue
+            lineHeight = 26.sp, // Increased from 22.sp for better paragraph spacing
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.fillMaxWidth()
+            // No maxLines restriction - allows unlimited length
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Media Content with Loading States
         when (question.questionType) {
@@ -592,7 +596,7 @@ fun QuestionContentLandscape(
                             contentDescription = "Question Image",
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 180.dp),
+                                .heightIn(max = 200.dp), // Slightly increased for better visibility
                             contentScale = ContentScale.Fit,
                             loading = {
                                 ShimmerPlaceholder(
@@ -676,13 +680,14 @@ fun LandscapeAnswerOption(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Answer Text
+            // Answer Text - ✅ Support for long answer options
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                modifier = Modifier.weight(1f),
-                maxLines = 2
+                lineHeight = 20.sp, // Better line spacing for multi-line answers
+                modifier = Modifier.weight(1f)
+                // No maxLines restriction - allows long answer text
             )
 
             // Check Icon
