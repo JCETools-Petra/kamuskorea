@@ -417,6 +417,17 @@ fun FlashcardScreen(
 ) {
     val chapterTitle = vocabularyList.firstOrNull()?.chapterTitleIndonesian ?: "Bab $chapterNumber"
 
+    // State untuk mode bahasa (true = Korean first, false = Indonesian first)
+    var isKoreanFirst by remember { mutableStateOf(false) }
+
+    // State untuk shuffle
+    var isShuffled by remember { mutableStateOf(false) }
+    var displayList by remember(vocabularyList, isShuffled) {
+        mutableStateOf(
+            if (isShuffled) vocabularyList.shuffled() else vocabularyList
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -436,6 +447,35 @@ fun FlashcardScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali")
+                    }
+                },
+                actions = {
+                    // Tombol Toggle Bahasa
+                    IconButton(
+                        onClick = { isKoreanFirst = !isKoreanFirst }
+                    ) {
+                        Icon(
+                            Icons.Default.Translate,
+                            contentDescription = if (isKoreanFirst) "Korean → Indonesia" else "Indonesia → Korean",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+
+                    // Tombol Shuffle
+                    IconButton(
+                        onClick = {
+                            isShuffled = !isShuffled
+                            displayList = if (isShuffled) vocabularyList.shuffled() else vocabularyList
+                        }
+                    ) {
+                        Icon(
+                            Icons.Default.Shuffle,
+                            contentDescription = if (isShuffled) "Urut Normal" else "Acak Urutan",
+                            tint = if (isShuffled)
+                                Color(0xFFFFD700) // Gold when shuffled
+                            else
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -465,9 +505,10 @@ fun FlashcardScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                itemsIndexed(vocabularyList) { index, vocabulary ->
+                itemsIndexed(displayList) { index, vocabulary ->
                     FlashCard(
                         vocabulary = vocabulary,
+                        isKoreanFirst = isKoreanFirst,
                         adManager = adManager,
                         activity = activity,
                         isPremium = isPremium,
@@ -483,6 +524,7 @@ fun FlashcardScreen(
 @Composable
 fun FlashCard(
     vocabulary: Vocabulary,
+    isKoreanFirst: Boolean = false,
     adManager: AdManager? = null,
     activity: Activity? = null,
     isPremium: Boolean = false,
@@ -491,7 +533,7 @@ fun FlashCard(
 ) {
     var isFlipped by remember { mutableStateOf(false) }
 
-    // Auto-flip back to Indonesian after 5 seconds
+    // Auto-flip back after 5 seconds
     LaunchedEffect(isFlipped) {
         if (isFlipped) {
             delay(5000L) // 5 seconds
@@ -511,6 +553,11 @@ fun FlashCard(
             isFlipped = !isFlipped
         }
     }
+
+    // Determine front and back content based on mode
+    val frontText = if (isKoreanFirst) vocabulary.koreanWord ?: "" else vocabulary.indonesianMeaning ?: ""
+    val backText = if (isKoreanFirst) vocabulary.indonesianMeaning ?: "" else vocabulary.koreanWord ?: ""
+    val frontHint = if (isKoreanFirst) "Tap untuk lihat arti" else "Tap untuk lihat Korea"
 
     // Animation for card flip
     val rotation by animateFloatAsState(
@@ -550,7 +597,7 @@ fun FlashCard(
             modifier = Modifier.fillMaxSize()
         ) {
             if (!isFlipped) {
-                // Front side - Indonesian meaning (DENGAN TOMBOL FAVOURITE)
+                // Front side (DENGAN TOMBOL FAVOURITE)
                 Box(
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -564,16 +611,17 @@ fun FlashCard(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = vocabulary.indonesianMeaning ?: "",
-                            style = MaterialTheme.typography.titleMedium,
+                            text = frontText,
+                            style = if (isKoreanFirst) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = if (isKoreanFirst) 28.sp else 18.sp,
                             maxLines = 3
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            "Tap untuk lihat Korea",
+                            frontHint,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                             textAlign = TextAlign.Center,
@@ -598,7 +646,7 @@ fun FlashCard(
                     }
                 }
             } else {
-                // Back side - Korean word
+                // Back side
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -611,16 +659,17 @@ fun FlashCard(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = vocabulary.koreanWord ?: "",
-                        style = MaterialTheme.typography.headlineSmall,
+                        text = backText,
+                        style = if (!isKoreanFirst) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontSize = 28.sp
+                        fontSize = if (!isKoreanFirst) 28.sp else 18.sp,
+                        maxLines = if (!isKoreanFirst) 3 else 2
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = vocabulary.indonesianMeaning ?: "",
+                        text = frontText,
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
