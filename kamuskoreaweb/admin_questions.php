@@ -300,7 +300,10 @@ if ($action === 'list') {
                                     </div>
                                 </div>
                                 <div class="card-body">
-                                    <p class="card-text mb-3"><?= nl2br(htmlspecialchars($q['question_text'])) ?></p>
+                                    <!-- ✅ Optimized for long paragraph/story questions -->
+                                    <div class="question-text-display mb-3" style="line-height: 1.8; font-size: 15px; max-height: 500px; overflow-y: auto; padding: 10px; background-color: #f8f9fa; border-radius: 8px;">
+                                        <?= nl2br(htmlspecialchars($q['question_text'])) ?>
+                                    </div>
 
                                     <?php if ($q['media_url']): ?>
                                         <div class="mb-3">
@@ -332,30 +335,31 @@ if ($action === 'list') {
                                         </div>
                                     <?php endif; ?>
 
+                                    <!-- ✅ Support for long answer options -->
                                     <div class="row">
                                         <div class="col-md-6">
-                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'A' ? 'correct-answer' : 'bg-light' ?>">
-                                                <strong>1.</strong> <?= htmlspecialchars($q['option_a']) ?>
+                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'A' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
+                                                <strong>1.</strong> <?= nl2br(htmlspecialchars($q['option_a'])) ?>
                                                 <?php if ($q['correct_answer'] === 'A'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
                                             </div>
-                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'B' ? 'correct-answer' : 'bg-light' ?>">
-                                                <strong>2.</strong> <?= htmlspecialchars($q['option_b']) ?>
+                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'B' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
+                                                <strong>2.</strong> <?= nl2br(htmlspecialchars($q['option_b'])) ?>
                                                 <?php if ($q['correct_answer'] === 'B'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
-                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'C' ? 'correct-answer' : 'bg-light' ?>">
-                                                <strong>3.</strong> <?= htmlspecialchars($q['option_c']) ?>
+                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'C' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
+                                                <strong>3.</strong> <?= nl2br(htmlspecialchars($q['option_c'])) ?>
                                                 <?php if ($q['correct_answer'] === 'C'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
                                             </div>
-                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'D' ? 'correct-answer' : 'bg-light' ?>">
-                                                <strong>4.</strong> <?= htmlspecialchars($q['option_d']) ?>
+                                            <div class="p-2 rounded mb-1 <?= $q['correct_answer'] === 'D' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
+                                                <strong>4.</strong> <?= nl2br(htmlspecialchars($q['option_d'])) ?>
                                                 <?php if ($q['correct_answer'] === 'D'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
@@ -417,8 +421,10 @@ if ($action === 'list') {
 
                                 <div class="mb-3">
                                     <label class="form-label">Teks Soal *</label>
-                                    <textarea name="question_text" class="form-control" rows="4" required
-                                              placeholder="Tuliskan pertanyaan di sini..."><?= htmlspecialchars($editQuestion['question_text'] ?? '') ?></textarea>
+                                    <textarea name="question_text" class="form-control" rows="10" required
+                                              placeholder="Tuliskan pertanyaan di sini... (Mendukung soal panjang/cerita dengan banyak paragraf)"
+                                              style="line-height: 1.6; font-size: 15px;"><?= htmlspecialchars($editQuestion['question_text'] ?? '') ?></textarea>
+                                    <small class="text-muted">💡 Tip: Gunakan Enter untuk membuat paragraf baru. Cocok untuk soal cerita/reading comprehension.</small>
                                 </div>
 
                                 <div class="row">
@@ -489,19 +495,20 @@ if ($action === 'list') {
                                 <div class="card bg-light mb-3">
                                     <div class="card-body">
                                         <h5 class="card-title">Pilihan Jawaban</h5>
+                                        <small class="text-muted d-block mb-3">💡 Jawaban sekarang bisa panjang! Gunakan textarea untuk jawaban yang lebih dari satu baris.</small>
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <label class="form-label">Pilihan 1 *</label>
-                                                    <input type="text" name="option_a" class="form-control" required
-                                                           value="<?= htmlspecialchars($editQuestion['option_a'] ?? '') ?>">
+                                                    <textarea name="option_a" class="form-control" rows="3" required
+                                                              style="line-height: 1.5;"><?= htmlspecialchars($editQuestion['option_a'] ?? '') ?></textarea>
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <label class="form-label">Pilihan 2 *</label>
-                                                    <input type="text" name="option_b" class="form-control" required
-                                                           value="<?= htmlspecialchars($editQuestion['option_b'] ?? '') ?>">
+                                                    <textarea name="option_b" class="form-control" rows="3" required
+                                                              style="line-height: 1.5;"><?= htmlspecialchars($editQuestion['option_b'] ?? '') ?></textarea>
                                                 </div>
                                             </div>
                                         </div>
@@ -509,15 +516,15 @@ if ($action === 'list') {
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <label class="form-label">Pilihan 3 *</label>
-                                                    <input type="text" name="option_c" class="form-control" required
-                                                           value="<?= htmlspecialchars($editQuestion['option_c'] ?? '') ?>">
+                                                    <textarea name="option_c" class="form-control" rows="3" required
+                                                              style="line-height: 1.5;"><?= htmlspecialchars($editQuestion['option_c'] ?? '') ?></textarea>
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <label class="form-label">Pilihan 4 *</label>
-                                                    <input type="text" name="option_d" class="form-control" required
-                                                           value="<?= htmlspecialchars($editQuestion['option_d'] ?? '') ?>">
+                                                    <textarea name="option_d" class="form-control" rows="3" required
+                                                              style="line-height: 1.5;"><?= htmlspecialchars($editQuestion['option_d'] ?? '') ?></textarea>
                                                 </div>
                                             </div>
                                         </div>
