@@ -451,30 +451,48 @@ fun FlashcardScreen(
                 },
                 actions = {
                     // Tombol Toggle Bahasa
-                    IconButton(
-                        onClick = { isKoreanFirst = !isKoreanFirst }
+                    TextButton(
+                        onClick = { isKoreanFirst = !isKoreanFirst },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     ) {
                         Icon(
                             Icons.Default.Translate,
-                            contentDescription = if (isKoreanFirst) "Korean → Indonesia" else "Indonesia → Korean",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (isKoreanFirst) "Korea" else "Indo",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium
                         )
                     }
 
                     // Tombol Shuffle
-                    IconButton(
+                    TextButton(
                         onClick = {
                             isShuffled = !isShuffled
                             displayList = if (isShuffled) vocabularyList.shuffled() else vocabularyList
-                        }
-                    ) {
-                        Icon(
-                            Icons.Default.Shuffle,
-                            contentDescription = if (isShuffled) "Urut Normal" else "Acak Urutan",
-                            tint = if (isShuffled)
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = if (isShuffled)
                                 Color(0xFFFFD700) // Gold when shuffled
                             else
                                 MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.Shuffle,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (isShuffled) "Acak" else "Urut",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 },
