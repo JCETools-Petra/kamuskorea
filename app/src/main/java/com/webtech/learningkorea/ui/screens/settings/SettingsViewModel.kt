@@ -43,11 +43,11 @@ class SettingsViewModel @Inject constructor(
 
     // ========== DARK MODE ==========
     val darkMode = dataStore.data.map { preferences ->
-        preferences[SettingsDataStore.DARK_MODE_KEY] ?: "system"
+        preferences[SettingsDataStore.DARK_MODE_KEY] ?: "light"
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = "system"
+        initialValue = "light"
     )
 
     fun setDarkMode(mode: String) {
