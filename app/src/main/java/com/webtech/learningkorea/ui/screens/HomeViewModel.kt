@@ -289,25 +289,24 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val today = getStartOfDay(System.currentTimeMillis())
 
-            dataStore.data.map { preferences ->
+            // Use first() to get value once, not collect()
+            val lastLoginXpDate = dataStore.data.map { preferences ->
                 preferences[LAST_DAILY_LOGIN_XP_KEY] ?: 0L
-            }.collect { lastLoginXpDate ->
-                val lastLoginDay = if (lastLoginXpDate > 0) getStartOfDay(lastLoginXpDate) else 0L
+            }.first()
 
-                // Award XP if this is the first login of the day
-                if (lastLoginDay < today) {
-                    gamificationRepository.addXp(XpRewards.DAILY_LOGIN, "daily_login")
-                    Log.d(TAG, "⭐ Awarded ${XpRewards.DAILY_LOGIN} XP for daily login")
+            val lastLoginDay = if (lastLoginXpDate > 0) getStartOfDay(lastLoginXpDate) else 0L
 
-                    // Update last login XP date
-                    dataStore.edit { preferences ->
-                        preferences[LAST_DAILY_LOGIN_XP_KEY] = today
-                    }
-                } else {
-                    Log.d(TAG, "Daily login XP already awarded today")
+            // Award XP if this is the first login of the day
+            if (lastLoginDay < today) {
+                gamificationRepository.addXp(XpRewards.DAILY_LOGIN, "daily_login")
+                Log.d(TAG, "⭐ Awarded ${XpRewards.DAILY_LOGIN} XP for daily login")
+
+                // Update last login XP date
+                dataStore.edit { preferences ->
+                    preferences[LAST_DAILY_LOGIN_XP_KEY] = today
                 }
-                // Only collect once
-                return@collect
+            } else {
+                Log.d(TAG, "Daily login XP already awarded today")
             }
         }
     }
