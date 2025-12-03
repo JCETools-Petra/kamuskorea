@@ -112,6 +112,8 @@ if ($action === 'list') {
     <title>Kelola Soal - Admin Kamus Korea</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Quill Rich Text Editor -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <style>
         .sidebar {
             min-height: 100vh;
@@ -164,6 +166,25 @@ if ($action === 'list') {
         }
         .upload-progress {
             display: none;
+        }
+        /* Quill editor styling */
+        .quill-editor {
+            background: white;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+        }
+        .ql-toolbar {
+            border-top-left-radius: 0.375rem;
+            border-top-right-radius: 0.375rem;
+        }
+        .ql-container {
+            min-height: 100px;
+            font-size: 15px;
+            border-bottom-left-radius: 0.375rem;
+            border-bottom-right-radius: 0.375rem;
+        }
+        .option-editor .ql-container {
+            min-height: 60px;
         }
     </style>
 </head>
@@ -300,9 +321,9 @@ if ($action === 'list') {
                                     </div>
                                 </div>
                                 <div class="card-body">
-                                    <!-- ✅ Optimized for long paragraph/story questions -->
+                                    <!-- ✅ Optimized for long paragraph/story questions with HTML support -->
                                     <div class="question-text-display mb-3" style="line-height: 1.8; font-size: 15px; max-height: 500px; overflow-y: auto; padding: 10px; background-color: #f8f9fa; border-radius: 8px;">
-                                        <?= nl2br(htmlspecialchars($q['question_text'])) ?>
+                                        <?= $q['question_text'] ?>
                                     </div>
 
                                     <?php if ($q['media_url']): ?>
@@ -335,17 +356,17 @@ if ($action === 'list') {
                                         </div>
                                     <?php endif; ?>
 
-                                    <!-- ✅ Support for long answer options -->
+                                    <!-- ✅ Support for long answer options with HTML formatting -->
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="p-2 rounded mb-1 <?= $q['correct_answer'] == '1' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
-                                                <strong>1.</strong> <?= nl2br(htmlspecialchars($q['option_a'])) ?>
+                                                <strong>1.</strong> <?= $q['option_a'] ?>
                                                 <?php if ($q['correct_answer'] == '1'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="p-2 rounded mb-1 <?= $q['correct_answer'] == '2' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
-                                                <strong>2.</strong> <?= nl2br(htmlspecialchars($q['option_b'])) ?>
+                                                <strong>2.</strong> <?= $q['option_b'] ?>
                                                 <?php if ($q['correct_answer'] == '2'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
@@ -353,13 +374,13 @@ if ($action === 'list') {
                                         </div>
                                         <div class="col-md-6">
                                             <div class="p-2 rounded mb-1 <?= $q['correct_answer'] == '3' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
-                                                <strong>3.</strong> <?= nl2br(htmlspecialchars($q['option_c'])) ?>
+                                                <strong>3.</strong> <?= $q['option_c'] ?>
                                                 <?php if ($q['correct_answer'] == '3'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="p-2 rounded mb-1 <?= $q['correct_answer'] == '4' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
-                                                <strong>4.</strong> <?= nl2br(htmlspecialchars($q['option_d'])) ?>
+                                                <strong>4.</strong> <?= $q['option_d'] ?>
                                                 <?php if ($q['correct_answer'] == '4'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
@@ -421,10 +442,9 @@ if ($action === 'list') {
 
                                 <div class="mb-3">
                                     <label class="form-label">Teks Soal *</label>
-                                    <textarea name="question_text" class="form-control" rows="10" required
-                                              placeholder="Tuliskan pertanyaan di sini... (Mendukung soal panjang/cerita dengan banyak paragraf)"
-                                              style="line-height: 1.6; font-size: 15px;"><?= htmlspecialchars($editQuestion['question_text'] ?? '') ?></textarea>
-                                    <small class="text-muted">💡 Tip: Gunakan Enter untuk membuat paragraf baru. Cocok untuk soal cerita/reading comprehension.</small>
+                                    <input type="hidden" name="question_text" id="question_text_input" required>
+                                    <div id="question_text_editor" class="quill-editor"></div>
+                                    <small class="text-muted">💡 Tip: Gunakan toolbar untuk format teks (Bold, Italic, Underline). Cocok untuk soal cerita/reading comprehension.</small>
                                 </div>
 
                                 <div class="row">
@@ -495,20 +515,20 @@ if ($action === 'list') {
                                 <div class="card bg-light mb-3">
                                     <div class="card-body">
                                         <h5 class="card-title">Pilihan Jawaban</h5>
-                                        <small class="text-muted d-block mb-3">💡 Jawaban sekarang bisa panjang! Gunakan textarea untuk jawaban yang lebih dari satu baris.</small>
+                                        <small class="text-muted d-block mb-3">💡 Jawaban sekarang bisa panjang dan diformat! Gunakan toolbar untuk Bold, Italic, Underline.</small>
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <label class="form-label">Pilihan 1 *</label>
-                                                    <textarea name="option_a" class="form-control" rows="3" required
-                                                              style="line-height: 1.5;"><?= htmlspecialchars($editQuestion['option_a'] ?? '') ?></textarea>
+                                                    <input type="hidden" name="option_a" id="option_a_input" required>
+                                                    <div id="option_a_editor" class="quill-editor option-editor"></div>
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <label class="form-label">Pilihan 2 *</label>
-                                                    <textarea name="option_b" class="form-control" rows="3" required
-                                                              style="line-height: 1.5;"><?= htmlspecialchars($editQuestion['option_b'] ?? '') ?></textarea>
+                                                    <input type="hidden" name="option_b" id="option_b_input" required>
+                                                    <div id="option_b_editor" class="quill-editor option-editor"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -516,15 +536,15 @@ if ($action === 'list') {
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <label class="form-label">Pilihan 3 *</label>
-                                                    <textarea name="option_c" class="form-control" rows="3" required
-                                                              style="line-height: 1.5;"><?= htmlspecialchars($editQuestion['option_c'] ?? '') ?></textarea>
+                                                    <input type="hidden" name="option_c" id="option_c_input" required>
+                                                    <div id="option_c_editor" class="quill-editor option-editor"></div>
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <label class="form-label">Pilihan 4 *</label>
-                                                    <textarea name="option_d" class="form-control" rows="3" required
-                                                              style="line-height: 1.5;"><?= htmlspecialchars($editQuestion['option_d'] ?? '') ?></textarea>
+                                                    <input type="hidden" name="option_d" id="option_d_input" required>
+                                                    <div id="option_d_editor" class="quill-editor option-editor"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -576,8 +596,14 @@ if ($action === 'list') {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Quill Rich Text Editor -->
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Quill editors if on add/edit page
+        if (document.getElementById('question_text_editor')) {
+            initializeQuillEditors();
+        }
         const uploadArea = document.getElementById('uploadArea');
         const mediaFileInput = document.getElementById('mediaFileInput');
         const mediaUrlInput = document.getElementById('media_url');
@@ -759,6 +785,103 @@ if ($action === 'list') {
                     <i class="bi bi-exclamation-circle"></i> ${message}
                 </div>
             `;
+        }
+
+        // Initialize Quill Rich Text Editors
+        function initializeQuillEditors() {
+            const toolbarOptions = [
+                ['bold', 'italic', 'underline', 'strike'],        // toggled buttons
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'header': [1, 2, 3, false] }],
+                ['clean']                                         // remove formatting button
+            ];
+
+            // Get existing content for editing
+            const editData = {
+                question_text: <?= json_encode($editQuestion['question_text'] ?? '') ?>,
+                option_a: <?= json_encode($editQuestion['option_a'] ?? '') ?>,
+                option_b: <?= json_encode($editQuestion['option_b'] ?? '') ?>,
+                option_c: <?= json_encode($editQuestion['option_c'] ?? '') ?>,
+                option_d: <?= json_encode($editQuestion['option_d'] ?? '') ?>
+            };
+
+            // Initialize Question Text Editor
+            const questionEditor = new Quill('#question_text_editor', {
+                theme: 'snow',
+                modules: { toolbar: toolbarOptions },
+                placeholder: 'Tuliskan pertanyaan di sini...'
+            });
+            if (editData.question_text) {
+                questionEditor.root.innerHTML = editData.question_text;
+            }
+
+            // Initialize Option A Editor
+            const optionAEditor = new Quill('#option_a_editor', {
+                theme: 'snow',
+                modules: { toolbar: toolbarOptions },
+                placeholder: 'Pilihan 1...'
+            });
+            if (editData.option_a) {
+                optionAEditor.root.innerHTML = editData.option_a;
+            }
+
+            // Initialize Option B Editor
+            const optionBEditor = new Quill('#option_b_editor', {
+                theme: 'snow',
+                modules: { toolbar: toolbarOptions },
+                placeholder: 'Pilihan 2...'
+            });
+            if (editData.option_b) {
+                optionBEditor.root.innerHTML = editData.option_b;
+            }
+
+            // Initialize Option C Editor
+            const optionCEditor = new Quill('#option_c_editor', {
+                theme: 'snow',
+                modules: { toolbar: toolbarOptions },
+                placeholder: 'Pilihan 3...'
+            });
+            if (editData.option_c) {
+                optionCEditor.root.innerHTML = editData.option_c;
+            }
+
+            // Initialize Option D Editor
+            const optionDEditor = new Quill('#option_d_editor', {
+                theme: 'snow',
+                modules: { toolbar: toolbarOptions },
+                placeholder: 'Pilihan 4...'
+            });
+            if (editData.option_d) {
+                optionDEditor.root.innerHTML = editData.option_d;
+            }
+
+            // Sync editors with hidden inputs on form submit
+            const form = document.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    // Sync all editors with their hidden inputs
+                    document.getElementById('question_text_input').value = questionEditor.root.innerHTML;
+                    document.getElementById('option_a_input').value = optionAEditor.root.innerHTML;
+                    document.getElementById('option_b_input').value = optionBEditor.root.innerHTML;
+                    document.getElementById('option_c_input').value = optionCEditor.root.innerHTML;
+                    document.getElementById('option_d_input').value = optionDEditor.root.innerHTML;
+
+                    // Validate that editors are not empty
+                    if (questionEditor.getText().trim().length === 0) {
+                        alert('Teks soal tidak boleh kosong!');
+                        e.preventDefault();
+                        return false;
+                    }
+                    if (optionAEditor.getText().trim().length === 0 ||
+                        optionBEditor.getText().trim().length === 0 ||
+                        optionCEditor.getText().trim().length === 0 ||
+                        optionDEditor.getText().trim().length === 0) {
+                        alert('Semua pilihan jawaban harus diisi!');
+                        e.preventDefault();
+                        return false;
+                    }
+                });
+            }
         }
     });
     </script>

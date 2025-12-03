@@ -43,10 +43,18 @@ Options -Indexes
     Deny from all
 </FilesMatch>
 
-# PHP settings (optional)
+# PHP settings (optional) - Updated for large PDF uploads (250MB+)
 <IfModule mod_php7.c>
-    php_value upload_max_filesize 10M
-    php_value post_max_size 10M
-    php_value max_execution_time 60
-    php_value memory_limit 256M
+    php_value upload_max_filesize 300M
+    php_value post_max_size 300M
+    php_value max_execution_time 300
+    php_value memory_limit 512M
+</IfModule>
+
+# PHP 8.x settings
+<IfModule mod_php8.c>
+    php_value upload_max_filesize 300M
+    php_value post_max_size 300M
+    php_value max_execution_time 300
+    php_value memory_limit 512M
 </IfModule>
