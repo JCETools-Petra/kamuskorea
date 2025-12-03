@@ -299,8 +299,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) 
                                     <label class="form-label">File PDF <?= $editPdf ? '' : '<span class="text-danger">*</span>' ?></label>
                                     <input type="file" name="pdf_file" class="form-control" accept=".pdf"
                                            <?= $editPdf ? '' : 'required' ?>>
+                                    <small class="text-muted">Format: PDF (Max 300MB)</small>
                                     <?php if ($editPdf && !empty($editPdf['pdfUrl'])): ?>
-                                        <small class="text-muted">
+                                        <br><small class="text-muted">
                                             File saat ini: <a href="<?= htmlspecialchars($editPdf['pdfUrl']) ?>" target="_blank">Lihat PDF</a>
                                             <br>Upload file baru jika ingin mengganti
                                         </small>
