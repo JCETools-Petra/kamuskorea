@@ -39,4 +39,22 @@ interface VocabularyDao {
      */
     @Query("SELECT COUNT(*) FROM Vocabulary WHERE chapter_number = :chapterNumber")
     suspend fun getChapterWordCount(chapterNumber: Int): Int
+
+    /**
+     * Get a random word for quiz (question)
+     */
+    @Query("SELECT * FROM Vocabulary ORDER BY RANDOM() LIMIT 1")
+    suspend fun getRandomWord(): Vocabulary?
+
+    /**
+     * Get random words excluding specific IDs (for wrong answers)
+     */
+    @Query("SELECT * FROM Vocabulary WHERE id NOT IN (:excludeIds) ORDER BY RANDOM() LIMIT :limit")
+    suspend fun getRandomWordsExcluding(excludeIds: List<Int>, limit: Int): List<Vocabulary>
+
+    /**
+     * Get all vocabulary words (for generating wrong answers)
+     */
+    @Query("SELECT * FROM Vocabulary")
+    suspend fun getAllVocabulary(): List<Vocabulary>
 }

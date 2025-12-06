@@ -401,6 +401,7 @@ fun MainApp(
             currentRoute == Screen.Ebook.route -> strings.ebook
             currentRoute == Screen.Quiz.route -> strings.quiz
             currentRoute == Screen.Memorization.route -> strings.memorization
+            currentRoute == Screen.QuizHafalan.route -> strings.quizHafalan
             currentRoute == Screen.Profile.route -> strings.profile
             currentRoute == Screen.Settings.route -> strings.settings
             currentRoute?.startsWith("pdf_viewer/") == true ->
@@ -415,6 +416,7 @@ fun MainApp(
         NavItem(strings.favorites, Icons.Outlined.Favorite, Screen.Favorites),
         NavItem(strings.ebook, Icons.Outlined.AutoStories, Screen.Ebook),
         NavItem(strings.memorization, Icons.Outlined.Bookmark, Screen.Memorization),
+        NavItem(strings.quizHafalan, Icons.Outlined.School, Screen.QuizHafalan),
         NavItem(strings.quiz, Icons.Outlined.Quiz, Screen.Quiz)
     )
 
@@ -553,6 +555,12 @@ fun MainApp(
                         isPremium = isPremium,
                         onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                         adManager = adManager
+                    )
+                }
+                composable(Screen.QuizHafalan.route) {
+                    QuizHafalanScreen(
+                        isPremium = isPremium,
+                        onNavigateBack = { navController.navigateUp() }
                     )
                 }
 
