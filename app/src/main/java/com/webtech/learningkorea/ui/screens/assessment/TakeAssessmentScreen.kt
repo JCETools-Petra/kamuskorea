@@ -336,7 +336,7 @@ fun TakeAssessmentScreen(
                                                 viewModel.saveAnswer(currentQuestion.id, letter)
                                             },
                                             optionType = currentQuestion.getOptionType(index),
-                                            mediaPreloader = viewModel.mediaPreloader
+                                            mediaPreloader = viewModel.getMediaPreloader()
                                         )
                                     }
                                 }
