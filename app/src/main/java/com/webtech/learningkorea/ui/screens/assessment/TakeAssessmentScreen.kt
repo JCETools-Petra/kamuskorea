@@ -569,12 +569,13 @@ fun QuestionContentLandscape(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Question Text - ✅ Optimized for long paragraph/story questions
-        Text(
-            text = question.questionText,
-            style = MaterialTheme.typography.bodyLarge, // Changed from titleMedium for better readability
-            fontWeight = FontWeight.Normal, // Changed from Bold to reduce visual fatigue
-            lineHeight = 26.sp, // Increased from 22.sp for better paragraph spacing
+        // Question Text - ✅ Optimized for long paragraph/story questions, with HTML support
+        HtmlText(
+            html = question.questionText,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Normal, // Changed from Bold to reduce visual fatigue
+                lineHeight = 26.sp // Increased from 22.sp for better paragraph spacing
+            ),
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.fillMaxWidth()
             // No maxLines restriction - allows unlimited length
@@ -680,12 +681,13 @@ fun LandscapeAnswerOption(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Answer Text - ✅ Support for long answer options
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                lineHeight = 20.sp, // Better line spacing for multi-line answers
+            // Answer Text - ✅ Support for long answer options with HTML rendering
+            HtmlText(
+                html = text,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    lineHeight = 20.sp // Better line spacing for multi-line answers
+                ),
                 modifier = Modifier.weight(1f)
                 // No maxLines restriction - allows long answer text
             )
@@ -1774,4 +1776,49 @@ fun LanguageOptionItemCompact(
             }
         }
     }
+}
+
+/**
+ * Composable to render HTML text (supports <p>, <u>, <b>, <i>, etc.)
+ * Used for questions and answers that may contain HTML formatting from rich text editor
+ */
+@Composable
+fun HtmlText(
+    html: String,
+    modifier: Modifier = Modifier,
+    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyLarge,
+    color: Color = MaterialTheme.colorScheme.onSurface,
+    textAlign: TextAlign = TextAlign.Start
+) {
+    AndroidView(
+        modifier = modifier,
+        factory = { context ->
+            android.widget.TextView(context).apply {
+                // Set text style properties
+                textSize = style.fontSize.value
+                setTextColor(color.hashCode())
+                gravity = when (textAlign) {
+                    TextAlign.Center -> android.view.Gravity.CENTER
+                    TextAlign.End -> android.view.Gravity.END
+                    else -> android.view.Gravity.START
+                }
+
+                // Set font weight
+                typeface = when {
+                    style.fontWeight == FontWeight.Bold -> android.graphics.Typeface.DEFAULT_BOLD
+                    else -> android.graphics.Typeface.DEFAULT
+                }
+            }
+        },
+        update = { textView ->
+            // Render HTML content
+            val spanned = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_LEGACY)
+            } else {
+                @Suppress("DEPRECATION")
+                android.text.Html.fromHtml(html)
+            }
+            textView.text = spanned
+        }
+    )
 }
