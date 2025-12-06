@@ -134,9 +134,9 @@ class AuthInterceptor(private val firebaseAuth: FirebaseAuth) : Interceptor {
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // FIX: Use BuildConfig for BASE_URL instead of hardcoded value
-    // This allows different URLs for debug/staging/production builds
-    private val BASE_URL = BuildConfig.BASE_URL
+    // FIX: Use const val for BASE_URL
+    // TODO: Once BuildConfig is properly generated, switch to BuildConfig.BASE_URL for build-variant-specific URLs
+    private const val BASE_URL = "https://webtechsolution.my.id/kamuskorea/"
 
     /**
      * Provide AuthInterceptor
