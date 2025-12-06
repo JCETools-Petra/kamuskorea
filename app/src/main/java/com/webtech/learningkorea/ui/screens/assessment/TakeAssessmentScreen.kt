@@ -45,6 +45,7 @@ import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.PlayerView
 import com.webtech.learningkorea.data.assessment.Question
 import com.webtech.learningkorea.data.media.MediaPreloader
+import com.webtech.learningkorea.ui.components.HtmlText
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
@@ -326,14 +327,16 @@ fun TakeAssessmentScreen(
                                     else
                                         currentQuestion.getOptions()
 
-                                    options.forEach { (letter, text) ->
+                                    options.forEachIndexed { index, (letter, text) ->
                                         LandscapeAnswerOption(
                                             letter = letter,
                                             text = text,
                                             isSelected = userAnswers[currentQuestion.id] == letter,
                                             onClick = {
                                                 viewModel.saveAnswer(currentQuestion.id, letter)
-                                            }
+                                            },
+                                            optionType = currentQuestion.getOptionType(index),
+                                            mediaPreloader = viewModel.mediaPreloader
                                         )
                                     }
                                 }
@@ -583,44 +586,57 @@ fun QuestionContentLandscape(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Media Content with Loading States
-        when (question.questionType) {
-            "image" -> {
-                question.mediaUrl?.let { url ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        SubcomposeAsyncImage(
-                            model = url,
-                            contentDescription = "Question Image",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 200.dp), // Slightly increased for better visibility
-                            contentScale = ContentScale.Fit,
-                            loading = {
-                                ShimmerPlaceholder(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(150.dp)
-                                )
-                            },
-                            error = {
-                                MediaErrorPlaceholder(type = "image")
-                            }
-                        )
+        // Media Content with Loading States - Support multiple media URLs
+        val allMediaUrls = question.getAllMediaUrls()
+        if (allMediaUrls.isNotEmpty()) {
+            allMediaUrls.forEachIndexed { index, url ->
+                // Determine media type from URL extension
+                val isImage = url.matches(Regex(".*\\.(jpg|jpeg|png|gif|webp)$", RegexOption.IGNORE_CASE))
+                val isAudio = url.matches(Regex(".*\\.(mp3|wav|ogg|webm|m4a)$", RegexOption.IGNORE_CASE))
+                val isVideo = url.matches(Regex(".*\\.(mp4|webm|ogv)$", RegexOption.IGNORE_CASE))
+
+                when {
+                    isImage -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            SubcomposeAsyncImage(
+                                model = url,
+                                contentDescription = "Question Image ${index + 1}",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 200.dp),
+                                contentScale = ContentScale.Fit,
+                                loading = {
+                                    ShimmerPlaceholder(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(150.dp)
+                                    )
+                                },
+                                error = {
+                                    MediaErrorPlaceholder(type = "image")
+                                }
+                            )
+                        }
+                        if (index < allMediaUrls.size - 1) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
-                }
-            }
-            "audio" -> {
-                question.mediaUrl?.let { url ->
-                    AudioPlayerCompactCached(url, mediaPreloader)
-                }
-            }
-            "video" -> {
-                question.mediaUrl?.let { url ->
-                    VideoPlayerCompactCached(url, mediaPreloader)
+                    isAudio -> {
+                        AudioPlayerCompactCached(url, mediaPreloader)
+                        if (index < allMediaUrls.size - 1) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+                    isVideo -> {
+                        VideoPlayerCompactCached(url, mediaPreloader)
+                        if (index < allMediaUrls.size - 1) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
                 }
             }
         }
@@ -633,7 +649,9 @@ fun LandscapeAnswerOption(
     letter: String,
     text: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    optionType: String = "text", // "text", "image", or "audio"
+    mediaPreloader: MediaPreloader? = null
 ) {
     Card(
         modifier = Modifier
@@ -681,16 +699,46 @@ fun LandscapeAnswerOption(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Answer Text - ✅ Support for long answer options with HTML rendering
-            HtmlText(
-                html = text,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                    lineHeight = 20.sp // Better line spacing for multi-line answers
-                ),
-                modifier = Modifier.weight(1f)
-                // No maxLines restriction - allows long answer text
-            )
+            // Answer Content - Support for text, image, or audio
+            when (optionType) {
+                "image" -> {
+                    SubcomposeAsyncImage(
+                        model = text,
+                        contentDescription = "Option Image",
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(max = 80.dp),
+                        contentScale = ContentScale.Fit,
+                        loading = {
+                            ShimmerPlaceholder(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(60.dp)
+                            )
+                        },
+                        error = {
+                            MediaErrorPlaceholder(type = "image")
+                        }
+                    )
+                }
+                "audio" -> {
+                    Column(modifier = Modifier.weight(1f)) {
+                        AudioPlayerCompactCached(text, mediaPreloader)
+                    }
+                }
+                else -> {
+                    // Text option with HTML rendering
+                    HtmlText(
+                        html = text,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            lineHeight = 20.sp // Better line spacing for multi-line answers
+                        ),
+                        modifier = Modifier.weight(1f)
+                        // No maxLines restriction - allows long answer text
+                    )
+                }
+            }
 
             // Check Icon
             if (isSelected) {
