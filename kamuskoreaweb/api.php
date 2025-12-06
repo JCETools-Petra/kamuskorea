@@ -64,10 +64,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // LOAD ENVIRONMENT VARIABLES & FIREBASE
 // =================================================
 // Path adjusted for production server structure:
-// - vendor/ is in /kamuskorea/vendor/
-// - .env is in /webtechsolution.my.id/.env
-// - firebase-service-account.json is in /webtechsolution.my.id/firebase-service-account.json
-require_once __DIR__ . '/../vendor/autoload.php';
+// Structure: /webtechsolution.my.id/kamuskorea/api.php
+// - vendor/ is in /kamuskorea/vendor/ (same level as api.php)
+// - .env is in /webtechsolution.my.id/.env (1 level up)
+// - firebase-service-account.json is in /webtechsolution.my.id/ (1 level up)
+require_once __DIR__ . '/vendor/autoload.php';
 
 use Dotenv\Dotenv;
 use PHPMailer\PHPMailer\PHPMailer;
@@ -75,13 +76,13 @@ use PHPMailer\PHPMailer\Exception;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Auth as FirebaseAuth;
 
-$dotenv = Dotenv::createImmutable(__DIR__ . '/../..');
+$dotenv = Dotenv::createImmutable(__DIR__ . '/..');
 $dotenv->load();
 
 // Initialize Firebase Admin SDK
 try {
     $firebase = (new Factory)
-        ->withServiceAccount(__DIR__ . '/../../firebase-service-account.json');
+        ->withServiceAccount(__DIR__ . '/../firebase-service-account.json');
     $firebaseAuth = $firebase->createAuth();
 } catch (\Exception $e) {
     error_log("Gagal memuat Firebase Service Account: " . $e->getMessage());
