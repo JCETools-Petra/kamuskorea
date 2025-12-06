@@ -50,6 +50,9 @@ android {
             useSupportLibrary = true
         }
         multiDexEnabled = true
+
+        // FIX: Add BASE_URL as BuildConfig field in defaultConfig for all build types
+        buildConfigField("String", "BASE_URL", "\"https://webtechsolution.my.id/kamuskorea/\"")
     }
 
     buildTypes {
@@ -61,13 +64,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // FIX: Add BASE_URL as BuildConfig field
-            buildConfigField("String", "BASE_URL", "\"https://webtechsolution.my.id/kamuskorea/\"")
         }
         debug {
             isMinifyEnabled = false
-            // FIX: Allow different BASE_URL for debug/staging
-            buildConfigField("String", "BASE_URL", "\"https://webtechsolution.my.id/kamuskorea/\"")
         }
     }
 
