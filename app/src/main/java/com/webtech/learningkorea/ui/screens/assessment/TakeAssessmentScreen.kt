@@ -308,7 +308,7 @@ fun TakeAssessmentScreen(
                                 .weight(0.4f)
                                 .fillMaxHeight()
                         ) {
-                            // Answer Options
+                            // Answer Options - Scrollable for image/audio options
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -319,8 +319,9 @@ fun TakeAssessmentScreen(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
                                         .padding(8.dp),
-                                    verticalArrangement = Arrangement.SpaceEvenly
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     val options = if (answerLanguage == AnswerLanguage.ALTERNATIVE)
                                         currentQuestion.getOptionsAlt()
