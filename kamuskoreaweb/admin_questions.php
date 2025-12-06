@@ -906,7 +906,71 @@ if ($action === 'list') {
                     // Initialize on page load
                     toggleOptionInputType(letter, selector.value);
                 }
+
+                // Add file upload handler for each option
+                const fileInput = document.getElementById(`option_${letter}_file`);
+                if (fileInput) {
+                    fileInput.addEventListener('change', function(e) {
+                        if (e.target.files.length > 0) {
+                            handleOptionFileUpload(letter, e.target.files[0]);
+                        }
+                    });
+                }
             });
+        }
+
+        // Upload file for option (image/audio)
+        function handleOptionFileUpload(optionLetter, file) {
+            const urlInput = document.getElementById(`option_${optionLetter}_url`);
+
+            // Validate file size (50MB)
+            if (file.size > 50 * 1024 * 1024) {
+                alert(`File untuk opsi ${optionLetter.toUpperCase()} terlalu besar. Maksimal 50MB`);
+                return;
+            }
+
+            // Validate file type
+            const allowedTypes = [
+                'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+                'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/webm'
+            ];
+
+            if (!allowedTypes.includes(file.type)) {
+                alert(`Tipe file untuk opsi ${optionLetter.toUpperCase()} tidak didukung`);
+                return;
+            }
+
+            // Create FormData
+            const formData = new FormData();
+            formData.append('media_file', file);
+
+            // Upload via AJAX
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', 'admin_upload_media.php', true);
+
+            xhr.onload = function() {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        // Set URL to the URL input field
+                        urlInput.value = response.url;
+
+                        // Show success message
+                        const fileSize = (response.size / 1024 / 1024).toFixed(2);
+                        alert(`✅ File opsi ${optionLetter.toUpperCase()} berhasil diupload (${fileSize} MB)\n${response.url}`);
+                    } else {
+                        alert(`Upload gagal untuk opsi ${optionLetter.toUpperCase()}: ${response.message}`);
+                    }
+                } catch (e) {
+                    alert(`Terjadi kesalahan saat upload opsi ${optionLetter.toUpperCase()}`);
+                }
+            };
+
+            xhr.onerror = function() {
+                alert(`Network error saat upload opsi ${optionLetter.toUpperCase()}. Pastikan koneksi internet stabil`);
+            };
+
+            xhr.send(formData);
         }
 
         function toggleOptionInputType(optionLetter, type) {
@@ -939,7 +1003,11 @@ if ($action === 'list') {
                 option_a: <?= json_encode($editQuestion['option_a'] ?? '') ?>,
                 option_b: <?= json_encode($editQuestion['option_b'] ?? '') ?>,
                 option_c: <?= json_encode($editQuestion['option_c'] ?? '') ?>,
-                option_d: <?= json_encode($editQuestion['option_d'] ?? '') ?>
+                option_d: <?= json_encode($editQuestion['option_d'] ?? '') ?>,
+                option_a_type: <?= json_encode($editQuestion['option_a_type'] ?? 'text') ?>,
+                option_b_type: <?= json_encode($editQuestion['option_b_type'] ?? 'text') ?>,
+                option_c_type: <?= json_encode($editQuestion['option_c_type'] ?? 'text') ?>,
+                option_d_type: <?= json_encode($editQuestion['option_d_type'] ?? 'text') ?>
             };
 
             // Initialize Question Text Editor
@@ -958,8 +1026,11 @@ if ($action === 'list') {
                 modules: { toolbar: toolbarOptions },
                 placeholder: 'Pilihan 1...'
             });
-            if (editData.option_a) {
+            if (editData.option_a_type === 'text' && editData.option_a) {
                 optionAEditor.root.innerHTML = editData.option_a;
+            } else if (editData.option_a) {
+                // If option is image/audio, set URL to URL input
+                document.getElementById('option_a_url').value = editData.option_a;
             }
 
             // Initialize Option B Editor
@@ -968,8 +1039,10 @@ if ($action === 'list') {
                 modules: { toolbar: toolbarOptions },
                 placeholder: 'Pilihan 2...'
             });
-            if (editData.option_b) {
+            if (editData.option_b_type === 'text' && editData.option_b) {
                 optionBEditor.root.innerHTML = editData.option_b;
+            } else if (editData.option_b) {
+                document.getElementById('option_b_url').value = editData.option_b;
             }
 
             // Initialize Option C Editor
@@ -978,8 +1051,10 @@ if ($action === 'list') {
                 modules: { toolbar: toolbarOptions },
                 placeholder: 'Pilihan 3...'
             });
-            if (editData.option_c) {
+            if (editData.option_c_type === 'text' && editData.option_c) {
                 optionCEditor.root.innerHTML = editData.option_c;
+            } else if (editData.option_c) {
+                document.getElementById('option_c_url').value = editData.option_c;
             }
 
             // Initialize Option D Editor
@@ -988,8 +1063,10 @@ if ($action === 'list') {
                 modules: { toolbar: toolbarOptions },
                 placeholder: 'Pilihan 4...'
             });
-            if (editData.option_d) {
+            if (editData.option_d_type === 'text' && editData.option_d) {
                 optionDEditor.root.innerHTML = editData.option_d;
+            } else if (editData.option_d) {
+                document.getElementById('option_d_url').value = editData.option_d;
             }
 
             // Sync editors with hidden inputs on form submit
