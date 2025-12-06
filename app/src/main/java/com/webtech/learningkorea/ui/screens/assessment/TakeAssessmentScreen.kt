@@ -47,6 +47,7 @@ import com.webtech.learningkorea.data.assessment.Question
 import com.webtech.learningkorea.data.media.MediaPreloader
 import com.webtech.learningkorea.ui.components.HtmlText
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 
