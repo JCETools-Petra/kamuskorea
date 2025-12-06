@@ -37,10 +37,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_question'])) {
     $question_text = trim($_POST['question_text'] ?? '');
     $question_type = $_POST['question_type'] ?? 'text';
     $media_url = trim($_POST['media_url'] ?? '');
+    $media_url_2 = trim($_POST['media_url_2'] ?? '');
+    $media_url_3 = trim($_POST['media_url_3'] ?? '');
     $option_a = trim($_POST['option_a'] ?? '');
     $option_b = trim($_POST['option_b'] ?? '');
     $option_c = trim($_POST['option_c'] ?? '');
     $option_d = trim($_POST['option_d'] ?? '');
+    $option_a_type = $_POST['option_a_type'] ?? 'text';
+    $option_b_type = $_POST['option_b_type'] ?? 'text';
+    $option_c_type = $_POST['option_c_type'] ?? 'text';
+    $option_d_type = $_POST['option_d_type'] ?? 'text';
     $correct_answer = $_POST['correct_answer'] ?? '1'; // Store as 1,2,3,4 instead of A,B,C,D
     $explanation = trim($_POST['explanation'] ?? '');
     $order_index = (int)($_POST['order_index'] ?? 0);
@@ -52,12 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_question'])) {
     } else {
         try {
             if ($id) {
-                $stmt = $pdo->prepare("UPDATE questions SET assessment_id = ?, question_text = ?, question_type = ?, media_url = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_answer = ?, explanation = ?, order_index = ? WHERE id = ?");
-                $stmt->execute([$q_assessment_id, $question_text, $question_type, $media_url, $option_a, $option_b, $option_c, $option_d, $correct_answer, $explanation, $order_index, $id]);
+                $stmt = $pdo->prepare("UPDATE questions SET assessment_id = ?, question_text = ?, question_type = ?, media_url = ?, media_url_2 = ?, media_url_3 = ?, option_a = ?, option_a_type = ?, option_b = ?, option_b_type = ?, option_c = ?, option_c_type = ?, option_d = ?, option_d_type = ?, correct_answer = ?, explanation = ?, order_index = ? WHERE id = ?");
+                $stmt->execute([$q_assessment_id, $question_text, $question_type, $media_url, $media_url_2, $media_url_3, $option_a, $option_a_type, $option_b, $option_b_type, $option_c, $option_c_type, $option_d, $option_d_type, $correct_answer, $explanation, $order_index, $id]);
                 $message = 'Soal berhasil diperbarui!';
             } else {
-                $stmt = $pdo->prepare("INSERT INTO questions (assessment_id, question_text, question_type, media_url, option_a, option_b, option_c, option_d, correct_answer, explanation, order_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$q_assessment_id, $question_text, $question_type, $media_url, $option_a, $option_b, $option_c, $option_d, $correct_answer, $explanation, $order_index]);
+                $stmt = $pdo->prepare("INSERT INTO questions (assessment_id, question_text, question_type, media_url, media_url_2, media_url_3, option_a, option_a_type, option_b, option_b_type, option_c, option_c_type, option_d, option_d_type, correct_answer, explanation, order_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$q_assessment_id, $question_text, $question_type, $media_url, $media_url_2, $media_url_3, $option_a, $option_a_type, $option_b, $option_b_type, $option_c, $option_c_type, $option_d, $option_d_type, $correct_answer, $explanation, $order_index]);
                 $message = 'Soal berhasil ditambahkan!';
             }
             $action = 'list';
@@ -356,17 +362,35 @@ if ($action === 'list') {
                                         </div>
                                     <?php endif; ?>
 
-                                    <!-- ✅ Support for long answer options with HTML formatting -->
+                                    <!-- ✅ Support for long answer options with HTML formatting and multiple types -->
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="p-2 rounded mb-1 <?= $q['correct_answer'] == '1' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
-                                                <strong>1.</strong> <?= $q['option_a'] ?>
+                                                <strong>1.</strong>
+                                                <?php
+                                                $optType = $q['option_a_type'] ?? 'text';
+                                                if ($optType === 'image'): ?>
+                                                    <img src="<?= htmlspecialchars($q['option_a']) ?>" class="img-thumbnail" style="max-height: 100px;">
+                                                <?php elseif ($optType === 'audio'): ?>
+                                                    <audio controls class="w-100"><source src="<?= htmlspecialchars($q['option_a']) ?>"></audio>
+                                                <?php else: ?>
+                                                    <?= $q['option_a'] ?>
+                                                <?php endif; ?>
                                                 <?php if ($q['correct_answer'] == '1'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="p-2 rounded mb-1 <?= $q['correct_answer'] == '2' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
-                                                <strong>2.</strong> <?= $q['option_b'] ?>
+                                                <strong>2.</strong>
+                                                <?php
+                                                $optType = $q['option_b_type'] ?? 'text';
+                                                if ($optType === 'image'): ?>
+                                                    <img src="<?= htmlspecialchars($q['option_b']) ?>" class="img-thumbnail" style="max-height: 100px;">
+                                                <?php elseif ($optType === 'audio'): ?>
+                                                    <audio controls class="w-100"><source src="<?= htmlspecialchars($q['option_b']) ?>"></audio>
+                                                <?php else: ?>
+                                                    <?= $q['option_b'] ?>
+                                                <?php endif; ?>
                                                 <?php if ($q['correct_answer'] == '2'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
@@ -374,13 +398,31 @@ if ($action === 'list') {
                                         </div>
                                         <div class="col-md-6">
                                             <div class="p-2 rounded mb-1 <?= $q['correct_answer'] == '3' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
-                                                <strong>3.</strong> <?= $q['option_c'] ?>
+                                                <strong>3.</strong>
+                                                <?php
+                                                $optType = $q['option_c_type'] ?? 'text';
+                                                if ($optType === 'image'): ?>
+                                                    <img src="<?= htmlspecialchars($q['option_c']) ?>" class="img-thumbnail" style="max-height: 100px;">
+                                                <?php elseif ($optType === 'audio'): ?>
+                                                    <audio controls class="w-100"><source src="<?= htmlspecialchars($q['option_c']) ?>"></audio>
+                                                <?php else: ?>
+                                                    <?= $q['option_c'] ?>
+                                                <?php endif; ?>
                                                 <?php if ($q['correct_answer'] == '3'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="p-2 rounded mb-1 <?= $q['correct_answer'] == '4' ? 'correct-answer' : 'bg-light' ?>" style="line-height: 1.6; min-height: 40px;">
-                                                <strong>4.</strong> <?= $q['option_d'] ?>
+                                                <strong>4.</strong>
+                                                <?php
+                                                $optType = $q['option_d_type'] ?? 'text';
+                                                if ($optType === 'image'): ?>
+                                                    <img src="<?= htmlspecialchars($q['option_d']) ?>" class="img-thumbnail" style="max-height: 100px;">
+                                                <?php elseif ($optType === 'audio'): ?>
+                                                    <audio controls class="w-100"><source src="<?= htmlspecialchars($q['option_d']) ?>"></audio>
+                                                <?php else: ?>
+                                                    <?= $q['option_d'] ?>
+                                                <?php endif; ?>
                                                 <?php if ($q['correct_answer'] == '4'): ?>
                                                     <i class="bi bi-check-circle-fill text-success"></i>
                                                 <?php endif; ?>
@@ -461,11 +503,24 @@ if ($action === 'list') {
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label class="form-label">URL Media</label>
+                                            <label class="form-label">URL Media 1</label>
                                             <input type="url" name="media_url" id="media_url" class="form-control"
                                                    value="<?= htmlspecialchars($editQuestion['media_url'] ?? '') ?>"
                                                    placeholder="Upload file atau masukkan URL manual">
                                             <small class="text-muted">URL akan terisi otomatis setelah upload</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">URL Media 2 (Optional)</label>
+                                            <input type="url" name="media_url_2" id="media_url_2" class="form-control"
+                                                   value="<?= htmlspecialchars($editQuestion['media_url_2'] ?? '') ?>"
+                                                   placeholder="Tambahan media 2">
+                                            <small class="text-muted">Untuk soal dengan multiple media (text+image+audio)</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">URL Media 3 (Optional)</label>
+                                            <input type="url" name="media_url_3" id="media_url_3" class="form-control"
+                                                   value="<?= htmlspecialchars($editQuestion['media_url_3'] ?? '') ?>"
+                                                   placeholder="Tambahan media 3">
                                         </div>
                                     </div>
                                 </div>
@@ -515,36 +570,88 @@ if ($action === 'list') {
                                 <div class="card bg-light mb-3">
                                     <div class="card-body">
                                         <h5 class="card-title">Pilihan Jawaban</h5>
-                                        <small class="text-muted d-block mb-3">💡 Jawaban sekarang bisa panjang dan diformat! Gunakan toolbar untuk Bold, Italic, Underline.</small>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Pilihan 1 *</label>
-                                                    <input type="hidden" name="option_a" id="option_a_input" required>
-                                                    <div id="option_a_editor" class="quill-editor option-editor"></div>
+                                        <small class="text-muted d-block mb-3">💡 Pilih tipe jawaban: Text (dengan formatting), Image, atau Audio untuk setiap pilihan!</small>
+
+                                        <!-- Option 1 -->
+                                        <div class="mb-4 p-3 bg-white rounded">
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <label class="form-label">Pilihan 1 - Tipe *</label>
+                                                    <select name="option_a_type" id="option_a_type" class="form-select option-type-selector" data-option="a">
+                                                        <option value="text" <?= ($editQuestion['option_a_type'] ?? 'text') === 'text' ? 'selected' : '' ?>>Text</option>
+                                                        <option value="image" <?= ($editQuestion['option_a_type'] ?? '') === 'image' ? 'selected' : '' ?>>Image</option>
+                                                        <option value="audio" <?= ($editQuestion['option_a_type'] ?? '') === 'audio' ? 'selected' : '' ?>>Audio</option>
+                                                    </select>
                                                 </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Pilihan 2 *</label>
-                                                    <input type="hidden" name="option_b" id="option_b_input" required>
-                                                    <div id="option_b_editor" class="quill-editor option-editor"></div>
+                                                <div class="col-md-9">
+                                                    <label class="form-label">Pilihan 1 - Konten *</label>
+                                                    <input type="hidden" name="option_a" id="option_a_input" required>
+                                                    <div id="option_a_editor" class="quill-editor option-editor option-a-text"></div>
+                                                    <input type="text" name="option_a_url" id="option_a_url" class="form-control option-a-media d-none" placeholder="URL Image/Audio atau upload...">
+                                                    <input type="file" id="option_a_file" class="form-control mt-2 option-a-media d-none" accept="image/*,audio/*">
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Pilihan 3 *</label>
-                                                    <input type="hidden" name="option_c" id="option_c_input" required>
-                                                    <div id="option_c_editor" class="quill-editor option-editor"></div>
+
+                                        <!-- Option 2 -->
+                                        <div class="mb-4 p-3 bg-white rounded">
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <label class="form-label">Pilihan 2 - Tipe *</label>
+                                                    <select name="option_b_type" id="option_b_type" class="form-select option-type-selector" data-option="b">
+                                                        <option value="text" <?= ($editQuestion['option_b_type'] ?? 'text') === 'text' ? 'selected' : '' ?>>Text</option>
+                                                        <option value="image" <?= ($editQuestion['option_b_type'] ?? '') === 'image' ? 'selected' : '' ?>>Image</option>
+                                                        <option value="audio" <?= ($editQuestion['option_b_type'] ?? '') === 'audio' ? 'selected' : '' ?>>Audio</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-9">
+                                                    <label class="form-label">Pilihan 2 - Konten *</label>
+                                                    <input type="hidden" name="option_b" id="option_b_input" required>
+                                                    <div id="option_b_editor" class="quill-editor option-editor option-b-text"></div>
+                                                    <input type="text" name="option_b_url" id="option_b_url" class="form-control option-b-media d-none" placeholder="URL Image/Audio atau upload...">
+                                                    <input type="file" id="option_b_file" class="form-control mt-2 option-b-media d-none" accept="image/*,audio/*">
                                                 </div>
                                             </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Pilihan 4 *</label>
+                                        </div>
+
+                                        <!-- Option 3 -->
+                                        <div class="mb-4 p-3 bg-white rounded">
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <label class="form-label">Pilihan 3 - Tipe *</label>
+                                                    <select name="option_c_type" id="option_c_type" class="form-select option-type-selector" data-option="c">
+                                                        <option value="text" <?= ($editQuestion['option_c_type'] ?? 'text') === 'text' ? 'selected' : '' ?>>Text</option>
+                                                        <option value="image" <?= ($editQuestion['option_c_type'] ?? '') === 'image' ? 'selected' : '' ?>>Image</option>
+                                                        <option value="audio" <?= ($editQuestion['option_c_type'] ?? '') === 'audio' ? 'selected' : '' ?>>Audio</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-9">
+                                                    <label class="form-label">Pilihan 3 - Konten *</label>
+                                                    <input type="hidden" name="option_c" id="option_c_input" required>
+                                                    <div id="option_c_editor" class="quill-editor option-editor option-c-text"></div>
+                                                    <input type="text" name="option_c_url" id="option_c_url" class="form-control option-c-media d-none" placeholder="URL Image/Audio atau upload...">
+                                                    <input type="file" id="option_c_file" class="form-control mt-2 option-c-media d-none" accept="image/*,audio/*">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Option 4 -->
+                                        <div class="mb-4 p-3 bg-white rounded">
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <label class="form-label">Pilihan 4 - Tipe *</label>
+                                                    <select name="option_d_type" id="option_d_type" class="form-select option-type-selector" data-option="d">
+                                                        <option value="text" <?= ($editQuestion['option_d_type'] ?? 'text') === 'text' ? 'selected' : '' ?>>Text</option>
+                                                        <option value="image" <?= ($editQuestion['option_d_type'] ?? '') === 'image' ? 'selected' : '' ?>>Image</option>
+                                                        <option value="audio" <?= ($editQuestion['option_d_type'] ?? '') === 'audio' ? 'selected' : '' ?>>Audio</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-9">
+                                                    <label class="form-label">Pilihan 4 - Konten *</label>
                                                     <input type="hidden" name="option_d" id="option_d_input" required>
-                                                    <div id="option_d_editor" class="quill-editor option-editor"></div>
+                                                    <div id="option_d_editor" class="quill-editor option-editor option-d-text"></div>
+                                                    <input type="text" name="option_d_url" id="option_d_url" class="form-control option-d-media d-none" placeholder="URL Image/Audio atau upload...">
+                                                    <input type="file" id="option_d_file" class="form-control mt-2 option-d-media d-none" accept="image/*,audio/*">
                                                 </div>
                                             </div>
                                         </div>
@@ -787,6 +894,36 @@ if ($action === 'list') {
             `;
         }
 
+        // Handle Option Type Selector Changes
+        function setupOptionTypeHandlers() {
+            const optionLetters = ['a', 'b', 'c', 'd'];
+            optionLetters.forEach(letter => {
+                const selector = document.getElementById(`option_${letter}_type`);
+                if (selector) {
+                    selector.addEventListener('change', function() {
+                        toggleOptionInputType(letter, this.value);
+                    });
+                    // Initialize on page load
+                    toggleOptionInputType(letter, selector.value);
+                }
+            });
+        }
+
+        function toggleOptionInputType(optionLetter, type) {
+            const textEditor = document.querySelector(`.option-${optionLetter}-text`);
+            const mediaInputs = document.querySelectorAll(`.option-${optionLetter}-media`);
+
+            if (type === 'text') {
+                // Show text editor, hide media inputs
+                if (textEditor) textEditor.classList.remove('d-none');
+                mediaInputs.forEach(input => input.classList.add('d-none'));
+            } else {
+                // Hide text editor, show media inputs
+                if (textEditor) textEditor.classList.add('d-none');
+                mediaInputs.forEach(input => input.classList.remove('d-none'));
+            }
+        }
+
         // Initialize Quill Rich Text Editors
         function initializeQuillEditors() {
             const toolbarOptions = [
@@ -859,29 +996,54 @@ if ($action === 'list') {
             const form = document.querySelector('form');
             if (form) {
                 form.addEventListener('submit', function(e) {
-                    // Sync all editors with their hidden inputs
+                    // Sync all editors with their hidden inputs based on type
                     document.getElementById('question_text_input').value = questionEditor.root.innerHTML;
-                    document.getElementById('option_a_input').value = optionAEditor.root.innerHTML;
-                    document.getElementById('option_b_input').value = optionBEditor.root.innerHTML;
-                    document.getElementById('option_c_input').value = optionCEditor.root.innerHTML;
-                    document.getElementById('option_d_input').value = optionDEditor.root.innerHTML;
 
-                    // Validate that editors are not empty
+                    // For each option, check type and sync accordingly
+                    const options = ['a', 'b', 'c', 'd'];
+                    const editors = [optionAEditor, optionBEditor, optionCEditor, optionDEditor];
+
+                    options.forEach((letter, index) => {
+                        const type = document.getElementById(`option_${letter}_type`).value;
+                        const input = document.getElementById(`option_${letter}_input`);
+
+                        if (type === 'text') {
+                            input.value = editors[index].root.innerHTML;
+                        } else {
+                            // For image/audio, use URL from the URL input field
+                            const urlInput = document.getElementById(`option_${letter}_url`);
+                            input.value = urlInput ? urlInput.value : '';
+                        }
+                    });
+
+                    // Validate that question is not empty
                     if (questionEditor.getText().trim().length === 0) {
                         alert('Teks soal tidak boleh kosong!');
                         e.preventDefault();
                         return false;
                     }
-                    if (optionAEditor.getText().trim().length === 0 ||
-                        optionBEditor.getText().trim().length === 0 ||
-                        optionCEditor.getText().trim().length === 0 ||
-                        optionDEditor.getText().trim().length === 0) {
+
+                    // Validate that all options are filled
+                    const allFilled = options.every((letter, index) => {
+                        const type = document.getElementById(`option_${letter}_type`).value;
+                        if (type === 'text') {
+                            return editors[index].getText().trim().length > 0;
+                        } else {
+                            const urlInput = document.getElementById(`option_${letter}_url`);
+                            return urlInput && urlInput.value.trim().length > 0;
+                        }
+                    });
+
+                    if (!allFilled) {
                         alert('Semua pilihan jawaban harus diisi!');
                         e.preventDefault();
                         return false;
                     }
                 });
             }
+
+            // Setup option type handlers
+            setupOptionTypeHandlers();
         }
     });
     </script>

@@ -814,29 +814,36 @@ elseif ($routes[0] === 'assessments' && isset($routes[1]) && is_numeric($routes[
     }
     
     $stmt = $pdo->prepare("
-        SELECT id, question_text, question_type, media_url, 
-               option_a, option_b, option_c, option_d, order_index
+        SELECT id, question_text, question_type, media_url, media_url_2, media_url_3,
+               option_a, option_a_type, option_b, option_b_type,
+               option_c, option_c_type, option_d, option_d_type, order_index
         FROM questions
         WHERE assessment_id = ?
         ORDER BY order_index ASC
     ");
     $stmt->execute([$assessmentId]);
     $questions = $stmt->fetchAll();
-    
+
     $result = array_map(function($q) {
         return [
             'id' => (int)$q['id'],
-            'question_text' => $q['question_text'],
+            'question_text' => $q['question_text'], // Now contains HTML formatting
             'question_type' => $q['question_type'],
             'media_url' => $q['media_url'],
-            'option_a' => $q['option_a'],
+            'media_url_2' => $q['media_url_2'] ?? null,
+            'media_url_3' => $q['media_url_3'] ?? null,
+            'option_a' => $q['option_a'], // Can be HTML text, image URL, or audio URL
+            'option_a_type' => $q['option_a_type'] ?? 'text',
             'option_b' => $q['option_b'],
+            'option_b_type' => $q['option_b_type'] ?? 'text',
             'option_c' => $q['option_c'],
+            'option_c_type' => $q['option_c_type'] ?? 'text',
             'option_d' => $q['option_d'],
+            'option_d_type' => $q['option_d_type'] ?? 'text',
             'order_index' => (int)$q['order_index']
         ];
     }, $questions);
-    
+
     sendResponse($result);
 }
 
