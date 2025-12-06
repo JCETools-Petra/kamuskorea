@@ -1161,8 +1161,8 @@ fun QuestionGridDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.95f) // Mengambil 95% lebar layar (Jauh lebih lebar)
-                .fillMaxHeight(0.90f), // Mengambil 90% tinggi layar
-            shape = RoundedCornerShape(20.dp),
+                .fillMaxHeight(0.92f), // Mengambil 92% tinggi layar untuk muat 50 soal
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
@@ -1171,23 +1171,22 @@ fun QuestionGridDialog(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 35.dp, vertical = 28.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp) // Reduced from 35dp/28dp
             ) {
-                // Title
+                // Title - Compact
                 Text(
                     AssessmentTexts.questionNavigation(uiLanguage),
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.titleLarge, // Reduced from headlineMedium
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 20.dp)
+                    modifier = Modifier.padding(bottom = 8.dp) // Reduced from 20dp
                 )
 
-                // Content
+                // Content - No scroll to fit 50 questions
                 Row(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp) // Reduced from 24dp
                 ) {
                     // Text and Image Questions Section (Left)
                     if (textImageQuestions.isNotEmpty()) {
@@ -1216,19 +1215,20 @@ fun QuestionGridDialog(
                     }
                 }
 
-                // Close button
-                Spacer(modifier = Modifier.height(20.dp))
+                // Close button - Compact
+                Spacer(modifier = Modifier.height(8.dp)) // Reduced from 20dp
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier
                         .align(Alignment.End)
-                        .height(52.dp)
+                        .height(40.dp) // Reduced from 52dp
                         .padding(horizontal = 4.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         AssessmentTexts.close(uiLanguage),
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.labelLarge, // Smaller font
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -1249,25 +1249,26 @@ fun QuestionCategorySection(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp) // Reduced from 12dp
     ) {
-        // Category Header
+        // Category Header - Compact
         Surface(
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(8.dp),
             color = titleColor.copy(alpha = 0.1f)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp), // Reduced from 16dp
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium, // Reduced from titleLarge
                     fontWeight = FontWeight.Bold,
-                    color = titleColor
+                    color = titleColor,
+                    fontSize = 14.sp // Explicit smaller size
                 )
                 Surface(
                     shape = CircleShape,
@@ -1275,23 +1276,24 @@ fun QuestionCategorySection(
                 ) {
                     Text(
                         text = "${questions.size}",
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), // Reduced
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = titleColor
+                        color = titleColor,
+                        fontSize = 12.sp
                     )
                 }
             }
         }
 
-        // Question Grid - 5 columns
+        // Question Grid - 10 columns for 50 questions (5 rows max per category)
         LazyVerticalGrid(
-            columns = GridCells.Fixed(5),
+            columns = GridCells.Fixed(10), // Increased from 5 to fit more
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 600.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .heightIn(max = 400.dp), // Reduced from 600dp
+            horizontalArrangement = Arrangement.spacedBy(6.dp), // Reduced from 12dp
+            verticalArrangement = Arrangement.spacedBy(6.dp), // Reduced from 12dp
             userScrollEnabled = false
         ) {
             items(questions.size) { index ->
@@ -1326,12 +1328,12 @@ fun QuestionNumberBubble(
     }
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(8.dp), // Reduced from 12dp for compact look
         color = backgroundColor,
         modifier = Modifier
-            .size(56.dp)
+            .size(38.dp) // Reduced from 56dp to fit 10 columns
             .clickable(onClick = onClick),
-        shadowElevation = if (isCurrent) 4.dp else 0.dp
+        shadowElevation = if (isCurrent) 3.dp else 0.dp
     ) {
         Box(
             modifier = Modifier.fillMaxSize()
