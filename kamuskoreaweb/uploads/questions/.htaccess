@@ -1,0 +1,29 @@
+# Security settings for uploaded question media files
+
+# Disable PHP execution in this directory
+<FilesMatch "\.php$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Allow only specific file types
+<FilesMatch "\.(jpg|jpeg|png|gif|webp|mp3|wav|ogg|webm|mp4|ogv)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
+# Prevent directory listing
+Options -Indexes
+
+# Set proper MIME types
+AddType image/jpeg .jpg .jpeg
+AddType image/png .png
+AddType image/gif .gif
+AddType image/webp .webp
+AddType audio/mpeg .mp3
+AddType audio/wav .wav
+AddType audio/ogg .ogg
+AddType audio/webm .webm
+AddType video/mp4 .mp4
+AddType video/webm .webm
+AddType video/ogg .ogv
