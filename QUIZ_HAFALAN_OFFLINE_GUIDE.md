@@ -1,43 +1,33 @@
-# 🎯 Quiz Hafalan Offline - Implementation Guide
+# 🎯 Quiz Hafalan Offline - Updated for Vocabulary Table
 
-## 📋 Overview
-
-Quiz hafalan akan berjalan **100% offline** di mobile app menggunakan database lokal `hafalan.db` yang ada di `app/src/main/assets/database/`.
-
-**Tidak perlu server/API untuk quiz hafalan!** ✅
-
----
-
-## 🗄️ Database Schema (hafalan.db)
-
-Pastikan `hafalan.db` punya struktur seperti ini:
+## 📋 Database Schema (Actual)
 
 ```sql
--- Tabel hafalan
-CREATE TABLE hafalan (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    korean TEXT NOT NULL,
-    indonesia TEXT NOT NULL,
-    romaji TEXT,
-    category TEXT,
-    level TEXT
+CREATE TABLE "Vocabulary" (
+	"id"	INTEGER,
+	"chapter_number"	INTEGER,
+	"chapter_title_korean"	TEXT,
+	"chapter_title_indonesian"	TEXT,
+	"korean_word"	TEXT,
+	"indonesian_meaning"	TEXT,
+	PRIMARY KEY("id" AUTOINCREMENT)
 );
 
--- Tabel hasil quiz (optional, untuk tracking)
-CREATE TABLE quiz_results (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    word_id INTEGER NOT NULL,
-    is_correct INTEGER NOT NULL,
-    selected_answer TEXT,
-    correct_answer TEXT,
-    timestamp INTEGER,
-    FOREIGN KEY (word_id) REFERENCES hafalan(id)
+-- Tabel hasil quiz (buat manual di hafalan.db)
+CREATE TABLE IF NOT EXISTS "quiz_results" (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "word_id" INTEGER NOT NULL,
+    "is_correct" INTEGER NOT NULL,
+    "selected_answer" TEXT,
+    "correct_answer" TEXT,
+    "timestamp" INTEGER,
+    FOREIGN KEY (word_id) REFERENCES Vocabulary(id)
 );
 ```
 
 ---
 
-## 📱 Flutter Implementation
+## 📱 Flutter Implementation (Updated)
 
 ### 1. Database Helper
 
@@ -72,49 +62,60 @@ class HafalanDatabaseHelper {
       await File(path).writeAsBytes(bytes, flush: true);
     }
 
-    return await openDatabase(path, version: 1);
+    final db = await openDatabase(path, version: 1);
+
+    // Create quiz_results table if not exists
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS quiz_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        word_id INTEGER NOT NULL,
+        is_correct INTEGER NOT NULL,
+        selected_answer TEXT,
+        correct_answer TEXT,
+        timestamp INTEGER,
+        FOREIGN KEY (word_id) REFERENCES Vocabulary(id)
+      )
+    ''');
+
+    return db;
   }
 
-  // Get random word
+  /// Get random word from Vocabulary table
   Future<Map<String, dynamic>?> getRandomWord({
-    String? category,
-    String? level,
+    int? chapterNumber,
   }) async {
     final db = await database;
 
-    String whereClause = '';
-    List<dynamic> whereArgs = [];
+    String query;
+    List<dynamic> args = [];
 
-    if (category != null) {
-      whereClause = 'category = ?';
-      whereArgs.add(category);
+    if (chapterNumber != null) {
+      query = '''
+        SELECT * FROM Vocabulary
+        WHERE chapter_number = ?
+        ORDER BY RANDOM()
+        LIMIT 1
+      ''';
+      args.add(chapterNumber);
+    } else {
+      query = 'SELECT * FROM Vocabulary ORDER BY RANDOM() LIMIT 1';
     }
 
-    if (level != null) {
-      if (whereClause.isNotEmpty) whereClause += ' AND ';
-      whereClause += 'level = ?';
-      whereArgs.add(level);
-    }
-
-    final query = whereClause.isEmpty
-        ? 'SELECT * FROM hafalan ORDER BY RANDOM() LIMIT 1'
-        : 'SELECT * FROM hafalan WHERE $whereClause ORDER BY RANDOM() LIMIT 1';
-
-    final result = await db.rawQuery(query, whereArgs);
+    final result = await db.rawQuery(query, args);
     return result.isNotEmpty ? result.first : null;
   }
 
-  // Get wrong answers (3 random different words)
+  /// Get wrong answers (3 random different words)
   Future<List<String>> getWrongAnswers({
     required int excludeId,
-    required String answerField, // 'indonesia' or 'korean'
+    required String answerField, // 'indonesian_meaning' or 'korean_word'
     int count = 3,
   }) async {
     final db = await database;
 
     final result = await db.rawQuery('''
       SELECT $answerField
-      FROM hafalan
+      FROM Vocabulary
       WHERE id != ?
       ORDER BY RANDOM()
       LIMIT ?
@@ -123,7 +124,7 @@ class HafalanDatabaseHelper {
     return result.map((row) => row[answerField] as String).toList();
   }
 
-  // Save quiz result
+  /// Save quiz result
   Future<void> saveQuizResult({
     required int wordId,
     required bool isCorrect,
@@ -141,7 +142,7 @@ class HafalanDatabaseHelper {
     });
   }
 
-  // Get user stats
+  /// Get user stats
   Future<Map<String, dynamic>> getUserStats() async {
     final db = await database;
 
@@ -153,6 +154,54 @@ class HafalanDatabaseHelper {
     final correctResult = await db.rawQuery(
       'SELECT COUNT(*) as correct FROM quiz_results WHERE is_correct = 1'
     );
+    final correct = correctResult.first['correct'] as int;
+
+    final accuracy = total > 0 ? (correct / total * 100) : 0.0;
+
+    return {
+      'total': total,
+      'correct': correct,
+      'wrong': total - correct,
+      'accuracy': accuracy,
+    };
+  }
+
+  /// Get all chapters
+  Future<List<Map<String, dynamic>>> getChapters() async {
+    final db = await database;
+
+    final result = await db.rawQuery('''
+      SELECT DISTINCT
+        chapter_number,
+        chapter_title_korean,
+        chapter_title_indonesian,
+        COUNT(*) as word_count
+      FROM Vocabulary
+      GROUP BY chapter_number
+      ORDER BY chapter_number ASC
+    ''');
+
+    return result;
+  }
+
+  /// Get stats by chapter
+  Future<Map<String, dynamic>> getChapterStats(int chapterNumber) async {
+    final db = await database;
+
+    final totalResult = await db.rawQuery('''
+      SELECT COUNT(*) as total
+      FROM quiz_results qr
+      JOIN Vocabulary v ON qr.word_id = v.id
+      WHERE v.chapter_number = ?
+    ''', [chapterNumber]);
+    final total = totalResult.first['total'] as int;
+
+    final correctResult = await db.rawQuery('''
+      SELECT COUNT(*) as correct
+      FROM quiz_results qr
+      JOIN Vocabulary v ON qr.word_id = v.id
+      WHERE v.chapter_number = ? AND qr.is_correct = 1
+    ''', [chapterNumber]);
     final correct = correctResult.first['correct'] as int;
 
     final accuracy = total > 0 ? (correct / total * 100) : 0.0;
@@ -181,30 +230,30 @@ class HafalanDatabaseHelper {
 class QuizHafalan {
   final int wordId;
   final String question;
-  final String? questionRomaji;
   final QuizMode mode;
   final List<String> options; // 4 options
   final int correctAnswerIndex; // 0-3
   final String correctAnswerText;
-  final String? category;
-  final String? level;
+  final int? chapterNumber;
+  final String? chapterTitleKorean;
+  final String? chapterTitleIndonesian;
 
   QuizHafalan({
     required this.wordId,
     required this.question,
-    this.questionRomaji,
     required this.mode,
     required this.options,
     required this.correctAnswerIndex,
     required this.correctAnswerText,
-    this.category,
-    this.level,
+    this.chapterNumber,
+    this.chapterTitleKorean,
+    this.chapterTitleIndonesian,
   });
 }
 
 enum QuizMode {
-  koreanToIndonesia,
-  indonesiaToKorean,
+  koreanToIndonesian,  // Show korean_word, answer indonesian_meaning
+  indonesiaToKorean,   // Show indonesian_meaning, answer korean_word
 }
 ```
 
@@ -221,38 +270,38 @@ import 'package:your_app/services/hafalan_database_helper.dart';
 class QuizHafalanGenerator {
   final HafalanDatabaseHelper _dbHelper = HafalanDatabaseHelper.instance;
 
-  /// Generate quiz from hafalan database
+  /// Generate quiz from Vocabulary table
   Future<QuizHafalan?> generateQuiz({
-    QuizMode mode = QuizMode.koreanToIndonesia,
-    String? category,
-    String? level,
+    QuizMode mode = QuizMode.koreanToIndonesian,
+    int? chapterNumber,
   }) async {
     // 1. Get random word
     final word = await _dbHelper.getRandomWord(
-      category: category,
-      level: level,
+      chapterNumber: chapterNumber,
     );
 
     if (word == null) return null;
 
     final wordId = word['id'] as int;
-    final korean = word['korean'] as String;
-    final indonesia = word['indonesia'] as String;
-    final romaji = word['romaji'] as String?;
+    final koreanWord = word['korean_word'] as String;
+    final indonesianMeaning = word['indonesian_meaning'] as String;
+    final chapterNum = word['chapter_number'] as int?;
+    final chapterTitleKr = word['chapter_title_korean'] as String?;
+    final chapterTitleId = word['chapter_title_indonesian'] as String?;
 
     // 2. Determine question and answer based on mode
     String question;
     String correctAnswer;
     String answerField;
 
-    if (mode == QuizMode.koreanToIndonesia) {
-      question = korean;
-      correctAnswer = indonesia;
-      answerField = 'indonesia';
+    if (mode == QuizMode.koreanToIndonesian) {
+      question = koreanWord;
+      correctAnswer = indonesianMeaning;
+      answerField = 'indonesian_meaning';
     } else {
-      question = indonesia;
-      correctAnswer = korean;
-      answerField = 'korean';
+      question = indonesianMeaning;
+      correctAnswer = koreanWord;
+      answerField = 'korean_word';
     }
 
     // 3. Get 3 wrong answers
@@ -261,6 +310,15 @@ class QuizHafalanGenerator {
       answerField: answerField,
       count: 3,
     );
+
+    // If not enough words, generate fallback wrong answers
+    while (wrongAnswers.length < 3) {
+      if (mode == QuizMode.koreanToIndonesian) {
+        wrongAnswers.add(_generateRandomIndonesian());
+      } else {
+        wrongAnswers.add(_generateRandomKorean());
+      }
+    }
 
     // 4. Combine and shuffle
     final allOptions = [correctAnswer, ...wrongAnswers];
@@ -272,13 +330,13 @@ class QuizHafalanGenerator {
     return QuizHafalan(
       wordId: wordId,
       question: question,
-      questionRomaji: mode == QuizMode.koreanToIndonesia ? romaji : null,
       mode: mode,
       options: allOptions,
       correctAnswerIndex: correctIndex,
       correctAnswerText: correctAnswer,
-      category: word['category'] as String?,
-      level: word['level'] as String?,
+      chapterNumber: chapterNum,
+      chapterTitleKorean: chapterTitleKr,
+      chapterTitleIndonesian: chapterTitleId,
     );
   }
 
@@ -303,6 +361,29 @@ class QuizHafalanGenerator {
   Future<Map<String, dynamic>> getStats() async {
     return await _dbHelper.getUserStats();
   }
+
+  /// Get all chapters
+  Future<List<Map<String, dynamic>>> getChapters() async {
+    return await _dbHelper.getChapters();
+  }
+
+  /// Get chapter stats
+  Future<Map<String, dynamic>> getChapterStats(int chapterNumber) async {
+    return await _dbHelper.getChapterStats(chapterNumber);
+  }
+
+  // Fallback generators
+  String _generateRandomIndonesian() {
+    final words = ['Halo', 'Selamat', 'Terima kasih', 'Maaf', 'Senang',
+                   'Sedih', 'Rumah', 'Mobil', 'Buku', 'Makan'];
+    return words[Random().nextInt(words.length)];
+  }
+
+  String _generateRandomKorean() {
+    final words = ['안녕', '고마워', '미안해', '사랑', '집',
+                   '차', '책', '밥', '물', '친구'];
+    return words[Random().nextInt(words.length)];
+  }
 }
 ```
 
@@ -319,14 +400,12 @@ import 'package:your_app/services/quiz_hafalan_generator.dart';
 
 class QuizHafalanScreen extends StatefulWidget {
   final QuizMode mode;
-  final String? category;
-  final String? level;
+  final int? chapterNumber;
 
   const QuizHafalanScreen({
     Key? key,
-    this.mode = QuizMode.koreanToIndonesia,
-    this.category,
-    this.level,
+    this.mode = QuizMode.koreanToIndonesian,
+    this.chapterNumber,
   }) : super(key: key);
 
   @override
@@ -352,8 +431,7 @@ class _QuizHafalanScreenState extends State<QuizHafalanScreen> {
   Future<void> _loadNextQuiz() async {
     final quiz = await _generator.generateQuiz(
       mode: widget.mode,
-      category: widget.category,
-      level: widget.level,
+      chapterNumber: widget.chapterNumber,
     );
 
     setState(() {
@@ -372,7 +450,6 @@ class _QuizHafalanScreenState extends State<QuizHafalanScreen> {
       _totalQuestions++;
     });
 
-    // Submit to database
     final isCorrect = await _generator.submitAnswer(
       quiz: _currentQuiz!,
       selectedIndex: index,
@@ -419,34 +496,43 @@ class _QuizHafalanScreenState extends State<QuizHafalanScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Chapter info
+            if (_currentQuiz!.chapterNumber != null)
+              Card(
+                color: Colors.blue[50],
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.book, size: 20, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Chapter ${_currentQuiz!.chapterNumber}: ${_currentQuiz!.chapterTitleIndonesian}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 20),
+
             // Question
             Card(
               elevation: 4,
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  children: [
-                    Text(
-                      _currentQuiz!.question,
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    if (_currentQuiz!.questionRomaji != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          _currentQuiz!.questionRomaji!,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                  ],
+                child: Text(
+                  _currentQuiz!.question,
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
@@ -532,12 +618,17 @@ class _QuizHafalanScreenState extends State<QuizHafalanScreen> {
                       size: 32,
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      _isCorrect ? 'Benar! 🎉' : 'Jawaban: ${_currentQuiz!.correctAnswerText}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: _isCorrect ? Colors.green : Colors.red,
+                    Expanded(
+                      child: Text(
+                        _isCorrect
+                            ? 'Benar! 🎉'
+                            : 'Jawaban Benar: ${_currentQuiz!.correctAnswerText}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: _isCorrect ? Colors.green : Colors.red,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ],
@@ -555,17 +646,165 @@ class _QuizHafalanScreenState extends State<QuizHafalanScreen> {
 
 ---
 
-### 5. Launch Quiz
+### 5. Chapter Selection Screen (Bonus)
 
 ```dart
-// Cara menggunakan:
+// lib/screens/chapter_selection_screen.dart
+import 'package:flutter/material.dart';
+import 'package:your_app/models/quiz_hafalan_model.dart';
+import 'package:your_app/screens/quiz_hafalan_screen.dart';
+import 'package:your_app/services/quiz_hafalan_generator.dart';
+
+class ChapterSelectionScreen extends StatefulWidget {
+  final QuizMode mode;
+
+  const ChapterSelectionScreen({
+    Key? key,
+    this.mode = QuizMode.koreanToIndonesian,
+  }) : super(key: key);
+
+  @override
+  State<ChapterSelectionScreen> createState() => _ChapterSelectionScreenState();
+}
+
+class _ChapterSelectionScreenState extends State<ChapterSelectionScreen> {
+  final QuizHafalanGenerator _generator = QuizHafalanGenerator();
+  List<Map<String, dynamic>> _chapters = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChapters();
+  }
+
+  Future<void> _loadChapters() async {
+    final chapters = await _generator.getChapters();
+    setState(() {
+      _chapters = chapters;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pilih Chapter'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _chapters.length + 1,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  // All chapters option
+                  return Card(
+                    elevation: 2,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Colors.blue,
+                        child: Icon(Icons.all_inclusive, color: Colors.white),
+                      ),
+                      title: const Text(
+                        'Semua Chapter',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: const Text('Quiz dari semua vocabulary'),
+                      trailing: const Icon(Icons.arrow_forward_ios),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => QuizHafalanScreen(
+                              mode: widget.mode,
+                              chapterNumber: null,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                }
+
+                final chapter = _chapters[index - 1];
+                final chapterNum = chapter['chapter_number'] as int;
+                final titleId = chapter['chapter_title_indonesian'] as String;
+                final titleKr = chapter['chapter_title_korean'] as String;
+                final wordCount = chapter['word_count'] as int;
+
+                return Card(
+                  elevation: 2,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      child: Text('$chapterNum'),
+                    ),
+                    title: Text(
+                      titleId,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text('$titleKr • $wordCount kata'),
+                    trailing: const Icon(Icons.arrow_forward_ios),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => QuizHafalanScreen(
+                            mode: widget.mode,
+                            chapterNumber: chapterNum,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
+```
+
+---
+
+## 🚀 Cara Menggunakan
+
+### 1. Langsung ke Quiz (All Chapters)
+```dart
 Navigator.push(
   context,
   MaterialPageRoute(
     builder: (context) => const QuizHafalanScreen(
-      mode: QuizMode.koreanToIndonesia,
-      category: null, // or 'greeting', 'food', etc
-      level: null,    // or 'beginner', 'intermediate', 'advanced'
+      mode: QuizMode.koreanToIndonesian,
+      chapterNumber: null, // All chapters
+    ),
+  ),
+);
+```
+
+### 2. Quiz Specific Chapter
+```dart
+Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (context) => const QuizHafalanScreen(
+      mode: QuizMode.koreanToIndonesian,
+      chapterNumber: 1, // Chapter 1 only
+    ),
+  ),
+);
+```
+
+### 3. Chapter Selection Screen
+```dart
+Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (context) => const ChapterSelectionScreen(
+      mode: QuizMode.koreanToIndonesian,
     ),
   ),
 );
@@ -573,34 +812,44 @@ Navigator.push(
 
 ---
 
-## 🎯 Fitur yang Sudah Terimplementasi
-
-✅ **Generate otomatis** 3 jawaban salah + 1 benar
-✅ **Random selection** dari database
-✅ **Auto-next** setelah 4 detik
-✅ **Infinite loop** mode
-✅ **Show correct answer** jika salah
-✅ **Track score** dan statistik
-✅ **100% offline** - tidak perlu internet
-✅ **Filter by category/level** (optional)
-
----
-
-## 📊 Statistik User
+## 📊 Get Statistics
 
 ```dart
-// Get user statistics
+// Overall stats
 final stats = await QuizHafalanGenerator().getStats();
-
 print('Total: ${stats['total']}');
-print('Correct: ${stats['correct']}');
-print('Wrong: ${stats['wrong']}');
 print('Accuracy: ${stats['accuracy']}%');
+
+// Chapter specific stats
+final chapterStats = await QuizHafalanGenerator().getChapterStats(1);
+print('Chapter 1 Accuracy: ${chapterStats['accuracy']}%');
+
+// Get all chapters
+final chapters = await QuizHafalanGenerator().getChapters();
+for (var chapter in chapters) {
+  print('Chapter ${chapter['chapter_number']}: ${chapter['chapter_title_indonesian']}');
+  print('Words: ${chapter['word_count']}');
+}
 ```
 
 ---
 
-## 🔧 Dependencies Required
+## ✅ Fitur yang Tersedia
+
+✅ **Auto-generate** 3 jawaban salah + 1 benar
+✅ **Random selection** dari Vocabulary table
+✅ **Auto-next** setelah 4 detik
+✅ **Infinite loop** mode
+✅ **Show correct answer** jika salah
+✅ **Track score** real-time
+✅ **Filter by chapter** (optional)
+✅ **Chapter selection screen**
+✅ **Statistics** per chapter
+✅ **100% offline** - tidak perlu internet
+
+---
+
+## 🔧 Dependencies
 
 ```yaml
 # pubspec.yaml
@@ -609,13 +858,7 @@ dependencies:
     sdk: flutter
   sqflite: ^2.3.0
   path: ^1.8.3
-```
 
----
-
-## 📝 pubspec.yaml Assets
-
-```yaml
 flutter:
   assets:
     - assets/database/hafalan.db
@@ -623,25 +866,4 @@ flutter:
 
 ---
 
-## ✨ Keuntungan Offline Approach
-
-1. ✅ **Tidak perlu internet** - Quiz bisa dimainkan kapan saja
-2. ✅ **Lebih cepat** - Tidak ada network latency
-3. ✅ **Hemat bandwidth** - Tidak konsumsi data
-4. ✅ **Privacy** - Data tidak keluar dari device
-5. ✅ **Scalable** - Tidak beban server
-6. ✅ **Gratis** - Tidak perlu hosting untuk quiz hafalan
-
----
-
-## 🚀 Next Steps
-
-1. Copy kode di atas ke project Flutter
-2. Pastikan `hafalan.db` ada di `assets/database/`
-3. Update `pubspec.yaml` dengan dependencies
-4. Test quiz hafalan
-5. Customize UI sesuai design app
-
----
-
-**Quiz Hafalan siap digunakan 100% offline! 🎉**
+**Sudah disesuaikan dengan schema Vocabulary table Anda! 🎉**
