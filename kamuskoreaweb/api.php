@@ -152,80 +152,98 @@ function getAuthorizationHeader() {
 /**
  * Verify Firebase ID Token and get UID
  * FIXED: Proper token parsing and error handling
+ *
+ * @param bool $optional If true, return null on errors instead of exiting
+ * @return string|null UID or null
  */
-function getFirebaseUid() {
+function getFirebaseUid($optional = false) {
     global $firebaseAuth;
 
     // SECURITY FIX: X-User-ID header bypass COMPLETELY REMOVED
     // If you need local testing, use Firebase Local Emulator Suite instead
     // https://firebase.google.com/docs/emulator-suite
-    
+
     // Method 2: Verifikasi Firebase ID Token (Cara yang Benar)
     $authHeader = getAuthorizationHeader();
-    
+
     if (empty($authHeader)) {
         error_log("❌ Authorization header is empty");
         return null;
     }
-    
+
     // Parse token dengan aman
     $parts = explode(' ', $authHeader);
-    
+
     if (count($parts) !== 2) {
         error_log("❌ Invalid Authorization header format. Parts count: " . count($parts));
+        if ($optional) {
+            return null;
+        }
         http_response_code(401);
         echo json_encode([
-            'success' => false, 
+            'success' => false,
             'message' => 'Format Authorization header tidak valid. Gunakan: Bearer <token>'
         ]);
         exit();
     }
-    
+
     if (strcasecmp($parts[0], 'Bearer') !== 0) {
         error_log("❌ Authorization header must start with 'Bearer'");
+        if ($optional) {
+            return null;
+        }
         http_response_code(401);
         echo json_encode([
-            'success' => false, 
+            'success' => false,
             'message' => 'Authorization header harus dimulai dengan "Bearer"'
         ]);
         exit();
     }
-    
+
     $idToken = $parts[1];
-    
+
     if (empty($idToken)) {
         error_log("❌ Token is empty after parsing");
+        if ($optional) {
+            return null;
+        }
         http_response_code(401);
         echo json_encode([
-            'success' => false, 
+            'success' => false,
             'message' => 'Token tidak ditemukan setelah Bearer'
         ]);
         exit();
     }
-    
+
     try {
         // FIX: Reduced leeway from 300s to 60s for better security
         // 60 seconds (1 minute) is sufficient for clock skew tolerance
         $verifiedIdToken = $firebaseAuth->verifyIdToken($idToken, false, 60);
         $uid = $verifiedIdToken->claims()->get('sub');
-        
+
         error_log("✅ Token verified successfully for UID: " . $uid);
         return $uid;
-        
+
     } catch (\Kreait\Firebase\Exception\Auth\FailedToVerifyToken $e) {
         error_log("❌ Firebase token verification failed: " . $e->getMessage());
+        if ($optional) {
+            return null;
+        }
         http_response_code(401);
         echo json_encode([
-            'success' => false, 
+            'success' => false,
             'message' => 'Token tidak valid atau sudah kadaluarsa. Silakan login ulang.',
             'error_detail' => APP_ENV === 'development' ? $e->getMessage() : null
         ]);
         exit();
     } catch (\Exception $e) {
         error_log("❌ Unexpected error during token verification: " . $e->getMessage());
+        if ($optional) {
+            return null;
+        }
         http_response_code(401);
         echo json_encode([
-            'success' => false, 
+            'success' => false,
             'message' => 'Gagal memverifikasi token. Silakan coba lagi.',
             'error_detail' => APP_ENV === 'development' ? $e->getMessage() : null
         ]);
@@ -367,14 +385,27 @@ $routes = explode('/', trim($uri, '/'));
 $publicEndpoints = [
     'auth/forgot-password',
     'auth/reset-password',
-    'auth/verify-reset-token'
+    'auth/verify-reset-token',
+    // Assessment endpoints (untuk akses publik)
+    'assessments/categories',
+    // NOTE: Endpoint lain tetap butuh App Check untuk keamanan
+];
+
+// Endpoint yang boleh diakses tanpa App Check (tapi bisa dengan optional auth)
+$optionalAppCheckEndpoints = [
+    'assessments',  // GET /assessments (list)
+    'ebooks',       // GET /ebooks
+    'kamus'         // GET /kamus/updates
 ];
 
 $currentEndpoint = implode('/', array_slice($routes, 0, 2));
-$isPublicEndpoint = in_array($currentEndpoint, $publicEndpoints);
+$firstRoute = $routes[0] ?? '';
 
-if (!$isPublicEndpoint) {
-    // Panggil App Check untuk semua endpoint yang BUKAN public
+$isPublicEndpoint = in_array($currentEndpoint, $publicEndpoints);
+$isOptionalAppCheck = in_array($firstRoute, $optionalAppCheckEndpoints);
+
+if (!$isPublicEndpoint && !$isOptionalAppCheck) {
+    // Panggil App Check untuk semua endpoint yang BUKAN public/optional
     // Di development mode, ini akan di-skip otomatis
     requireAppCheck();
 }
@@ -657,7 +688,7 @@ elseif ($routes[0] === 'ebooks' && $requestMethod === 'GET') {
      * GET /ebooks
      * Get all ebooks (with premium filtering)
      */
-    $uid = getFirebaseUid();
+    $uid = getFirebaseUid(true); // Optional auth - bisa diakses tanpa login
     
     $isPremium = false;
     if ($uid) {
@@ -748,7 +779,7 @@ elseif ($routes[0] === 'assessments' && !isset($routes[1]) && $requestMethod ===
      * GET /assessments?type=quiz&category_id=1
      * Get all assessments
      */
-    $uid = getFirebaseUid();
+    $uid = getFirebaseUid(true); // Optional auth - bisa diakses tanpa login
     
     $isPremium = false;
     if ($uid) {
