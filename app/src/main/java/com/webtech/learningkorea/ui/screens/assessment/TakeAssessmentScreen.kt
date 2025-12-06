@@ -218,11 +218,12 @@ fun TakeAssessmentScreen(
 
     LaunchedEffect(isTimerRunning) {
         if (isTimerRunning) {
-            while (timeRemaining > 0) {
+            while (timeRemaining > 0 && isActive) {  // FIX: Check isActive to prevent memory leak
                 delay(1000L)
                 timeRemaining--
             }
-            if (timeRemaining == 0 && result == null) {
+            // FIX: Add isLoading check to prevent race condition with manual submit
+            if (timeRemaining == 0 && result == null && !isLoading) {
                 Log.d("TakeAssessment", "⏰ Time's up! Auto-submitting...")
                 viewModel.submitAssessment(assessmentId)
                 isTimerRunning = false
@@ -234,6 +235,9 @@ fun TakeAssessmentScreen(
         result?.let {
             Log.d("TakeAssessment", "✅ Result received")
             isTimerRunning = false
+            // FIX: Add small delay so user can see the result before navigation
+            // This improves UX by preventing jarring instant navigation
+            delay(500L)
             onFinish()
         }
     }
@@ -1496,9 +1500,10 @@ fun AudioPlayerCompactCached(url: String, mediaPreloader: MediaPreloader?) {
         mediaPreloader?.getCachedFilePath(url, "audio") ?: url
     }
 
+    // FIX: Use nullable MediaPlayer to handle initialization errors properly
     val mediaPlayer = remember(audioSource) {
-        MediaPlayer().apply {
-            try {
+        try {
+            MediaPlayer().apply {
                 if (audioSource.startsWith("/")) {
                     // Local cached file
                     setDataSource(audioSource)
@@ -1516,16 +1521,20 @@ fun AudioPlayerCompactCached(url: String, mediaPreloader: MediaPreloader?) {
                     prepareAsync()
                 }
                 setOnCompletionListener { isPlaying = false }
-            } catch (e: Exception) {
-                Log.e("AudioPlayer", "Error initializing", e)
-                hasError = true
-                isLoading = false
             }
+        } catch (e: Exception) {
+            Log.e("AudioPlayer", "Error initializing", e)
+            hasError = true
+            isLoading = false
+            null  // FIX: Return null on error to prevent memory leak
         }
     }
 
     DisposableEffect(audioSource) {
-        onDispose { mediaPlayer.release() }
+        onDispose {
+            // FIX: Safely release MediaPlayer even if initialization failed
+            mediaPlayer?.release()
+        }
     }
 
     if (hasError) {
@@ -1553,9 +1562,12 @@ fun AudioPlayerCompactCached(url: String, mediaPreloader: MediaPreloader?) {
                 } else {
                     IconButton(
                         onClick = {
-                            if (isPlaying) mediaPlayer.pause()
-                            else mediaPlayer.start()
-                            isPlaying = !isPlaying
+                            // FIX: Handle null mediaPlayer safely
+                            mediaPlayer?.let {
+                                if (isPlaying) it.pause()
+                                else it.start()
+                                isPlaying = !isPlaying
+                            }
                         },
                         modifier = Modifier.size(48.dp)
                     ) {
@@ -1625,9 +1637,10 @@ fun VideoPlayerCompactCached(url: String, mediaPreloader: MediaPreloader?) {
         mediaPreloader?.getCachedFilePath(url, "video") ?: url
     }
 
+    // FIX: Use nullable ExoPlayer and proper error handling to prevent memory leak
     val exoPlayer = remember(videoSource) {
-        ExoPlayer.Builder(context).build().apply {
-            try {
+        try {
+            ExoPlayer.Builder(context).build().apply {
                 val mediaItem = if (videoSource.startsWith("/")) {
                     // Local cached file
                     MediaItem.fromUri(Uri.fromFile(File(videoSource)))
@@ -1651,19 +1664,23 @@ fun VideoPlayerCompactCached(url: String, mediaPreloader: MediaPreloader?) {
                     }
                 })
                 prepare()
-            } catch (e: Exception) {
-                Log.e("VideoPlayer", "Error initializing", e)
-                hasError = true
-                isLoading = false
             }
+        } catch (e: Exception) {
+            Log.e("VideoPlayer", "Error initializing", e)
+            hasError = true
+            isLoading = false
+            null  // FIX: Return null on error to prevent memory leak
         }
     }
 
     DisposableEffect(videoSource) {
-        onDispose { exoPlayer.release() }
+        onDispose {
+            // FIX: Safely release ExoPlayer even if initialization failed
+            exoPlayer?.release()
+        }
     }
 
-    if (hasError) {
+    if (hasError || exoPlayer == null) {
         MediaErrorPlaceholder(type = "video")
     } else {
         Card(
@@ -1673,6 +1690,7 @@ fun VideoPlayerCompactCached(url: String, mediaPreloader: MediaPreloader?) {
             Box {
                 AndroidView(
                     factory = { ctx ->
+                        // FIX: exoPlayer is guaranteed non-null here due to outer if check
                         PlayerView(ctx).apply { player = exoPlayer }
                     },
                     modifier = Modifier
@@ -1829,47 +1847,5 @@ fun LanguageOptionItemCompact(
     }
 }
 
-/**
- * Composable to render HTML text (supports <p>, <u>, <b>, <i>, etc.)
- * Used for questions and answers that may contain HTML formatting from rich text editor
- */
-@Composable
-fun HtmlText(
-    html: String,
-    modifier: Modifier = Modifier,
-    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyLarge,
-    color: Color = MaterialTheme.colorScheme.onSurface,
-    textAlign: TextAlign = TextAlign.Start
-) {
-    AndroidView(
-        modifier = modifier,
-        factory = { context ->
-            android.widget.TextView(context).apply {
-                // Set text style properties
-                textSize = style.fontSize.value
-                setTextColor(color.hashCode())
-                gravity = when (textAlign) {
-                    TextAlign.Center -> android.view.Gravity.CENTER
-                    TextAlign.End -> android.view.Gravity.END
-                    else -> android.view.Gravity.START
-                }
-
-                // Set font weight
-                typeface = when {
-                    style.fontWeight == FontWeight.Bold -> android.graphics.Typeface.DEFAULT_BOLD
-                    else -> android.graphics.Typeface.DEFAULT
-                }
-            }
-        },
-        update = { textView ->
-            // Render HTML content
-            val spanned = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_LEGACY)
-            } else {
-                @Suppress("DEPRECATION")
-                android.text.Html.fromHtml(html)
-            }
-            textView.text = spanned
-        }
-    )
-}
+// HtmlText is now imported from com.webtech.learningkorea.ui.components.HtmlText
+// (Removed duplicate buggy implementation that used color.hashCode() instead of color.toArgb())

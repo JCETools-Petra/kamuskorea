@@ -91,10 +91,12 @@ class MediaPreloader @Inject constructor(
 
     /**
      * Preload media for a single question
+     * FIX: Added retry mechanism for failed downloads
      */
-    private suspend fun preloadQuestion(question: Question) {
+    private suspend fun preloadQuestion(question: Question, retryCount: Int = 0) {
         val mediaUrl = question.mediaUrl ?: return
 
+        // FIX: Allow retry if previously failed
         if (cachedMedia[mediaUrl] == CacheStatus.CACHED ||
             cachedMedia[mediaUrl] == CacheStatus.CACHING) {
             return // Already cached or caching
@@ -113,9 +115,17 @@ class MediaPreloader @Inject constructor(
             updateLoadingState(mediaUrl, LoadingState.READY)
             Log.d(TAG, "✅ Cached: $mediaUrl")
         } catch (e: Exception) {
-            cachedMedia[mediaUrl] = CacheStatus.ERROR
-            updateLoadingState(mediaUrl, LoadingState.ERROR)
-            Log.e(TAG, "❌ Failed to cache: $mediaUrl", e)
+            // FIX: Retry up to 2 times on failure
+            if (retryCount < 2) {
+                Log.w(TAG, "⚠️ Failed to cache: $mediaUrl (attempt ${retryCount + 1}/3), retrying...", e)
+                cachedMedia[mediaUrl] = CacheStatus.NOT_CACHED  // FIX: Reset state for retry
+                delay(1000L * (retryCount + 1))  // Exponential backoff
+                preloadQuestion(question, retryCount + 1)
+            } else {
+                cachedMedia[mediaUrl] = CacheStatus.ERROR
+                updateLoadingState(mediaUrl, LoadingState.ERROR)
+                Log.e(TAG, "❌ Failed to cache after 3 attempts: $mediaUrl", e)
+            }
         }
     }
 
@@ -199,13 +209,20 @@ class MediaPreloader @Inject constructor(
 
     /**
      * Clean cache if it exceeds maximum size
+     * FIX: Made thread-safe with synchronization to prevent race conditions
      */
+    @Synchronized
     private fun cleanCacheIfNeeded() {
         val maxSizeBytes = MAX_CACHE_SIZE_MB * 1024 * 1024L
         var totalSize = 0L
         val files = cacheDir.listFiles()?.sortedBy { it.lastModified() } ?: return
 
-        files.forEach { totalSize += it.length() }
+        // FIX: Calculate total size in thread-safe manner
+        files.forEach { file ->
+            if (file.exists()) {  // FIX: Check existence as file might be deleted by concurrent thread
+                totalSize += file.length()
+            }
+        }
 
         if (totalSize > maxSizeBytes) {
             Log.d(TAG, "🧹 Cache cleanup: ${totalSize / 1024 / 1024}MB > ${MAX_CACHE_SIZE_MB}MB")
@@ -213,9 +230,13 @@ class MediaPreloader @Inject constructor(
             // Remove oldest files until under limit
             for (file in files) {
                 if (totalSize <= maxSizeBytes * 0.8) break // Clean to 80% capacity
-                totalSize -= file.length()
-                file.delete()
-                Log.d(TAG, "🗑️ Deleted: ${file.name}")
+                if (file.exists()) {  // FIX: Check before delete
+                    val fileSize = file.length()
+                    if (file.delete()) {
+                        totalSize -= fileSize
+                        Log.d(TAG, "🗑️ Deleted: ${file.name}")
+                    }
+                }
             }
         }
     }

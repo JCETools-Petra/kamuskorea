@@ -39,8 +39,25 @@ export const verifyPurchase = functions.https.onCall(
         token: purchaseToken,
       });
 
+      // FIX: Proper null check and validation for expiryTimeMillis
       const expiryTimeMillis = response.data.expiryTimeMillis;
-      const expiryMs = expiryTimeMillis ? Number(expiryTimeMillis) : 0;
+      if (!expiryTimeMillis) {
+        functions.logger.error("expiryTimeMillis is null or undefined");
+        throw new functions.https.HttpsError(
+          "internal",
+          "Invalid subscription data from Google Play"
+        );
+      }
+
+      const expiryMs = Number(expiryTimeMillis);
+      if (isNaN(expiryMs)) {
+        functions.logger.error("expiryTimeMillis is not a valid number:", expiryTimeMillis);
+        throw new functions.https.HttpsError(
+          "internal",
+          "Invalid expiry time format"
+        );
+      }
+
       const isActive = expiryMs > Date.now();
 
       await firestore.collection("users").doc(uid).set(

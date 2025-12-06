@@ -143,12 +143,12 @@ class GamificationRepository @Inject constructor(
     suspend fun addXp(amount: Int, source: String) {
         if (amount <= 0) return
 
+        var newTotalXp = 0
+        var leveledUp = false
+        var newLevel = 1
+
         // Use mutex to ensure only one XP modification happens at a time
         xpMutex.withLock {
-            var newTotalXp = 0
-            var leveledUp = false
-            var newLevel = 1
-
             getUserDataStore().edit { preferences ->
                 val currentXp = preferences[SettingsDataStore.USER_XP_KEY] ?: 0
                 newTotalXp = currentXp + amount
@@ -172,18 +172,19 @@ class GamificationRepository @Inject constructor(
                 }
             }
 
-            // Emit events after transaction completes
+            // Emit events after transaction completes (still inside mutex for consistency)
             _gamificationEvents.emit(GamificationEvent.XpEarned(amount, source, newTotalXp))
 
             if (leveledUp) {
                 _gamificationEvents.emit(GamificationEvent.LevelUp(newLevel, newTotalXp))
             }
+
+            // FIX: Sync to server inside mutex to prevent race conditions
+            // This ensures XP increments are synced in the correct order
+            syncXpIncrementToServer(amount, source)
         }
 
-        // ✅ NEW: Instantly sync XP increment to server
-        syncXpIncrementToServer(amount, source)
-
-        // Check for achievement unlocks
+        // Check for achievement unlocks (outside mutex to avoid blocking)
         checkAchievementUnlocks()
     }
 

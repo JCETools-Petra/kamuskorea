@@ -36,11 +36,14 @@ class AuthInterceptor(private val firebaseAuth: FirebaseAuth) : Interceptor {
         private const val TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000L // 5 minutes before actual expiry
     }
 
-    // Token cache with expiration
+    // FIX: Thread-safe token cache using data class for atomic operations
+    private data class TokenCache(
+        val token: String?,
+        val expiryTime: Long
+    )
+
     @Volatile
-    private var cachedToken: String? = null
-    @Volatile
-    private var tokenExpiryTime: Long = 0L
+    private var tokenCache: TokenCache = TokenCache(null, 0L)
     private val tokenLock = Any()
 
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -55,31 +58,34 @@ class AuthInterceptor(private val firebaseAuth: FirebaseAuth) : Interceptor {
             return chain.proceed(originalRequest)
         }
 
-        // Get token with caching to minimize blocking
+        // FIX: Get token with improved thread-safe caching
         val token: String? = synchronized(tokenLock) {
             val now = System.currentTimeMillis()
+            val cache = tokenCache  // FIX: Read volatile once for consistency
 
             // Use cached token if still valid
-            if (cachedToken != null && now < tokenExpiryTime) {
+            if (cache.token != null && now < cache.expiryTime) {
                 if (BuildConfig.DEBUG) {
-                    Log.d(TAG, "Using cached token (expires in ${(tokenExpiryTime - now) / 1000}s)")
+                    Log.d(TAG, "Using cached token (expires in ${(cache.expiryTime - now) / 1000}s)")
                 }
-                cachedToken
+                cache.token
             } else {
                 // Token expired or missing, fetch new one
                 if (BuildConfig.DEBUG) {
                     Log.d(TAG, "Token expired or missing, fetching new token...")
                 }
+                // FIX: runBlocking is acceptable here as OkHttp runs interceptors on background thread
+                // However, we minimize blocking time by using cached token when possible
                 runBlocking {
                     try {
-                        // Use getIdToken(false) first for cached token
+                        // Use getIdToken(false) first for Firebase's cached token
                         val result = user.getIdToken(false).await()
                         val freshToken = result?.token
 
                         if (freshToken != null) {
-                            // Cache the token with expiration (Firebase tokens valid for 1 hour)
-                            cachedToken = freshToken
-                            tokenExpiryTime = now + (3600 * 1000L) - TOKEN_EXPIRY_BUFFER_MS // 55 minutes
+                            // FIX: Update cache atomically with data class
+                            val newExpiryTime = now + (3600 * 1000L) - TOKEN_EXPIRY_BUFFER_MS // 55 minutes
+                            tokenCache = TokenCache(freshToken, newExpiryTime)
 
                             if (BuildConfig.DEBUG) {
                                 Log.d(TAG, "✅ Token cached (valid for 55 min)")
@@ -118,8 +124,8 @@ class AuthInterceptor(private val firebaseAuth: FirebaseAuth) : Interceptor {
      */
     fun clearTokenCache() {
         synchronized(tokenLock) {
-            cachedToken = null
-            tokenExpiryTime = 0L
+            // FIX: Clear cache atomically
+            tokenCache = TokenCache(null, 0L)
         }
     }
 }

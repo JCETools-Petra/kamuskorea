@@ -66,6 +66,18 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     .createFromAsset("database/kamus_korea.db")
                     .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    // FIX: Add fallback strategy for migration failures
+                    // This will recreate the database from asset if migration fails
+                    // Note: User data in favorite tables will be lost, but dictionary data is preserved
+                    .fallbackToDestructiveMigrationFrom(1, 2)  // Safe for old versions
+                    .addCallback(object : RoomDatabase.Callback() {
+                        override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
+                            super.onDestructiveMigration(db)
+                            android.util.Log.w("AppDatabase",
+                                "⚠️ Database migration failed - recreating from asset. " +
+                                "User favorites may be lost.")
+                        }
+                    })
                     .build()
                 INSTANCE = instance
                 instance

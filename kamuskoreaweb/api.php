@@ -18,8 +18,9 @@ date_default_timezone_set('Asia/Jakarta');
 // ========================================
 // ENVIRONMENT CONFIGURATION
 // ========================================
-// UBAH INI KE 'production' SAAT DEPLOY KE SERVER LIVE
-define('APP_ENV', 'development'); // Options: 'development' atau 'production'
+// SECURITY FIX: Default to 'production' for safety
+// Override via environment variable: export APP_ENV=development
+define('APP_ENV', getenv('APP_ENV') ?: 'production'); // Options: 'development' atau 'production'
 
 // Error Reporting
 error_reporting(0);
@@ -134,15 +135,10 @@ function getAuthorizationHeader() {
  */
 function getFirebaseUid() {
     global $firebaseAuth;
-    
-    // Method 1: X-User-ID header (untuk backward compatibility/testing di development)
-    if (APP_ENV === 'development') {
-        $headers = function_exists('getallheaders') ? getallheaders() : [];
-        if (isset($headers['X-User-ID']) && !empty($headers['X-User-ID'])) {
-            error_log("⚠️ Using X-User-ID header (Development Mode): " . $headers['X-User-ID']);
-            return $headers['X-User-ID'];
-        }
-    }
+
+    // SECURITY FIX: X-User-ID header bypass COMPLETELY REMOVED
+    // If you need local testing, use Firebase Local Emulator Suite instead
+    // https://firebase.google.com/docs/emulator-suite
     
     // Method 2: Verifikasi Firebase ID Token (Cara yang Benar)
     $authHeader = getAuthorizationHeader();
