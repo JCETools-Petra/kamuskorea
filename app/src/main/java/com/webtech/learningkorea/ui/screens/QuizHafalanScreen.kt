@@ -37,15 +37,33 @@ import com.webtech.learningkorea.ui.localization.LocalStrings
 fun QuizHafalanScreen(
     isPremium: Boolean,
     onNavigateBack: () -> Unit,
-    viewModel: QuizHafalanViewModel = hiltViewModel()
+    viewModel: QuizHafalanViewModel = hiltViewModel(),
+    onShowInterstitialAd: () -> Unit = {} // Callback to show interstitial ad
 ) {
     val strings = LocalStrings.current
     val uiState by viewModel.uiState.collectAsState()
 
+    // Handle interstitial ad display
+    LaunchedEffect(uiState.shouldShowInterstitialAd) {
+        if (uiState.shouldShowInterstitialAd && !isPremium) {
+            onShowInterstitialAd()
+            viewModel.onInterstitialAdShown()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Quiz Hafalan") },
+                title = {
+                    Column {
+                        Text("Quiz Hafalan")
+                        Text(
+                            text = "Kuota: ${uiState.quotaRemaining}/${uiState.dailyQuota} hari ini",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

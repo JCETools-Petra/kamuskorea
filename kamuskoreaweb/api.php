@@ -22,11 +22,31 @@ date_default_timezone_set('Asia/Jakarta');
 // Override via environment variable: export APP_ENV=development
 define('APP_ENV', getenv('APP_ENV') ?: 'production'); // Options: 'development' atau 'production'
 
-// Error Reporting
+// Error Reporting with Log Rotation
 error_reporting(0);
 ini_set('display_errors', APP_ENV === 'development' ? 1 : 0);
 ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/php_error.log');
+
+// FIX: Implement log rotation to prevent disk space exhaustion
+$logFile = __DIR__ . '/php_error.log';
+$maxLogSize = 10 * 1024 * 1024; // 10MB max log file size
+
+if (file_exists($logFile) && filesize($logFile) > $maxLogSize) {
+    // Rotate log file
+    $rotatedLog = __DIR__ . '/php_error.log.' . date('Y-m-d_H-i-s');
+    rename($logFile, $rotatedLog);
+
+    // Keep only last 5 rotated logs
+    $logFiles = glob(__DIR__ . '/php_error.log.*');
+    if (count($logFiles) > 5) {
+        usort($logFiles, function($a, $b) { return filemtime($a) - filemtime($b); });
+        foreach (array_slice($logFiles, 0, count($logFiles) - 5) as $oldLog) {
+            unlink($oldLog);
+        }
+    }
+}
+
+ini_set('error_log', $logFile);
 
 // CORS Headers
 header("Access-Control-Allow-Origin: *");
@@ -184,8 +204,9 @@ function getFirebaseUid() {
     }
     
     try {
-        // Verify token dengan leeway 300 detik (5 menit) untuk mengatasi perbedaan waktu
-        $verifiedIdToken = $firebaseAuth->verifyIdToken($idToken, false, 300);
+        // FIX: Reduced leeway from 300s to 60s for better security
+        // 60 seconds (1 minute) is sufficient for clock skew tolerance
+        $verifiedIdToken = $firebaseAuth->verifyIdToken($idToken, false, 60);
         $uid = $verifiedIdToken->claims()->get('sub');
         
         error_log("✅ Token verified successfully for UID: " . $uid);

@@ -144,6 +144,7 @@ class MediaPreloader @Inject constructor(
 
     /**
      * Preload audio/video by downloading to local cache
+     * FIX: Added download timeout to prevent hanging indefinitely
      */
     private suspend fun preloadAudioVideo(url: String, type: String) = withContext(Dispatchers.IO) {
         val fileName = "${type}_${url.hashCode()}.cache"
@@ -157,11 +158,17 @@ class MediaPreloader @Inject constructor(
         // Check cache size before downloading
         cleanCacheIfNeeded()
 
+        // FIX: Create client with specific download timeout (60 seconds)
+        val downloadClient = okHttpClient.newBuilder()
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+
         val request = Request.Builder()
             .url(url)
             .build()
 
-        okHttpClient.newCall(request).execute().use { response ->
+        downloadClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 throw Exception("Failed to download: ${response.code}")
             }
