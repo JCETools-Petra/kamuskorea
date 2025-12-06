@@ -12,6 +12,7 @@ sealed class Screen(val route: String) {
     object Favorites : Screen("favorites_screen")
     object Quiz : Screen("quiz_screen")
     object Memorization : Screen("memorization_screen")
+    object QuizHafalan : Screen("quiz_hafalan_screen") // ✅ NEW - Quiz Hafalan
     object Ebook : Screen("ebook_screen")
     object Profile : Screen("profile_screen")
     object Settings : Screen("settings_screen")
