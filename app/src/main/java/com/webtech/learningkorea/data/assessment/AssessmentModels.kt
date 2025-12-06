@@ -37,10 +37,16 @@ data class Question(
     @SerializedName("question_text") val questionText: String,
     @SerializedName("question_type") val questionType: String, // "text", "image", "audio", "video"
     @SerializedName("media_url") val mediaUrl: String?,
+    @SerializedName("media_url_2") val mediaUrl2: String? = null,
+    @SerializedName("media_url_3") val mediaUrl3: String? = null,
     @SerializedName("option_a") val optionA: String,
+    @SerializedName("option_a_type") val optionAType: String? = "text", // "text", "image", "audio"
     @SerializedName("option_b") val optionB: String,
+    @SerializedName("option_b_type") val optionBType: String? = "text",
     @SerializedName("option_c") val optionC: String?,
+    @SerializedName("option_c_type") val optionCType: String? = "text",
     @SerializedName("option_d") val optionD: String?,
+    @SerializedName("option_d_type") val optionDType: String? = "text",
     @SerializedName("option_a_alt") val optionAAlt: String? = null, // Alternative language (Korean/Indonesian)
     @SerializedName("option_b_alt") val optionBAlt: String? = null,
     @SerializedName("option_c_alt") val optionCAlt: String? = null,
@@ -67,6 +73,20 @@ data class Question(
 
     fun hasAlternativeOptions(): Boolean {
         return optionAAlt != null || optionBAlt != null
+    }
+
+    fun getOptionType(index: Int): String {
+        return when (index) {
+            0 -> optionAType ?: "text"
+            1 -> optionBType ?: "text"
+            2 -> optionCType ?: "text"
+            3 -> optionDType ?: "text"
+            else -> "text"
+        }
+    }
+
+    fun getAllMediaUrls(): List<String> {
+        return listOfNotNull(mediaUrl, mediaUrl2, mediaUrl3)
     }
 }
 
