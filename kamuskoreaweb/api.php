@@ -20,7 +20,8 @@ date_default_timezone_set('Asia/Jakarta');
 // ========================================
 // SECURITY FIX: Default to 'production' for safety
 // Override via environment variable: export APP_ENV=development
-define('APP_ENV', getenv('APP_ENV') ?: 'production'); // Options: 'development' atau 'production'
+// TEMPORARY: Set to 'development' for testing, CHANGE TO 'production' before final release
+define('APP_ENV', getenv('APP_ENV') ?: 'development'); // Options: 'development' atau 'production'
 
 // Error Reporting with Log Rotation
 error_reporting(0);
