@@ -458,22 +458,14 @@ fun LandscapeTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            IconButton(
-                onClick = onExit,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Keluar",
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            // TOMBOL X (KELUAR) SUDAHDIHAPUS DI SINI
 
+            // Assessment Title and User Info
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center
             ) {
+                // Type Label (Quiz atau UBT)
                 Text(
                     text = if (assessmentType == "quiz") "Quiz" else "UBT",
                     style = MaterialTheme.typography.labelSmall,
@@ -481,6 +473,7 @@ fun LandscapeTopBar(
                     fontWeight = FontWeight.Bold
                 )
 
+                // Assessment Title
                 Text(
                     text = assessmentTitle,
                     style = MaterialTheme.typography.titleSmall,
@@ -489,6 +482,7 @@ fun LandscapeTopBar(
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
+                // User Name
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -509,6 +503,7 @@ fun LandscapeTopBar(
                 }
             }
 
+            // Remaining Questions Indicator
             Surface(
                 shape = RoundedCornerShape(6.dp),
                 color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
@@ -540,6 +535,7 @@ fun LandscapeTopBar(
                 }
             }
 
+            // Time Remaining Indicator
             Surface(
                 shape = RoundedCornerShape(6.dp),
                 color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
@@ -576,6 +572,7 @@ fun LandscapeTopBar(
                 }
             }
 
+            // Language Selector Button - Always visible
             FilledTonalButton(
                 onClick = onShowLanguageDialog,
                 modifier = Modifier.height(32.dp),
