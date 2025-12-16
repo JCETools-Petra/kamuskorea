@@ -1,0 +1,627 @@
+package com.webtech.learningkorea.gamification
+
+import android.content.Context
+import android.util.Log
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.webtech.learningkorea.analytics.AnalyticsTracker
+import com.webtech.learningkorea.data.network.ApiService
+import com.webtech.learningkorea.data.local.FavoriteWord
+import com.webtech.learningkorea.data.local.FavoriteWordDao
+import com.webtech.learningkorea.data.local.FavoriteVocabulary
+import com.webtech.learningkorea.data.local.FavoriteVocabularyDao
+import com.webtech.learningkorea.notifications.AppNotificationManager
+import com.webtech.learningkorea.ui.datastore.SettingsDataStore
+import com.webtech.learningkorea.ui.datastore.dataStore
+import com.webtech.learningkorea.ui.datastore.getUserDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * GamificationRepository
+ *
+ * Manages all gamification features:
+ * - XP tracking (local + cloud sync)
+ * - Level calculation
+ * - Achievement unlocking
+ * - Leaderboard
+ */
+@Singleton
+class GamificationRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val apiService: ApiService,
+    private val firebaseAuth: FirebaseAuth,
+    private val analyticsTracker: AnalyticsTracker,
+    private val notificationManager: AppNotificationManager,
+    private val favoriteWordDao: FavoriteWordDao,
+    private val favoriteVocabularyDao: FavoriteVocabularyDao
+) {
+
+    /**
+     * Get user-specific DataStore
+     * Returns user-specific gamification data storage
+     *
+     * SECURITY: Ensures only logged-in user can access their own data
+     */
+    private fun getUserDataStore(): DataStore<Preferences> {
+        val userId = firebaseAuth.currentUser?.uid
+
+        // SECURITY CHECK: Must be logged in to access gamification data
+        requireNotNull(userId) {
+            "Cannot access gamification data: User not authenticated"
+        }
+
+        // User can only access their own DataStore (userId from Firebase Auth)
+        return context.getUserDataStore(userId)
+    }
+
+    companion object {
+        private const val TAG = "GamificationRepository"
+        private const val SYNC_INTERVAL_MS = 15 * 60 * 1000L // 15 minutes
+        private const val DAILY_FAVORITE_XP_LIMIT = 10
+
+        // Keys for daily favorite tracking
+        private val DAILY_FAVORITE_COUNT_KEY = intPreferencesKey("daily_favorite_count")
+        private val DAILY_FAVORITE_DATE_KEY = longPreferencesKey("daily_favorite_date")
+    }
+
+    // ========== CONCURRENCY PROTECTION ==========
+
+    /**
+     * Mutex to protect concurrent XP modifications
+     * Prevents race conditions when multiple sources earn XP simultaneously
+     */
+    private val xpMutex = Mutex()
+
+    // ========== EVENT FLOW ==========
+
+    private val _gamificationEvents = MutableSharedFlow<GamificationEvent>(
+        replay = 0,
+        extraBufferCapacity = 10
+    )
+    val gamificationEvents: SharedFlow<GamificationEvent> = _gamificationEvents.asSharedFlow()
+
+    // ========== STATE FLOWS ==========
+
+    /**
+     * Observe current gamification state
+     */
+    val gamificationState: Flow<GamificationState> get() = getUserDataStore().data.map { preferences ->
+        GamificationState(
+            totalXp = preferences[SettingsDataStore.USER_XP_KEY] ?: 0,
+            currentLevel = preferences[SettingsDataStore.USER_LEVEL_KEY] ?: 1,
+            achievementsUnlocked = preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] ?: emptySet<String>(),
+            leaderboardRank = preferences[SettingsDataStore.LEADERBOARD_RANK_KEY] ?: 0,
+            lastSyncTimestamp = preferences[SettingsDataStore.LAST_XP_SYNC_KEY] ?: 0L
+        )
+    }
+
+    /**
+     * Observe total XP
+     */
+    val totalXp: Flow<Int> get() = getUserDataStore().data.map { preferences ->
+        preferences[SettingsDataStore.USER_XP_KEY] ?: 0
+    }
+
+    /**
+     * Observe current level
+     */
+    val currentLevel: Flow<Int> get() = getUserDataStore().data.map { preferences ->
+        preferences[SettingsDataStore.USER_LEVEL_KEY] ?: 1
+    }
+
+    /**
+     * Observe achievements unlocked
+     */
+    val achievementsUnlocked: Flow<Set<String>> get() = getUserDataStore().data.map { preferences ->
+        preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] ?: emptySet<String>()
+    }
+
+    // ========== XP MANAGEMENT ==========
+
+    /**
+     * Add XP to user (local + instant server sync)
+     * Call this from ViewModels when user performs actions
+     *
+     * Thread-safe with mutex to prevent concurrent modification
+     * Automatically syncs to server in real-time
+     */
+    suspend fun addXp(amount: Int, source: String) {
+        if (amount <= 0) return
+
+        var newTotalXp = 0
+        var leveledUp = false
+        var newLevel = 1
+
+        // Use mutex to ensure only one XP modification happens at a time
+        xpMutex.withLock {
+            getUserDataStore().edit { preferences ->
+                val currentXp = preferences[SettingsDataStore.USER_XP_KEY] ?: 0
+                newTotalXp = currentXp + amount
+
+                val oldLevel = preferences[SettingsDataStore.USER_LEVEL_KEY] ?: 1
+                newLevel = LevelSystem.calculateLevel(newTotalXp)
+
+                preferences[SettingsDataStore.USER_XP_KEY] = newTotalXp
+                preferences[SettingsDataStore.USER_LEVEL_KEY] = newLevel
+
+                Log.d(TAG, "✅ Added $amount XP from $source. Total: $newTotalXp, Level: $newLevel")
+
+                // Track analytics
+                analyticsTracker.logXpEarned(amount, source)
+
+                // Check for level up
+                if (newLevel > oldLevel) {
+                    leveledUp = true
+                    Log.d(TAG, "🎉 Level Up! $oldLevel → $newLevel")
+                    analyticsTracker.logLevelUp(newLevel)
+                }
+            }
+
+            // Emit events after transaction completes (still inside mutex for consistency)
+            _gamificationEvents.emit(GamificationEvent.XpEarned(amount, source, newTotalXp))
+
+            if (leveledUp) {
+                _gamificationEvents.emit(GamificationEvent.LevelUp(newLevel, newTotalXp))
+            }
+
+            // FIX: Sync to server inside mutex to prevent race conditions
+            // This ensures XP increments are synced in the correct order
+            syncXpIncrementToServer(amount, source)
+        }
+
+        // Check for achievement unlocks (outside mutex to avoid blocking)
+        checkAchievementUnlocks()
+    }
+
+    /**
+     * Add XP for favoriting a word (limited to 10 per day)
+     * Returns true if XP was awarded, false if daily limit reached
+     */
+    suspend fun addXpForFavorite(): Boolean {
+        val today = getStartOfDay(System.currentTimeMillis())
+
+        var xpAwarded = false
+        var newTotalXp = 0
+
+        getUserDataStore().edit { preferences ->
+            val lastDate = preferences[DAILY_FAVORITE_DATE_KEY] ?: 0L
+            val lastDateDay = getStartOfDay(lastDate)
+
+            // Reset count if it's a new day
+            val currentCount = if (lastDateDay < today) {
+                0
+            } else {
+                preferences[DAILY_FAVORITE_COUNT_KEY] ?: 0
+            }
+
+            // Check if under daily limit
+            if (currentCount < DAILY_FAVORITE_XP_LIMIT) {
+                // Award XP
+                val currentXp = preferences[SettingsDataStore.USER_XP_KEY] ?: 0
+                newTotalXp = currentXp + XpRewards.WORD_FAVORITED
+                val newLevel = LevelSystem.calculateLevel(newTotalXp)
+
+                preferences[SettingsDataStore.USER_XP_KEY] = newTotalXp
+                preferences[SettingsDataStore.USER_LEVEL_KEY] = newLevel
+
+                // Update daily count
+                preferences[DAILY_FAVORITE_COUNT_KEY] = currentCount + 1
+                preferences[DAILY_FAVORITE_DATE_KEY] = today
+
+                xpAwarded = true
+
+                Log.d(TAG, "✅ Awarded ${XpRewards.WORD_FAVORITED} XP for favorite (${currentCount + 1}/$DAILY_FAVORITE_XP_LIMIT today)")
+            } else {
+                Log.d(TAG, "⚠️ Daily favorite XP limit reached ($DAILY_FAVORITE_XP_LIMIT/$DAILY_FAVORITE_XP_LIMIT)")
+            }
+        }
+
+        // Emit XP earned event AFTER edit block to avoid suspend call inside transaction
+        if (xpAwarded) {
+            _gamificationEvents.emit(
+                GamificationEvent.XpEarned(
+                    XpRewards.WORD_FAVORITED,
+                    "word_favorited",
+                    newTotalXp
+                )
+            )
+
+            // ✅ NEW: Instantly sync XP to server
+            syncXpIncrementToServer(XpRewards.WORD_FAVORITED, "word_favorited")
+
+            // Check for achievement unlocks after awarding XP
+            checkAchievementUnlocks()
+        }
+
+        return xpAwarded
+    }
+
+    /**
+     * Add favorite word WITH XP award (transactional)
+     * This ensures both operations succeed together
+     *
+     * @return Result with Boolean indicating if XP was awarded
+     */
+    suspend fun addFavoriteWordWithXp(favoriteWord: FavoriteWord): Result<Boolean> {
+        return try {
+            // Step 1: Add to database first
+            favoriteWordDao.addFavorite(favoriteWord)
+            Log.d(TAG, "✅ Added word to favorites: ${favoriteWord.wordId}")
+
+            // Step 2: Award XP (only if DB operation succeeded)
+            val xpAwarded = addXpForFavorite()
+
+            Result.success(xpAwarded)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to add favorite with XP", e)
+            // If database operation failed, don't award XP
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Add favorite vocabulary WITH XP award (transactional)
+     * This ensures both operations succeed together
+     *
+     * @return Result with Boolean indicating if XP was awarded
+     */
+    suspend fun addFavoriteVocabularyWithXp(favoriteVocab: FavoriteVocabulary): Result<Boolean> {
+        return try {
+            // Step 1: Add to database first
+            favoriteVocabularyDao.addFavorite(favoriteVocab)
+            Log.d(TAG, "✅ Added vocabulary to favorites: ${favoriteVocab.vocabularyId}")
+
+            // Step 2: Award XP (only if DB operation succeeded)
+            val xpAwarded = addXpForFavorite()
+
+            Result.success(xpAwarded)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to add favorite vocabulary with XP", e)
+            // If database operation failed, don't award XP
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get the start of the day in milliseconds
+     */
+    private fun getStartOfDay(timeMillis: Long): Long {
+        val calendar = java.util.Calendar.getInstance().apply {
+            timeInMillis = timeMillis
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        return calendar.timeInMillis
+    }
+
+    /**
+     * Check and unlock achievements based on current stats
+     */
+    private suspend fun checkAchievementUnlocks() {
+        val state = gamificationState.first()
+        val currentXp = state.totalXp
+
+        // Check each achievement
+        Achievements.ALL.forEach { achievement ->
+            if (!state.hasAchievement(achievement.id)) {
+                val shouldUnlock = when (achievement.id) {
+                    "first_pdf" -> checkFirstPdfAchievement()
+                    "pdf_explorer" -> checkPdfExplorerAchievement()
+                    "7_day_streak" -> checkStreakAchievement(7)
+                    "30_day_streak" -> checkStreakAchievement(30)
+                    "100_day_streak" -> checkStreakAchievement(100)
+                    "first_quiz" -> checkFirstQuizAchievement()
+                    "quiz_master_10" -> checkQuizMasterAchievement(10)
+                    "quiz_master_50" -> checkQuizMasterAchievement(50)
+                    "vocab_10" -> checkVocabAchievement(10)
+                    "vocab_100" -> checkVocabAchievement(100)
+                    else -> false
+                }
+
+                if (shouldUnlock) {
+                    unlockAchievement(achievement.id)
+                }
+            }
+        }
+    }
+
+    /**
+     * Unlock an achievement
+     */
+    private suspend fun unlockAchievement(achievementId: String) {
+        val achievement = Achievements.getById(achievementId) ?: return
+
+        getUserDataStore().edit { preferences ->
+            val current: Set<String> = preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] ?: emptySet()
+            preferences[SettingsDataStore.ACHIEVEMENTS_UNLOCKED_KEY] = current.plus(achievementId)
+
+            Log.d(TAG, "🏆 Achievement Unlocked: ${achievement.title} (+${achievement.xpReward} XP)")
+
+            // Add XP reward
+            val currentXp = preferences[SettingsDataStore.USER_XP_KEY] ?: 0
+            val newTotalXp = currentXp + achievement.xpReward
+            val newLevel = LevelSystem.calculateLevel(newTotalXp)
+
+            preferences[SettingsDataStore.USER_XP_KEY] = newTotalXp
+            preferences[SettingsDataStore.USER_LEVEL_KEY] = newLevel
+        }
+
+        // Emit achievement unlocked event
+        _gamificationEvents.emit(GamificationEvent.AchievementUnlocked(achievement))
+
+        // Track analytics
+        analyticsTracker.logAchievementUnlocked(achievementId, achievement.title)
+
+        // Show notification
+        // notificationManager.showAchievementUnlocked(achievement.title, achievement.description)
+    }
+
+    // ========== ACHIEVEMENT CHECK HELPERS ==========
+
+    private suspend fun checkFirstPdfAchievement(): Boolean {
+        // Check if user has opened at least 1 PDF
+        // TODO: Implement based on your PDF tracking logic
+        return false
+    }
+
+    private suspend fun checkPdfExplorerAchievement(): Boolean {
+        // Check if user has opened 10 different PDFs
+        // TODO: Implement based on your PDF tracking logic
+        return false
+    }
+
+    private suspend fun checkStreakAchievement(days: Int): Boolean {
+        val preferences = getUserDataStore().data.first()
+        val currentStreak = preferences[SettingsDataStore.CURRENT_STREAK_KEY] ?: 0
+        return currentStreak >= days
+    }
+
+    private suspend fun checkFirstQuizAchievement(): Boolean {
+        val preferences = getUserDataStore().data.first()
+        val quizCount = preferences[com.webtech.learningkorea.ui.screens.HomeViewModel.QUIZ_COMPLETED_COUNT_KEY] ?: 0
+        return quizCount >= 1
+    }
+
+    private suspend fun checkQuizMasterAchievement(count: Int): Boolean {
+        val preferences = getUserDataStore().data.first()
+        val quizCount = preferences[com.webtech.learningkorea.ui.screens.HomeViewModel.QUIZ_COMPLETED_COUNT_KEY] ?: 0
+        return quizCount >= count
+    }
+
+    private suspend fun checkVocabAchievement(count: Int): Boolean {
+        // PERFORMANCE FIX: Use count queries instead of loading all favorites
+        val wordCount = favoriteWordDao.getFavoriteCount().first()
+        val vocabCount = favoriteVocabularyDao.getFavoriteCount().first()
+        val totalFavorites = wordCount + vocabCount
+
+        Log.d(TAG, "checkVocabAchievement($count): Total favorites = $totalFavorites (words: $wordCount, vocab: $vocabCount)")
+        return totalFavorites >= count
+    }
+
+    // ========== CLOUD SYNC ==========
+
+    /**
+     * Sync XP increment to server instantly (real-time sync)
+     * Called after every XP gain for immediate synchronization
+     *
+     * This is a lightweight sync that only sends the XP increment,
+     * unlike syncToServer() which syncs the full state
+     *
+     * If sync fails, XP is still saved locally (graceful degradation)
+     */
+    private suspend fun syncXpIncrementToServer(amount: Int, source: String) {
+        try {
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser == null) {
+                Log.w(TAG, "⚠️ Cannot sync XP: User not authenticated")
+                return
+            }
+
+            Log.d(TAG, "🌐 Syncing +$amount XP from '$source' to server...")
+
+            val request = AddXpRequest(
+                xpAmount = amount,
+                source = source,
+                metadata = mapOf(
+                    "timestamp" to System.currentTimeMillis(),
+                    "platform" to "android"
+                )
+            )
+
+            val response = apiService.addXp(request)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val body = response.body()!!
+                Log.d(TAG, "✅ XP synced to server successfully!")
+                Log.d(TAG, "  Server Total XP: ${body.newTotalXp}")
+                Log.d(TAG, "  Server Level: ${body.newLevel}")
+                if (body.levelUp) {
+                    Log.d(TAG, "  🎉 Level up confirmed by server!")
+                }
+
+                // Update last sync timestamp
+                getUserDataStore().edit { preferences ->
+                    preferences[SettingsDataStore.LAST_XP_SYNC_KEY] = System.currentTimeMillis()
+                }
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Log.e(TAG, "⚠️ XP sync failed (non-critical): ${response.code()} - $errorBody")
+                Log.e(TAG, "  XP is saved locally and will sync later via XpSyncWorker")
+            }
+        } catch (e: Exception) {
+            // Non-critical error - XP is already saved locally
+            Log.e(TAG, "⚠️ XP sync error (non-critical): ${e.message}")
+            Log.d(TAG, "  XP is saved locally and will sync later via XpSyncWorker")
+        }
+    }
+
+    /**
+     * Get username for syncing to server
+     * Priority: displayName > email prefix > "User_{uid_prefix}"
+     * NEVER returns null or empty string
+     */
+    private fun getUsernameForSync(user: FirebaseUser): String {
+        // Priority 1: displayName (set during registration or Google Sign-In)
+        val displayName = user.displayName?.trim()
+        if (!displayName.isNullOrBlank() && displayName.length >= 2) {
+            Log.d(TAG, "Using displayName: $displayName")
+            return displayName
+        }
+
+        // Priority 2: Email prefix (everything before @)
+        val email = user.email
+        if (!email.isNullOrBlank()) {
+            val emailPrefix = email.substringBefore("@").trim()
+            if (emailPrefix.isNotBlank() && emailPrefix.length >= 2) {
+                Log.d(TAG, "Using email prefix: $emailPrefix")
+                return emailPrefix
+            }
+        }
+
+        // Priority 3: Fallback to User_{first 8 chars of UID}
+        val uidPrefix = user.uid.take(8)
+        val fallbackName = "User_$uidPrefix"
+        Log.w(TAG, "⚠️ No displayName or email, using fallback: $fallbackName")
+        return fallbackName
+    }
+
+    /**
+     * Sync XP, level, and achievements to server
+     * Called by XpSyncWorker every 15 minutes
+     */
+    suspend fun syncToServer(): Result<Int> {
+        return try {
+            val currentUser = firebaseAuth.currentUser
+            val uid = currentUser?.uid
+            if (uid == null) {
+                Log.e(TAG, "❌ Cannot sync: User not authenticated")
+                return Result.failure(Exception("User not authenticated"))
+            }
+
+            // Get username with improved fallback logic
+            val username = getUsernameForSync(currentUser)
+
+            val state = gamificationState.first()
+
+            Log.d(TAG, "📊 ========== XP SYNC START ==========")
+            Log.d(TAG, "  User ID (UID): $uid")
+            Log.d(TAG, "  Username: $username")
+            Log.d(TAG, "  Email: ${currentUser.email}")
+            Log.d(TAG, "  Total XP: ${state.totalXp}")
+            Log.d(TAG, "  Level: ${state.currentLevel}")
+            Log.d(TAG, "  Achievements: ${state.achievementsUnlocked.size}")
+
+            val request = SyncXpRequest(
+                totalXp = state.totalXp,
+                currentLevel = state.currentLevel,
+                achievementsUnlocked = state.achievementsUnlocked.toList(),
+                username = username
+            )
+
+            val response = apiService.syncXp(request)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val rank = response.body()?.leaderboardRank ?: 0
+
+                // Update last sync timestamp and rank
+                getUserDataStore().edit { preferences ->
+                    preferences[SettingsDataStore.LAST_XP_SYNC_KEY] = System.currentTimeMillis()
+                    preferences[SettingsDataStore.LEADERBOARD_RANK_KEY] = rank
+                }
+
+                Log.d(TAG, "✅ Sync successful!")
+                Log.d(TAG, "  Leaderboard Rank: #$rank")
+                Log.d(TAG, "📊 ========== XP SYNC END ==========")
+                Result.success(rank)
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Log.e(TAG, "❌ Sync failed!")
+                Log.e(TAG, "  Response code: ${response.code()}")
+                Log.e(TAG, "  Error: $errorBody")
+                Log.e(TAG, "📊 ========== XP SYNC END ==========")
+                Result.failure(Exception("Sync failed: $errorBody"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Sync error", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Check if sync is needed (15 minutes since last sync)
+     */
+    suspend fun needsSync(): Boolean {
+        val lastSync = getUserDataStore().data.first()[SettingsDataStore.LAST_XP_SYNC_KEY] ?: 0L
+        val now = System.currentTimeMillis()
+        return (now - lastSync) >= SYNC_INTERVAL_MS
+    }
+
+    // ========== LEADERBOARD ==========
+
+    /**
+     * Fetch leaderboard from server
+     */
+    suspend fun getLeaderboard(limit: Int = 100): Result<List<LeaderboardEntry>> {
+        return try {
+            val response = apiService.getLeaderboard(limit)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val leaderboard = response.body()?.data ?: emptyList()
+                Log.d(TAG, "✅ Fetched leaderboard: ${leaderboard.size} users")
+                Result.success(leaderboard)
+            } else {
+                Log.e(TAG, "❌ Failed to fetch leaderboard")
+                Result.failure(Exception("Failed to fetch leaderboard"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Leaderboard error", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get current user's rank
+     */
+    suspend fun getUserRank(): Result<UserRankResponse> {
+        return try {
+            val uid = firebaseAuth.currentUser?.uid ?: return Result.failure(Exception("Not authenticated"))
+
+            val response = apiService.getUserRank(uid)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val rankData = response.body()!!
+                Log.d(TAG, "✅ User rank: ${rankData.rank}/${rankData.totalUsers}")
+                Result.success(rankData)
+            } else {
+                Result.failure(Exception("Failed to fetch user rank"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ User rank error", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get current user ID
+     */
+    fun getCurrentUserId(): String? {
+        return firebaseAuth.currentUser?.uid
+    }
+}

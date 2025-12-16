@@ -1,0 +1,60 @@
+# ====================================
+# .htaccess untuk API Kamus Korea
+# ====================================
+
+# PENTING: Pastikan header Authorization diteruskan ke PHP
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Redirect root directory to admin_login.php
+    RewriteCond %{REQUEST_URI} ^/kamuskorea/?$
+    RewriteRule ^$ admin_login.php [L,R=302]
+
+    # Teruskan header Authorization ke variabel HTTP_AUTHORIZATION
+    RewriteCond %{HTTP:Authorization} ^(.*)
+    RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+
+    # Jika ada header Authorization, set ke environment
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</IfModule>
+
+# Alternatif jika mod_setenvif tidak tersedia
+<IfModule mod_env.c>
+    # Pass Authorization header
+    SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
+</IfModule>
+
+# Izinkan akses CORS (jika diperlukan untuk testing)
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    Header set Access-Control-Allow-Headers "Authorization, Content-Type"
+</IfModule>
+
+# Index file - redirect to admin login
+DirectoryIndex admin_login.php index.php api.php
+
+# Keamanan: Jangan tampilkan isi direktori
+Options -Indexes
+
+# Proteksi file sensitif
+<FilesMatch "^(config\.php|vendor|composer\.(json|lock)|\.git|\.env)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# PHP settings (optional) - Updated for large PDF uploads (250MB+)
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 300M
+    php_value post_max_size 300M
+    php_value max_execution_time 300
+    php_value memory_limit 512M
+</IfModule>
+
+# PHP 8.x settings
+<IfModule mod_php8.c>
+    php_value upload_max_filesize 300M
+    php_value post_max_size 300M
+    php_value max_execution_time 300
+    php_value memory_limit 512M
+</IfModule>

@@ -1,0 +1,108 @@
+# ================================
+# ANDROID / ANDROID STUDIO
+# ================================
+
+# Gradle files
+.gradle/
+build/
+**/build/
+
+# Local configuration (SDK path, signing, etc)
+local.properties
+keystore.properties
+
+# Keystore files (NEVER commit these!)
+*.jks
+*.keystore
+
+# Android Studio / IntelliJ
+.idea/
+.idea/caches
+.idea/libraries
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+*.iml
+
+# Generated files
+captures/
+.externalNativeBuild/
+.cxx/
+outputs/
+intermediates/
+generated/
+
+# Logs & temp
+*.log
+*.tmp
+*.temp
+*.swp
+*~
+
+# Keystore / Signing
+*.jks
+*.keystore
+*-release-key.keystore
+debug.keystore
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Misc IDE/editor
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# ================================
+# FIREBASE / GOOGLE SERVICES
+# ================================
+google-services.json
+google-services.json.backup
+firebase-debug.*
+crashlytics.properties
+fabric.properties
+
+# Firebase Service Account (NEVER commit this!)
+firebase-service-account.json
+*service-account*.json
+
+# ================================
+# ENVIRONMENT & SECRET FILES
+# ================================
+.env
+.env.*
+secrets.properties
+secrets.gradle
+
+# ================================
+# BUILD OUTPUTS
+# ================================
+*.apk
+*.ap_
+*.aab
+*.aar
+*.dex
+*.class
+
+# ================================
+# NATIVE / NDK
+# ================================
+obj/
+*.so
+
+# ================================
+# PROGUARD / R8
+# ================================
+proguard/
+
+# ================================
+# MISC BACKUPS
+# ================================
+*.orig
+*.patch
+*.bak
+*.old
+*.backup
