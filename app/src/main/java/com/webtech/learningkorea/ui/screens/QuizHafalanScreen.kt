@@ -1,5 +1,6 @@
 package com.webtech.learningkorea.ui.screens
 
+import androidx.activity.ComponentActivity
 import android.media.MediaPlayer
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
@@ -18,6 +19,9 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,10 +31,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.webtech.learningkorea.ads.BannerAdView
 import com.webtech.learningkorea.data.QuizOption
 import com.webtech.learningkorea.ui.localization.LocalStrings
+import com.webtech.learningkorea.MainActivity
 
 // --- KOMPONEN PEMUTAR AUDIO MINIMALIS ---
 @Composable
@@ -103,11 +110,92 @@ fun QuizHafalanScreen(
     onNavigateBack: () -> Unit,
     viewModel: QuizHafalanViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val activity = context as? ComponentActivity
+
+    // Enable fullscreen mode when entering quiz
+    DisposableEffect(Unit) {
+        (activity as? MainActivity)?.enableFullscreenMode()
+
+        onDispose {
+            (activity as? MainActivity)?.disableFullscreenMode()
+        }
+    }
+
     val strings = LocalStrings.current
     val uiState by viewModel.uiState.collectAsState()
 
+    // State untuk dialog lihat semua soal
+    var showAllQuestionsDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         // TopBar dihapus agar Full Screen
+        bottomBar = {
+            // Navigation Bar di bawah
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 3.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Tombol Previous (disabled untuk quiz hafalan karena random)
+                    OutlinedButton(
+                        onClick = { /* Tidak ada fungsi previous untuk quiz random */ },
+                        enabled = false,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.ChevronLeft,
+                            contentDescription = "Previous",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Sebelumnya", fontSize = 13.sp)
+                    }
+
+                    // Tombol Lihat Semua Soal
+                    Button(
+                        onClick = { showAllQuestionsDialog = true },
+                        modifier = Modifier.weight(1.2f),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.GridView,
+                            contentDescription = "Lihat Semua",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Lihat Semua", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    // Tombol Next (Skip to next question)
+                    Button(
+                        onClick = { viewModel.skipToNext() },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)
+                    ) {
+                        Text("Berikutnya", fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = "Next",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -176,12 +264,18 @@ fun QuizHafalanScreen(
                 }
             }
 
-            // Iklan Banner di bawah (untuk user non-premium)
-            if (!isPremium) {
-                BannerAdView(
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            // Iklan Banner di bawah (untuk user non-premium) - DIHAPUS KARENA ADA BOTTOM BAR
+            // Navigation bar akan menggantikan posisi banner ad
+        }
+
+        // Dialog untuk menampilkan progress kuota harian
+        if (showAllQuestionsDialog) {
+            QuizHafalanProgressDialog(
+                totalAnsweredToday = uiState.totalAnsweredToday,
+                quotaRemaining = uiState.quotaRemaining,
+                dailyQuota = uiState.dailyQuota,
+                onDismiss = { showAllQuestionsDialog = false }
+            )
         }
     }
 }
@@ -389,4 +483,180 @@ fun AnswerOptionCard(
             }
         }
     }
+}
+
+// --- DIALOG PROGRESS KUOTA HARIAN ---
+@Composable
+fun QuizHafalanProgressDialog(
+    totalAnsweredToday: Int,
+    quotaRemaining: Int,
+    dailyQuota: Int,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.GridView,
+                    contentDescription = "Progress",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+                Text(
+                    "Progress Hari Ini",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Progress Bar
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    LinearProgressIndicator(
+                        progress = (totalAnsweredToday.toFloat() / dailyQuota.toFloat()).coerceIn(0f, 1f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(12.dp)
+                            .clip(RoundedCornerShape(6.dp)),
+                        color = if (quotaRemaining > 20) MaterialTheme.colorScheme.primary
+                               else if (quotaRemaining > 0) Color(0xFFFF9800)
+                               else Color(0xFFF44336)
+                    )
+
+                    Text(
+                        "$totalAnsweredToday / $dailyQuota soal dijawab",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                HorizontalDivider()
+
+                // Stats Cards
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Card: Sudah Dijawab
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                "$totalAnsweredToday",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                "Dijawab",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+
+                    // Card: Sisa Kuota
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (quotaRemaining > 0)
+                                MaterialTheme.colorScheme.secondaryContainer
+                            else
+                                MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                "$quotaRemaining",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (quotaRemaining > 0)
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                else
+                                    MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                "Tersisa",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (quotaRemaining > 0)
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                else
+                                    MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+
+                // Info Message
+                if (quotaRemaining <= 0) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                        )
+                    ) {
+                        Text(
+                            "Kuota harian habis! Silakan coba lagi besok untuk melanjutkan latihan.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                } else if (quotaRemaining <= 20) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFFF9800).copy(alpha = 0.2f)
+                        )
+                    ) {
+                        Text(
+                            "Kuota hampir habis! Gunakan dengan bijak.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFFFF6F00),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Text("Tutup")
+            }
+        }
+    )
 }

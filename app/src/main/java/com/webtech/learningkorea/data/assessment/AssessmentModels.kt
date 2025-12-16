@@ -39,6 +39,13 @@ data class Question(
     @SerializedName("media_url") val mediaUrl: String?,
     @SerializedName("media_url_2") val mediaUrl2: String? = null,
     @SerializedName("media_url_3") val mediaUrl3: String? = null,
+
+    // --- TAMBAHAN BARU UNTUK KOTAK SOAL (PROMPT BOX) ---
+    @SerializedName("box_text") val boxText: String? = null,
+    @SerializedName("box_media_url") val boxMediaUrl: String? = null,
+    @SerializedName("box_position") val boxPosition: String? = "top",
+    // ---------------------------------------------------
+
     @SerializedName("option_a") val optionA: String,
     @SerializedName("option_a_type") val optionAType: String? = "text", // "text", "image", "audio"
     @SerializedName("option_b") val optionB: String,
@@ -86,7 +93,13 @@ data class Question(
     }
 
     fun getAllMediaUrls(): List<String> {
-        return listOfNotNull(mediaUrl, mediaUrl2, mediaUrl3)
+        // Menggabungkan media soal utama dengan media dari prompt box jika ada
+        val list = mutableListOf<String>()
+        if (!mediaUrl.isNullOrEmpty()) list.add(mediaUrl)
+        if (!mediaUrl2.isNullOrEmpty()) list.add(mediaUrl2)
+        if (!mediaUrl3.isNullOrEmpty()) list.add(mediaUrl3)
+        if (!boxMediaUrl.isNullOrEmpty()) list.add(boxMediaUrl)
+        return list
     }
 }
 

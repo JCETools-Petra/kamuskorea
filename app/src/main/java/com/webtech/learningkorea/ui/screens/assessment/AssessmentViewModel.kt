@@ -23,7 +23,6 @@ import java.util.Calendar
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
-
 @HiltViewModel
 class AssessmentViewModel @Inject constructor(
     private val apiService: ApiService,
@@ -44,6 +43,10 @@ class AssessmentViewModel @Inject constructor(
 
     private val _assessments = MutableStateFlow<List<Assessment>>(emptyList())
     val assessments: StateFlow<List<Assessment>> = _assessments.asStateFlow()
+
+    // Variable baru untuk menyimpan Judul Assessment yang benar dari database
+    private val _currentAssessmentTitle = MutableStateFlow<String?>(null)
+    val currentAssessmentTitle: StateFlow<String?> = _currentAssessmentTitle.asStateFlow()
 
     private val _questions = MutableStateFlow<List<Question>>(emptyList())
     val questions: StateFlow<List<Question>> = _questions.asStateFlow()
@@ -135,6 +138,14 @@ class AssessmentViewModel @Inject constructor(
             _userAnswers.value = emptyMap()
             _assessmentResult.value = null
             _startTime.value = System.currentTimeMillis()
+
+            // LOGIKA BARU: Cari judul assessment dari list yang sudah ada berdasarkan ID
+            // Ini memperbaiki masalah judul yang selalu "Exam"
+            val foundAssessment = _assessments.value.find { it.id == assessmentId }
+            if (foundAssessment != null) {
+                _currentAssessmentTitle.value = foundAssessment.title
+                Log.d("AssessmentVM", "📌 Title set from cache: ${foundAssessment.title}")
+            }
 
             try {
                 Log.d("AssessmentVM", "🚀 Starting assessment ID: $assessmentId")
@@ -329,6 +340,7 @@ class AssessmentViewModel @Inject constructor(
         _userAnswers.value = emptyMap()
         _assessmentResult.value = null
         _error.value = null
+        _currentAssessmentTitle.value = null // Reset title
         _startTime.value = 0L
         // Cancel any pending preload operations
         mediaPreloader.cancelAll()

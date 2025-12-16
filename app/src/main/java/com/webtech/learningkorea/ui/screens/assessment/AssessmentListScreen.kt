@@ -148,6 +148,16 @@ fun AssessmentCard(
 
             // Content
             Column(modifier = Modifier.weight(1f)) {
+                // Type Label (Quiz atau UBT)
+                Text(
+                    text = if (assessment.type == "quiz") "Quiz" else "UBT",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
