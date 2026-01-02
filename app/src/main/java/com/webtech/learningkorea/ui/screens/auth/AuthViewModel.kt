@@ -60,12 +60,14 @@ class AuthViewModel @Inject constructor(
                 _authState.value = AuthState.Loading
                 val authResult = auth.signInWithEmailAndPassword(email, password).await()
                 authResult.user?.let { user ->
-                    // SECURITY: Check if email is verified for password auth
+                    // SECURITY: Check email verification for password auth
+                    // Google Sign-In tidak perlu cek karena sudah diverifikasi oleh Google
                     if (!user.isEmailVerified) {
                         Log.w(TAG, "⚠️ Email not verified for ${user.email}")
                         auth.signOut() // Sign out immediately
                         _authState.value = AuthState.Error(
-                            "Email Anda belum diverifikasi. Silakan cek inbox email Anda dan klik link verifikasi sebelum login."
+                            "Email Anda belum diverifikasi. Silakan cek inbox email Anda dan klik link verifikasi. " +
+                            "Jika tidak menerima email, silakan daftar ulang untuk mendapat email verifikasi baru."
                         )
                         return@launch
                     }

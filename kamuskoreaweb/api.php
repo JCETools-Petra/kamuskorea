@@ -720,6 +720,19 @@ elseif ($routes[0] === 'user' && $routes[1] === 'sync' && $requestMethod === 'PO
                 'error_code' => 'EMAIL_NOT_VERIFIED'
             ], 403);
         }
+
+        // SECURITY: Detect bot patterns in Google Sign-In
+        if ($authType === 'google' && !empty($email)) {
+            // Pattern: firstname.lastname.digits@gmail.com (e.g., john.doe.12345@gmail.com)
+            if (preg_match('/^[a-z]+[a-z]+\.\d{5}@gmail\.com$/i', $email)) {
+                error_log("⚠️ SUSPECTED BOT: Google Sign-In with pattern email: $email");
+                sendResponse([
+                    'success' => false,
+                    'message' => 'Registrasi gagal. Silakan hubungi support.',
+                    'error_code' => 'SUSPICIOUS_ACCOUNT'
+                ], 403);
+            }
+        }
         
         $stmt = $pdo->prepare("
             INSERT INTO users (firebase_uid, email, name, profile_picture_url, auth_type, created_at)

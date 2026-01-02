@@ -20,7 +20,8 @@
       "Bash(echo:*)",
       "Bash(curl:*)",
       "WebFetch(domain:webtechsolution.my.id)",
-      "Bash(./gradlew assembleDebug:*)"
+      "Bash(./gradlew assembleDebug:*)",
+      "Bash(./gradlew:*)"
     ]
   }
 }
