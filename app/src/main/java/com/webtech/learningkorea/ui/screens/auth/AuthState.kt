@@ -6,6 +6,7 @@ sealed class AuthState {
     object Initial : AuthState()
     object Loading : AuthState()
     object Success : AuthState()
+    object SuccessNeedVerification : AuthState()
     data class Error(val message: String) : AuthState()
 }
 

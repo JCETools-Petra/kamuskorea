@@ -18,7 +18,9 @@
       "Bash(./gradlew :app:assembleDebug:*)",
       "Bash(adb logcat:*)",
       "Bash(echo:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebFetch(domain:webtechsolution.my.id)",
+      "Bash(./gradlew assembleDebug:*)"
     ]
   }
 }

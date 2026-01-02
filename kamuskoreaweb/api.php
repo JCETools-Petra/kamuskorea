@@ -693,18 +693,33 @@ elseif ($routes[0] === 'user' && $routes[1] === 'sync' && $requestMethod === 'PO
     /**
      * POST /user/sync
      * Sync user from Firebase to MySQL
+     * SECURITY: Rate limited and requires email verification for new users
      */
     global $firebaseAuth;
     $uid = requireAuth();
+
+    // Rate limit: Max 10 sync requests per hour per IP (prevents bot spam)
+    $clientIP = getClientIP();
+    checkRateLimit($clientIP, 10, 3600, 'user-sync');
+
     $input = json_decode(file_get_contents('php://input'), true);
-    
+
     $email = $input['email'] ?? null;
     $name = $input['name'] ?? null;
     $photoUrl = $input['photoUrl'] ?? null;
     $authType = $input['auth_type'] ?? 'password';
-    
+
     try {
         $firebaseUser = $firebaseAuth->getUser($uid);
+
+        // SECURITY: Require email verification for password auth (block bots)
+        if ($authType === 'password' && !$firebaseUser->emailVerified) {
+            sendResponse([
+                'success' => false,
+                'message' => 'Email belum diverifikasi. Silakan cek inbox email Anda dan klik link verifikasi.',
+                'error_code' => 'EMAIL_NOT_VERIFIED'
+            ], 403);
+        }
         
         $stmt = $pdo->prepare("
             INSERT INTO users (firebase_uid, email, name, profile_picture_url, auth_type, created_at)
@@ -1402,7 +1417,7 @@ elseif ($routes[0] === 'assessments' && $routes[1] === 'leaderboard' && $request
                 u.name as userName,
                 ar.score,
                 ar.time_taken_seconds as durationSeconds,
-                ar.created_at as completedAt
+                ar.completed_at as completedAt
             FROM assessment_results ar
             LEFT JOIN users u ON ar.user_id = u.firebase_uid
             LEFT JOIN assessment_results ar2 ON
@@ -1426,7 +1441,7 @@ elseif ($routes[0] === 'assessments' && $routes[1] === 'leaderboard' && $request
                 u.name as userName,
                 ar.score,
                 ar.time_taken_seconds as durationSeconds,
-                ar.created_at as completedAt
+                ar.completed_at as completedAt
             FROM assessment_results ar
             LEFT JOIN users u ON ar.user_id = u.firebase_uid
             INNER JOIN assessments a ON ar.assessment_id = a.id

@@ -59,13 +59,23 @@ class AuthViewModel @Inject constructor(
             try {
                 _authState.value = AuthState.Loading
                 val authResult = auth.signInWithEmailAndPassword(email, password).await()
-                authResult.user?.let {
+                authResult.user?.let { user ->
+                    // SECURITY: Check if email is verified for password auth
+                    if (!user.isEmailVerified) {
+                        Log.w(TAG, "⚠️ Email not verified for ${user.email}")
+                        auth.signOut() // Sign out immediately
+                        _authState.value = AuthState.Error(
+                            "Email Anda belum diverifikasi. Silakan cek inbox email Anda dan klik link verifikasi sebelum login."
+                        )
+                        return@launch
+                    }
+
                     // Track successful login
                     analyticsTracker.logLogin("email")
-                    analyticsTracker.setUserId(it.uid)
+                    analyticsTracker.setUserId(user.uid)
 
                     // Sinkronkan data pengguna ke MySQL saat login
-                    syncUserToMySQL(it, "password")
+                    syncUserToMySQL(user, "password")
                 }
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
@@ -112,11 +122,20 @@ class AuthViewModel @Inject constructor(
                 user?.updateProfile(profileUpdates)?.await()
 
                 if (user != null) {
+                    // SECURITY: Send email verification to prevent bot registrations
+                    try {
+                        user.sendEmailVerification().await()
+                        Log.d(TAG, "✅ Verification email sent to ${user.email}")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "⚠️ Failed to send verification email", e)
+                        // Don't fail registration if email sending fails
+                    }
+
                     // Track successful sign up
                     analyticsTracker.logSignUp("email")
                     analyticsTracker.setUserId(user.uid)
 
-                    // Sinkronkan ke MySQL
+                    // Sinkronkan ke MySQL (akan ditolak jika email belum diverifikasi)
                     syncUserToMySQL(user, "password", name)
 
                     // Sinkronkan ke Firestore
@@ -133,7 +152,7 @@ class AuthViewModel @Inject constructor(
                         .set(userMap)
                         .await()
                 }
-                _authState.value = AuthState.Success
+                _authState.value = AuthState.SuccessNeedVerification
             } catch (e: Exception) {
                 Log.e(TAG, "Sign up failed", e)
 
