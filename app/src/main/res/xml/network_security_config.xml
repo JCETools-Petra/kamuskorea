@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+    ===========================================
+    NETWORK SECURITY CONFIGURATION
+    ===========================================
+    Pilih salah satu konfigurasi di bawah sesuai kebutuhan:
+    -->
+
+    <!--
+    ===========================================
+    OPSI 2: PRODUCTION dengan HTTPS (RECOMMENDED)
+    ===========================================
+    Default config di bawah sudah aman untuk production dengan HTTPS.
+    Certificate pinning bisa ditambahkan untuk keamanan ekstra (opsional).
+    -->
+
+    <!-- UNCOMMENT UNTUK CERTIFICATE PINNING (Opsional - Advanced) -->
+    <!--
+    <domain-config>
+        <domain includeSubdomains="true">webtechsolution.my.id</domain>
+        <pin-set expiration="2025-12-31">
+            <pin digest="SHA-256">BASE64_ENCODED_PUBLIC_KEY_HASH_HERE</pin>
+            <pin digest="SHA-256">BACKUP_BASE64_ENCODED_PUBLIC_KEY_HASH_HERE</pin>
+        </pin-set>
+    </domain-config>
+    -->
+
+    <!--
+    ===========================================
+    BASE CONFIGURATION (JANGAN HAPUS)
+    ===========================================
+    Konfigurasi dasar untuk keamanan.
+    cleartextTrafficPermitted="false" berarti hanya HTTPS yang diizinkan secara default.
+    -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+</network-security-config>

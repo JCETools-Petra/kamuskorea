@@ -1,0 +1,16 @@
+# Allow video streaming with proper MIME types
+AddType video/mp4 .mp4
+AddType video/webm .webm
+AddType video/ogg .ogg
+
+# Enable Range requests for video streaming
+Header set Accept-Ranges bytes
+
+# Allow CORS for video access
+Header set Access-Control-Allow-Origin "*"
+Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+
+# Cache control for videos
+<FilesMatch "\.(mp4|webm|ogg|mov)$">
+    Header set Cache-Control "max-age=2592000, public"
+</FilesMatch>

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -l:*)",
+      "Bash(ls:*)",
+      "Bash(./gradlew compileDebugKotlin:*)",
+      "Bash(grep:*)",
+      "Bash(git rm:*)",
+      "Bash(./gradlew tasks:*)",
+      "Bash(./gradlew help:*)",
+      "Bash(timeout 10 ./gradlew:*)",
+      "Bash(keytool:*)",
+      "Bash(java -version:*)",
+      "Bash(where:*)",
+      "Bash(\"/c/Program Files/Java/jre1.8.0_251/bin/keytool.exe\" -list -v -keystore \"$HOME/.android/debug.keystore\" -alias androiddebugkey -storepass android -keypass android)",
+      "Bash(\"/c/Program Files/Java/jre1.8.0_251/bin/keytool.exe\" -list -v -keystore \"$HOME/.android/debug.keystore\" -storepass android)",
+      "Bash(./gradlew signingReport:*)",
+      "Bash(./gradlew :app:assembleDebug:*)",
+      "Bash(adb logcat:*)"
+    ]
+  }
+}
