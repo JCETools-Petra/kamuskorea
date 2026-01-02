@@ -235,7 +235,7 @@ class ProfileViewModel @Inject constructor(
                 )
                 val body = MultipartBody.Part.createFormData("image", "profile_picture.jpg", requestFile)
 
-                // Argumen token dihapus
+                // Argumen token dihapus (ditangani Interceptor)
                 val response = apiService.updateProfilePicture(body)
 
                 if (response.isSuccessful && response.body()?.success == true) {
@@ -257,10 +257,22 @@ class ProfileViewModel @Inject constructor(
                         _updateStatus.value = "Gagal: URL gambar tidak diterima dari server."
                     }
                 } else {
-                    val errorBody = response.errorBody()?.string() ?: "Error tidak diketahui"
-                    _updateStatus.value = "Gagal mengunggah foto: ${response.code()} - $errorBody"
-                    Log.e("ProfileViewModel", "Gagal upload foto API: ${response.code()} - $errorBody")
+                    // PERBAIKAN: Handle jika server mengembalikan body kosong (misal kena limit PHP)
+                    val statusCode = response.code()
+                    val errorBody = response.errorBody()?.string()
+
+                    if (errorBody.isNullOrEmpty()) {
+                        Log.e("ProfileViewModel", "Empty response body from server. Status: $statusCode")
+                        _updateStatus.value = "Gagal: Respon server kosong ($statusCode). Kemungkinan file terlalu besar."
+                    } else {
+                        _updateStatus.value = "Gagal mengunggah foto: $statusCode - $errorBody"
+                        Log.e("ProfileViewModel", "Gagal upload foto API: $statusCode - $errorBody")
+                    }
                 }
+            } catch (e: java.io.EOFException) {
+                // PERBAIKAN UTAMA: Menangkap error 'End of input' saat parsing JSON kosong
+                Log.e("ProfileViewModel", "Server returned empty body (EOFException)", e)
+                _updateStatus.value = "Gagal: File terlalu besar atau koneksi terputus (Server Reset)."
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error uploading profile picture", e)
                 _updateStatus.value = "Gagal: Terjadi kesalahan. ${e.message}"

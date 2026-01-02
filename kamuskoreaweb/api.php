@@ -1,5 +1,9 @@
 <?php
 date_default_timezone_set('Asia/Jakarta');
+
+// COMPREHENSIVE ERROR LOGGING - Catches ALL errors and empty responses
+require_once __DIR__ . '/debug_all_errors.php';
+
 /**
  * =================================================
  * KAMUS KOREA API - MAIN BACKEND
@@ -49,10 +53,10 @@ ini_set('error_log', $logFile);
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-User-ID, X-Firebase-AppCheck");
-header("Content-Type: application/json; charset=UTF-8");
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    header("Content-Type: application/json; charset=UTF-8");
     http_response_code(200);
     exit();
 }
@@ -94,12 +98,10 @@ try {
     $firebaseAppCheck = $firebase->createAppCheck();
 } catch (\Exception $e) {
     error_log("Gagal memuat Firebase Service Account: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode([
+    sendResponse([
         'success' => false,
         'message' => 'Konfigurasi server error (Firebase Admin SDK)'
-    ]);
-    exit();
+    ], 500);
 }
 
 // =================================================
@@ -123,12 +125,10 @@ try {
     );
 } catch (PDOException $e) {
     error_log("Database connection failed: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode([
+    sendResponse([
         'success' => false,
         'message' => 'Database connection failed'
-    ]);
-    exit();
+    ], 500);
 }
 
 // =================================================
@@ -184,20 +184,21 @@ function getFirebaseUid($optional = false) {
         return null;
     }
 
+    // FIXED: Trim whitespace and normalize spaces before parsing
+    $authHeader = trim(preg_replace('/\s+/', ' ', $authHeader));
+
     // Parse token dengan aman
-    $parts = explode(' ', $authHeader);
+    $parts = explode(' ', $authHeader, 2);  // Limit to 2 parts max
 
     if (count($parts) !== 2) {
-        error_log("❌ Invalid Authorization header format. Parts count: " . count($parts));
+        error_log("❌ Invalid Authorization header format. Parts count: " . count($parts) . " Header: " . substr($authHeader, 0, 50));
         if ($optional) {
             return null;
         }
-        http_response_code(401);
-        echo json_encode([
+        sendResponse([
             'success' => false,
             'message' => 'Format Authorization header tidak valid. Gunakan: Bearer <token>'
-        ]);
-        exit();
+        ], 401);
     }
 
     if (strcasecmp($parts[0], 'Bearer') !== 0) {
@@ -205,27 +206,23 @@ function getFirebaseUid($optional = false) {
         if ($optional) {
             return null;
         }
-        http_response_code(401);
-        echo json_encode([
+        sendResponse([
             'success' => false,
             'message' => 'Authorization header harus dimulai dengan "Bearer"'
-        ]);
-        exit();
+        ], 401);
     }
 
-    $idToken = $parts[1];
+    $idToken = trim($parts[1]);
 
     if (empty($idToken)) {
         error_log("❌ Token is empty after parsing");
         if ($optional) {
             return null;
         }
-        http_response_code(401);
-        echo json_encode([
+        sendResponse([
             'success' => false,
             'message' => 'Token tidak ditemukan setelah Bearer'
-        ]);
-        exit();
+        ], 401);
     }
 
     try {
@@ -242,25 +239,21 @@ function getFirebaseUid($optional = false) {
         if ($optional) {
             return null;
         }
-        http_response_code(401);
-        echo json_encode([
+        sendResponse([
             'success' => false,
             'message' => 'Token tidak valid atau sudah kadaluarsa. Silakan login ulang.',
             'error_detail' => APP_ENV === 'development' ? $e->getMessage() : null
-        ]);
-        exit();
+        ], 401);
     } catch (\Exception $e) {
         error_log("❌ Unexpected error during token verification: " . $e->getMessage());
         if ($optional) {
             return null;
         }
-        http_response_code(401);
-        echo json_encode([
+        sendResponse([
             'success' => false,
             'message' => 'Gagal memverifikasi token. Silakan coba lagi.',
             'error_detail' => APP_ENV === 'development' ? $e->getMessage() : null
-        ]);
-        exit();
+        ], 401);
     }
 }
 
@@ -270,12 +263,10 @@ function getFirebaseUid($optional = false) {
 function requireAuth() {
     $uid = getFirebaseUid();
     if (!$uid) {
-        http_response_code(401);
-        echo json_encode([
+        sendResponse([
             'success' => false,
             'message' => 'Unauthorized: Token autentikasi tidak ditemukan atau tidak valid'
-        ]);
-        exit();
+        ], 401);
     }
     return $uid;
 }
@@ -295,7 +286,8 @@ function sendResponse($data, $statusCode = 200) {
         $json = json_encode(['success' => false, 'message' => 'JSON encoding error']);
     }
 
-    // Send response with explicit length header
+    // Set headers for JSON response
+    header('Content-Type: application/json; charset=UTF-8');
     header('Content-Length: ' . strlen($json));
 
     // Output and flush
@@ -331,21 +323,18 @@ function requireAppCheck() {
 
     if (!$appCheckToken) {
         error_log("❌ App Check: Token missing (Production Mode - BLOCKED)");
-        http_response_code(401);
-        echo json_encode([
+        sendResponse([
             'success' => false,
             'message' => 'Unauthorized: App Check token is missing.'
-        ]);
-        exit();
+        ], 401);
     }
 
     try {
         // Verify App Check token using Firebase Admin SDK
         $verifiedToken = $firebaseAppCheck->verifyToken($appCheckToken);
 
-        // Log successful verification
-        $appId = $verifiedToken->claims()->get('app_id');
-        error_log("✅ App Check: Token verified for app: " . $appId);
+        // Token is valid (verifyToken throws exception if invalid)
+        error_log("✅ App Check: Token verified successfully");
         return true;
 
     } catch (\Exception $e) {
@@ -357,12 +346,10 @@ function requireAppCheck() {
 
         // In production, reject invalid tokens
         error_log("❌ App Check verification FAILED (Production Mode - BLOCKED): " . $e->getMessage());
-        http_response_code(401);
-        echo json_encode([
+        sendResponse([
             'success' => false,
             'message' => 'Unauthorized: Invalid App Check token.'
-        ]);
-        exit();
+        ], 401);
     }
 }
 
@@ -495,14 +482,12 @@ function checkRateLimit($identifier, $maxRequests = 100, $windowSeconds = 3600, 
 
         error_log("❌ Rate limit exceeded for $identifier on $action: " . count($data) . "/$maxRequests requests");
 
-        http_response_code(429);
         header('Retry-After: ' . $retryAfter);
-        echo json_encode([
+        sendResponse([
             'success' => false,
             'message' => 'Too many requests. Please try again later.',
             'retry_after' => $retryAfter
-        ]);
-        exit();
+        ], 429);
     }
 
     // Add current request timestamp
@@ -760,11 +745,14 @@ elseif ($routes[0] === 'user' && $routes[1] === 'premium' && $routes[2] === 'sta
      * GET /user/premium/status
      * Check user premium status
      */
+    error_log("DEBUG: Entering /user/premium/status endpoint");
     $uid = requireAuth();
-    
+    error_log("DEBUG: UID after requireAuth: " . ($uid ?? 'NULL'));
+
     $stmt = $pdo->prepare("SELECT premium_expiry FROM users WHERE firebase_uid = ?");
     $stmt->execute([$uid]);
     $user = $stmt->fetch();
+    error_log("DEBUG: User data fetched: " . ($user ? json_encode($user) : 'NULL'));
     
     if (!$user) {
         sendResponse([
@@ -971,34 +959,61 @@ elseif ($routes[0] === 'user' && $routes[1] === 'profile' && $routes[2] === 'pic
      * POST /user/profile/picture
      * Upload profile picture
      */
+    error_log("DEBUG: Entering /user/profile/picture endpoint");
     $uid = requireAuth();
-    
+    error_log("DEBUG: UID: " . ($uid ?? 'NULL'));
+
     if (!isset($_FILES['image'])) {
+        error_log("DEBUG: No image file in request");
         sendResponse(['success' => false, 'message' => 'No image uploaded'], 400);
     }
-    
+
     $file = $_FILES['image'];
+    error_log("DEBUG: File received - name: " . $file['name'] . ", size: " . $file['size'] . ", error: " . $file['error']);
+
+    // Check for upload errors
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        error_log("ERROR: Upload error code: " . $file['error']);
+        $errorMessage = 'Upload failed: ';
+        switch ($file['error']) {
+            case UPLOAD_ERR_INI_SIZE:
+            case UPLOAD_ERR_FORM_SIZE:
+                $errorMessage .= 'File too large';
+                break;
+            case UPLOAD_ERR_NO_FILE:
+                $errorMessage .= 'No file uploaded';
+                break;
+            default:
+                $errorMessage .= 'Unknown error';
+        }
+        sendResponse(['success' => false, 'message' => $errorMessage], 400);
+    }
+
     $uploadDir = __DIR__ . '/uploads/profiles/';
-    
+
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
-    
+
     $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
     $filename = $uid . '_' . time() . '.' . $extension;
     $uploadPath = $uploadDir . $filename;
-    
+
+    error_log("DEBUG: Attempting to upload to: " . $uploadPath);
+
     if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
         $profilePictureUrl = "https://webtechsolution.my.id/kamuskorea/uploads/profiles/$filename";
-        
+
         $stmt = $pdo->prepare("UPDATE users SET profile_picture_url = ?, updated_at = NOW() WHERE firebase_uid = ?");
         $stmt->execute([$profilePictureUrl, $uid]);
-        
+
+        error_log("DEBUG: Upload successful - URL: " . $profilePictureUrl);
         sendResponse([
             'success' => true,
             'profilePictureUrl' => $profilePictureUrl
         ]);
     } else {
+        error_log("ERROR: move_uploaded_file failed");
         sendResponse(['success' => false, 'message' => 'Upload failed'], 500);
     }
 }

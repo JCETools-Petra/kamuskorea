@@ -16,7 +16,9 @@
       "Bash(\"/c/Program Files/Java/jre1.8.0_251/bin/keytool.exe\" -list -v -keystore \"$HOME/.android/debug.keystore\" -storepass android)",
       "Bash(./gradlew signingReport:*)",
       "Bash(./gradlew :app:assembleDebug:*)",
-      "Bash(adb logcat:*)"
+      "Bash(adb logcat:*)",
+      "Bash(echo:*)",
+      "Bash(curl:*)"
     ]
   }
 }
